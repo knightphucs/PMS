@@ -1,0 +1,64 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{3B9CC501-B491-434C-9925-E81111BB342B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PMS.Domain", "src\PMS.Domain\PMS.Domain.csproj", "{4A4B8FCA-CDAF-46D3-8FE8-AFC379EC7902}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PMS.Application", "src\PMS.Application\PMS.Application.csproj", "{F52BF102-8DAA-4EAD-ABE9-6E23CF24180B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PMS.Infrastructure", "src\PMS.Infrastructure\PMS.Infrastructure.csproj", "{3BE91DDF-1042-4495-A7E6-8EDFF3A1430A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PMS.API", "src\PMS.API\PMS.API.csproj", "{29A15DA8-7C18-4111-9446-11F0A661FCE1}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{91C19665-ADEB-4F9A-ADE7-D47C66E0F058}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PMS.UnitTests", "tests\PMS.UnitTests\PMS.UnitTests.csproj", "{9D9B3356-76A9-4C95-BB85-F741475BCC2D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PMS.IntegrationTests", "tests\PMS.IntegrationTests\PMS.IntegrationTests.csproj", "{D1ABB7A1-7DB1-418B-81BC-171BCB0430DA}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4A4B8FCA-CDAF-46D3-8FE8-AFC379EC7902}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4A4B8FCA-CDAF-46D3-8FE8-AFC379EC7902}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4A4B8FCA-CDAF-46D3-8FE8-AFC379EC7902}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4A4B8FCA-CDAF-46D3-8FE8-AFC379EC7902}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F52BF102-8DAA-4EAD-ABE9-6E23CF24180B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F52BF102-8DAA-4EAD-ABE9-6E23CF24180B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F52BF102-8DAA-4EAD-ABE9-6E23CF24180B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F52BF102-8DAA-4EAD-ABE9-6E23CF24180B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3BE91DDF-1042-4495-A7E6-8EDFF3A1430A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3BE91DDF-1042-4495-A7E6-8EDFF3A1430A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3BE91DDF-1042-4495-A7E6-8EDFF3A1430A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3BE91DDF-1042-4495-A7E6-8EDFF3A1430A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{29A15DA8-7C18-4111-9446-11F0A661FCE1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{29A15DA8-7C18-4111-9446-11F0A661FCE1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{29A15DA8-7C18-4111-9446-11F0A661FCE1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{29A15DA8-7C18-4111-9446-11F0A661FCE1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9D9B3356-76A9-4C95-BB85-F741475BCC2D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9D9B3356-76A9-4C95-BB85-F741475BCC2D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9D9B3356-76A9-4C95-BB85-F741475BCC2D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9D9B3356-76A9-4C95-BB85-F741475BCC2D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1ABB7A1-7DB1-418B-81BC-171BCB0430DA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D1ABB7A1-7DB1-418B-81BC-171BCB0430DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1ABB7A1-7DB1-418B-81BC-171BCB0430DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D1ABB7A1-7DB1-418B-81BC-171BCB0430DA}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{4A4B8FCA-CDAF-46D3-8FE8-AFC379EC7902} = {3B9CC501-B491-434C-9925-E81111BB342B}
+		{F52BF102-8DAA-4EAD-ABE9-6E23CF24180B} = {3B9CC501-B491-434C-9925-E81111BB342B}
+		{3BE91DDF-1042-4495-A7E6-8EDFF3A1430A} = {3B9CC501-B491-434C-9925-E81111BB342B}
+		{29A15DA8-7C18-4111-9446-11F0A661FCE1} = {3B9CC501-B491-434C-9925-E81111BB342B}
+		{9D9B3356-76A9-4C95-BB85-F741475BCC2D} = {91C19665-ADEB-4F9A-ADE7-D47C66E0F058}
+		{D1ABB7A1-7DB1-418B-81BC-171BCB0430DA} = {91C19665-ADEB-4F9A-ADE7-D47C66E0F058}
+	EndGlobalSection
+EndGlobal
