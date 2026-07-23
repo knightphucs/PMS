@@ -100,8 +100,8 @@ ProjectManagementSystem/
 │   └── types/                   # TypeScript types (khớp với DTO backend)
 ├── docs/
 │   ├── uml/                     # Class diagram, Use case, Sequence diagram
-│   └── erd/
-├── ARCHITECTURE.md              # File này
+│   ├──  erd/
+│   └── ARCHITECTURE.md
 └── README.md
 ```
 
