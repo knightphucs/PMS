@@ -49,8 +49,8 @@ public class PmsDbContext : DbContext
     {
         foreach (var entry in ChangeTracker.Entries<ISoftDeletable>())
         {
-            if (entry.State == EntityState.Deleted) continue;
-            
+            if (entry.State != EntityState.Deleted) continue;
+
             entry.State = EntityState.Modified;
             entry.Entity.IsDeleted = true;
             entry.Entity.DeletedAt = DateTime.UtcNow;
