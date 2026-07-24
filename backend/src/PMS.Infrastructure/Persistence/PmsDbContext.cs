@@ -45,17 +45,28 @@ public class PmsDbContext : DbContext
         }
     }
 
-    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    // 2. PmsDbContext.cs — thay method SaveChangesAsync hiện tại
+private void ApplySoftDelete()
+{
+    foreach (var entry in ChangeTracker.Entries<ISoftDeletable>())
     {
-        foreach (var entry in ChangeTracker.Entries<ISoftDeletable>())
-        {
-            if (entry.State != EntityState.Deleted) continue;
+        if (entry.State != EntityState.Deleted) continue;
+        entry.State = EntityState.Modified;
+        entry.Entity.IsDeleted = true;
+        entry.Entity.DeletedAt = DateTime.UtcNow;
+    }
+}
 
-            entry.State = EntityState.Modified;
-            entry.Entity.IsDeleted = true;
-            entry.Entity.DeletedAt = DateTime.UtcNow;
-        }
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ApplySoftDelete();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
 
-        return base.SaveChangesAsync(cancellationToken);
+    public override Task<int> SaveChangesAsync(
+        bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        ApplySoftDelete();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 }
