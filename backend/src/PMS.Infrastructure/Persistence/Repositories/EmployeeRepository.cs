@@ -9,8 +9,8 @@ public class EmployeeRepository : Repository<Employee>, IEmployeeRepository
     public EmployeeRepository(PmsDbContext context) : base(context) {}
     public async Task<bool> EmailExistsAsync(string email, CancellationToken ct = default)
     {
-        var normalized = email.Trim().ToLowerInvariant();
-        return await DbSet.AnyAsync(e => e.Email.ToLower() == normalized, ct);
+        var normalized = email.Trim();
+        return await DbSet.AnyAsync(e => e.Email == normalized, ct);
     }
 
     public async Task<Employee?> GetByEmailAsync(string email, CancellationToken ct = default)
