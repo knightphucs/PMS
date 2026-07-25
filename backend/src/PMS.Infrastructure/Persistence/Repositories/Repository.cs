@@ -30,4 +30,6 @@ public class Repository<T> : IRepository<T> where T : BaseEntity
     public virtual void Update(T entity) => DbSet.Update(entity);
 
     public virtual void Remove(T entity) => DbSet.Remove(entity);
+
+    public virtual void Add(T entity) => DbSet.Add(entity);
 }

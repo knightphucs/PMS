@@ -5,6 +5,7 @@ public interface IUnitOfWork
     IProjectRepository Projects { get; }
     ITaskRepository Tasks { get; }
     IEmployeeRepository Employees { get; }
+    IRefreshTokenRepository RefreshTokens { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 

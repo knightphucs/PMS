@@ -1,0 +1,25 @@
+$kind: http-request
+name: Login
+url: "{{api_url}}/Auth/login"
+method: POST
+body:
+  type: json
+  content: |-
+    {
+        "email": "phucgia3103@gmail.com",
+        "password": "Phuc@123"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      const response = pm.response.json();
+
+      if (pm.response.code === 200 && response.accessToken && response.refreshToken) {
+          pm.environment.set("access_token", response.accessToken);
+          pm.environment.set("refresh_token", response.refreshToken);
+          console.log("Token saved.");
+      } else {
+          console.log("No token found.");
+      }
+    language: text/javascript
+order: 1231067486164385
