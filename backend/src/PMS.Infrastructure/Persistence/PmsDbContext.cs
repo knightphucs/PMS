@@ -21,6 +21,7 @@ public class PmsDbContext : DbContext
     public DbSet<Comment> Comments => Set<Comment>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

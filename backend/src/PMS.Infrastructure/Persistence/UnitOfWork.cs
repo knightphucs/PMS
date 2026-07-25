@@ -11,12 +11,14 @@ public class UnitOfWork : IUnitOfWork
     private IProjectRepository? _projects;
     private ITaskRepository? _tasks;
     private IEmployeeRepository? _employees;
+    private IRefreshTokenRepository ? _refreshTokens;
 
     public UnitOfWork(PmsDbContext context) => _context = context;
 
     public IProjectRepository Projects  => _projects  ??= new ProjectRepository(_context);
     public ITaskRepository Tasks        => _tasks     ??= new TaskRepository(_context);
     public IEmployeeRepository Employees => _employees ??= new EmployeeRepository(_context);
+    public IRefreshTokenRepository RefreshTokens => _refreshTokens ??= new RefreshTokenRepository(_context);
 
     public Task<int> SaveChangesAsync(CancellationToken ct = default)
         => _context.SaveChangesAsync(ct);
