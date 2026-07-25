@@ -317,9 +317,10 @@ class `PagedRequest`/`PagedResult<T>` generic.
 
 ### Global Exception Handling
 Dùng Middleware tập trung (`ExceptionHandlingMiddleware`) bắt mọi exception chưa
-xử lý, trả về format lỗi thống nhất, không lộ stack trace ra ngoài:
+xử lý, trả về format lỗi theo chuẩn `ProblemDetails` (RFC 7807) — không tự chế format
+riêng để Swagger/client hiểu sẵn:
 ```json
-{ "statusCode": 400, "message": "...", "traceId": "..." }
+{ "title": "...", "status": 400, "traceId": "..." }
 ```
 
 ### API Versioning
@@ -455,8 +456,8 @@ project khác nhau):
 1. Use Case Diagram → Class Diagram/ERD
 2. Setup project structure (.NET solution theo layer)
 3. Code Domain (Entity, Enum)
-4. Code từng module theo nhóm function: Project → Task → Employee → Thống kê
-5. Thêm Authentication/Authorization
+4. Authentication/Authorization (đổi lên trước — xem ADR §15, 2026-07-25)
+5. Code từng module theo nhóm function: Project → Task → Employee → Thống kê
 6. Viết Unit Test
 7. Containerize (Docker) + CI/CD (tùy chọn)
 8. Viết báo cáo song song từng giai đoạn
@@ -519,6 +520,10 @@ còn đủ thời gian trước deadline báo cáo.
 | [điền ngày] | Định nghĩa 3 môi trường Dev/Staging/Production qua `ASPNETCORE_ENVIRONMENT` | Tách cấu hình rõ ràng, tránh lẫn lộn dữ liệu test và thật |
 | [điền ngày] | Subtask không tự động đóng Task cha khi tất cả subtask `Done`; chỉ hiển thị progress bar (%) | Giữ đúng hành vi mặc định của Jira thật — Task cha có thể còn việc ngoài các subtask đã liệt kê |
 | [điền ngày] | Subtask là 1 Task đầy đủ (Status, Assignee, Comment, Watcher, TaskLink riêng), không phải checklist item; giới hạn chỉ 1 cấp cha–con | Task/Subtask dùng chung class, đúng nguyên lý OOP tái sử dụng; tránh phức tạp hóa với đệ quy vô hạn |
+| 2026-07-25 | Làm Auth trước Project (đổi thứ tự §13) | Mọi service cần `ICurrentUserService`; làm Auth trước tránh viết code với user giả rồi sửa lại |
+| 2026-07-25 | Refresh token lưu DB, hash SHA-256, rotation + reuse detection | Cho phép thu hồi thật (logout/nghi bị lộ) — JWT thuần không làm được. Theo RFC 9700 |
+| 2026-07-25 | `RoleInProject` KHÔNG nhét vào JWT, chỉ `SystemRole` | Quyền theo project đổi liên tục; nhét vào token thì thu hồi không kịp thời |
+| 2026-07-25 | Lỗi trả theo `ProblemDetails` (RFC 7807), khác format tự chế ở §7 | Chuẩn công nghiệp, Swagger/client hiểu sẵn |
 | | | |
 
 > 📌 Cập nhật bảng này mỗi khi có quyết định kiến trúc mới hoặc thay đổi — đây sẽ là

@@ -17,6 +17,7 @@ public class Employee : BaseEntity
     public ICollection<Comment> Comments { get; set; } = [];
     public ICollection<Notification> Notifications { get; set; } = [];
     public ICollection<ActivityLog> ActivityLogs { get; set; } = [];
+    public ICollection<RefreshToken> RefreshTokens { get; set; } = [];
     
     public bool IsSystemAdmin => SystemRole == SystemRole.SystemAdmin;
 }

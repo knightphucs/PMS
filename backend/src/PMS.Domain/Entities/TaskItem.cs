@@ -3,7 +3,7 @@ using PMS.Domain.Enums;
 
 namespace PMS.Domain.Entities;
 
-public class TaskItem : BaseEntity
+public class TaskItem : BaseEntity, ISoftDeletable
 {
     public string Name { get; set; } = string.Empty;
     public DateTime? DueDate { get; set; }

@@ -9,6 +9,7 @@ public interface IRepository<T> where T : BaseEntity
     Task<bool> ExistsAsync(Guid id, CancellationToken ct = default);
 
     Task AddAsync(T entity, CancellationToken ct = default);
+    void Add(T entity);
     void Update(T entity);
     void Remove(T entity);
 }
