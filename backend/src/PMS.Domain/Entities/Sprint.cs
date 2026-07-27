@@ -2,7 +2,7 @@ using PMS.Domain.Common;
 
 namespace PMS.Domain.Entities;
 
-public class Sprint : BaseEntity
+public class Sprint : BaseEntity, ISoftDeletable
 {
     public string Name { get; set; } = string.Empty;
     public string Goal { get; set; } = string.Empty;
@@ -11,6 +11,8 @@ public class Sprint : BaseEntity
 
     public Guid ProjectId { get; set; }
     public Project Project { get; set; } = null!;
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAt { get; set; }
 
     public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
 
