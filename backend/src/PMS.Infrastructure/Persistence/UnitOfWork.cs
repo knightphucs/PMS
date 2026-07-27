@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using PMS.Application.Common.Interfaces;
+using PMS.Domain.Entities;
 using PMS.Infrastructure.Persistence.Repositories;
 
 namespace PMS.Infrastructure.Persistence;
@@ -12,6 +13,7 @@ public class UnitOfWork : IUnitOfWork
     private ITaskRepository? _tasks;
     private IEmployeeRepository? _employees;
     private IRefreshTokenRepository ? _refreshTokens;
+    private IRepository<Sprint>? _sprints;
 
     public UnitOfWork(PmsDbContext context) => _context = context;
 
@@ -19,6 +21,7 @@ public class UnitOfWork : IUnitOfWork
     public ITaskRepository Tasks        => _tasks     ??= new TaskRepository(_context);
     public IEmployeeRepository Employees => _employees ??= new EmployeeRepository(_context);
     public IRefreshTokenRepository RefreshTokens => _refreshTokens ??= new RefreshTokenRepository(_context);
+    public IRepository<Sprint> Sprints => _sprints ??= new Repository<Sprint>(_context);
 
     public Task<int> SaveChangesAsync(CancellationToken ct = default)
         => _context.SaveChangesAsync(ct);

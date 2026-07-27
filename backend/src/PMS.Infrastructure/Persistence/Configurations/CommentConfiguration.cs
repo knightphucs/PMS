@@ -24,5 +24,7 @@ public class CommentConfiguration : IEntityTypeConfiguration<Comment>
                .WithMany(c => c.Comments)
                .HasForeignKey(c => c.EmployeeId)
                .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasQueryFilter(c => !c.Task.IsDeleted);
     }
 }
