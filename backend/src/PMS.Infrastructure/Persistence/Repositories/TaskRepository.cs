@@ -105,4 +105,11 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
                      && t.Status != Status.Done)
             .ToListAsync(ct);
     }
+
+    public async Task<int> CountActiveAssignedAsync(Guid projectId, Guid employeeId, CancellationToken ct = default)
+        => await DbSet.CountAsync(
+            t => t.ProjectId == projectId
+            && t.Status != Status.Done
+            && t.Assignments.Any(a => a.EmployeeId == employeeId), ct
+        );
 }
