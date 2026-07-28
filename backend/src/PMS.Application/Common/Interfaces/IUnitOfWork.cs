@@ -1,3 +1,5 @@
+using PMS.Domain.Entities;
+
 namespace PMS.Application.Common.Interfaces;
 
 public interface IUnitOfWork
@@ -6,6 +8,7 @@ public interface IUnitOfWork
     ITaskRepository Tasks { get; }
     IEmployeeRepository Employees { get; }
     IRefreshTokenRepository RefreshTokens { get; }
+    IRepository<Sprint> Sprints { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 

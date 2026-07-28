@@ -40,7 +40,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ClockSkew = TimeSpan.FromSeconds(30)
         };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("CanCreateProject", policy => policy.RequireAuthenticatedUser());
+});
     
 builder.Services.AddRateLimiter(options =>
 {

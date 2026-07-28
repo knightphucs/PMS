@@ -1,10 +1,14 @@
 // tests/PMS.IntegrationTests/Infrastructure/PmsWebApplicationFactory.cs
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using PMS.Infrastructure.Persistence;
 
 namespace PMS.IntegrationTests.Infrastructure;
@@ -14,6 +18,9 @@ public class PmsWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
     private const string TestConnection =
         "Server=localhost,1433;Database=PmsTestDb;User Id=sa;Password=Pms@Local2026;" +
         "TrustServerCertificate=True;Encrypt=False";
+    private const string TestJwtSecret = "NGVrjVqNmpdKAoDyYxP4CkKQxptJKlkK";
+    private const string TestJwtIssuer = "PMS.Test";
+    private const string TestJwtAudience = "PMS.Test";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -23,9 +30,9 @@ public class PmsWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = TestConnection,
-                ["Jwt:Secret"]         = "NGVrjVqNmpdKAoDyYxP4CkKQxptJKlkK",
-                ["Jwt:Issuer"]         = "PMS.Test",
-                ["Jwt:Audience"]       = "PMS.Test",
+                ["Jwt:Secret"]         = TestJwtSecret,
+                ["Jwt:Issuer"]         = TestJwtIssuer,
+                ["Jwt:Audience"]       = TestJwtAudience,
                 ["Jwt:AccessTokenMinutes"]  = "15",
                 ["Jwt:RefreshTokenDays"]    = "7"
             }));
@@ -38,6 +45,21 @@ public class PmsWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
             services.AddDbContext<PmsDbContext>(options =>
                 options.UseSqlServer(TestConnection, sql =>
                     sql.MigrationsAssembly(typeof(PmsDbContext).Assembly.FullName)));
+
+            services.RemoveAll<IConfigureOptions<JwtBearerOptions>>();
+            services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+            {
+                options.MapInboundClaims = false;
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true, ValidIssuer = TestJwtIssuer,
+                    ValidateAudience = true, ValidAudience = TestJwtAudience,
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(TestJwtSecret)),
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.FromSeconds(30)
+                };
+            });
         });
     }
 
