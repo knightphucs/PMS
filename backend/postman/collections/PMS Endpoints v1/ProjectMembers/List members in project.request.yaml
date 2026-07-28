@@ -1,10 +1,10 @@
 $kind: http-request
-name: Delete project
-url: "{{api_url}}/projects/:id"
-method: DELETE
+url: "{{api_url}}/projects/:id/members"
+method: GET
 pathVariables:
   - key: id
-    value: d702eef4-5e71-4c05-a024-4d1a932652d6
+    value: ""
+    description: ""
     $type: |-
       {
         "type": "object",
@@ -22,4 +22,4 @@ auth:
   type: bearer
   credentials:
     token: "{{access_token}}"
-order: 3719754590006927
+order: 1785224080259

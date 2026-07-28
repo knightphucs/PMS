@@ -1,10 +1,11 @@
 $kind: http-request
-name: Delete project
-url: "{{api_url}}/projects/:id"
-method: DELETE
+name: Invite a member to project
+url: "{{api_url}}/projects/:id/members"
+method: POST
 pathVariables:
   - key: id
-    value: d702eef4-5e71-4c05-a024-4d1a932652d6
+    value: 11672738-8F03-49EE-BB86-6A8DB9BA7092
+    description: ""
     $type: |-
       {
         "type": "object",
@@ -18,8 +19,15 @@ pathVariables:
           "value"
         ]
       }
+body:
+  type: json
+  content: |-
+    {
+        "email": "hth@pms.local",
+        "role": 1
+    }
 auth:
   type: bearer
   credentials:
     token: "{{access_token}}"
-order: 3719754590006927
+order: 2952843897938873

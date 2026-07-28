@@ -1,6 +1,6 @@
 $kind: http-request
 name: Refresh
-url: "{{api_url}}/Auth/refresh"
+url: "{{api_url}}/auth/refresh"
 method: POST
 body:
   type: json

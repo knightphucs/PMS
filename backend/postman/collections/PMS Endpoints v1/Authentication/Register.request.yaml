@@ -1,6 +1,6 @@
 $kind: http-request
 name: Register
-url: "{{api_url}}/Auth/register"
+url: "{{api_url}}/auth/register"
 method: POST
 body:
   type: json
