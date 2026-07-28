@@ -40,10 +40,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ClockSkew = TimeSpan.FromSeconds(30)
         };
     });
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("CanCreateProject", policy => policy.RequireAuthenticatedUser());
-});
+
+builder.Services.AddOptions<JwtOptions>()
+    .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
+    .Validate(o => o.Secret.Length >= 32,
+        "Jwt:Secret phải có tối thiểu 32 ký tự (HMAC-SHA256). "
+      + "Local dev: dotnet user-secrets set \"Jwt:Secret\" \"...\"")
+    .Validate(o => o.AccessTokenMinutes is > 0 and <= 60,
+        "Jwt:AccessTokenMinutes phải trong khoảng 1–60.")
+    .ValidateOnStart();
+
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("CanCreateProject", policy => policy.RequireAuthenticatedUser());
     
 builder.Services.AddRateLimiter(options =>
 {
