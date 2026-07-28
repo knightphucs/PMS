@@ -1,9 +1,10 @@
 $kind: http-request
+name: Remove member out of a project
 url: "{{api_url}}/projects/:id/members/:employeeId"
 method: DELETE
 pathVariables:
   - key: id
-    value: ""
+    value: 11672738-8F03-49EE-BB86-6A8DB9BA7092
     description: ""
     $type: |-
       {
@@ -19,7 +20,7 @@ pathVariables:
         ]
       }
   - key: employeeId
-    value: ""
+    value: 989d60ad-5b8c-40d8-89fb-ec08dc156122
     description: ""
     $type: |-
       {
