@@ -33,6 +33,7 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | Domain layer (Entity, Enum) | ✅ | Toàn bộ entity ở §5 đã có trong `PMS.Domain` |
 | Auth (Register/Login/Refresh/Logout) | ✅ | Chi tiết xem bảng ở §10 — 2 mục con (Reset Password, khóa/mở tài khoản) vẫn ⬜ |
 | Project (CRUD + phân quyền 2 tầng + soft delete) | ✅ | Có Unit + Integration Test |
+| Project — quản lý thành viên (mời/accept/decline/đổi role/gỡ) | ⬜ | Domain đã có invariant, chưa có Service/Controller |
 | Sprint | ⬜ | Chỉ có entity + migration, chưa có `SprintService`/Controller |
 | Task (kể cả Subtask, Workflow Transition Rules) | ⬜ | Chưa có `TaskService`/Controller — chưa bắt đầu |
 | Comment / Activity Log / Notification | ⬜ | Chỉ có entity, chưa có Service/Controller |
@@ -154,8 +155,8 @@ ProjectManagementSystem/
 
 ### Entity phân quyền (Role 2 tầng) ✅ *(đã hoạt động thật cho Project, có test)*
 - **`ProjectMember`** *(bảng trung gian Employee–Project, thay cho quan hệ N–N đơn thuần)*:
-  `EmployeeId`, `ProjectId`, `RoleInProject` (`ProjectManager` / `Member` / `Viewer`),
-  `JoinedDate`, `InvitationStatus` (`Pending` / `Accepted` / `Declined`)
+  `EmployeeId`, `ProjectId`, `RoleInProject`, `JoinedDate` *(nullable — chỉ set khi Accept)*,
+  `InvitationStatus` (`Pending` / `Accepted` / `Declined`)
   → Đây là nơi quyết định 1 người làm PM ở project này nhưng chỉ là Member ở project khác.
 
   **Luồng mời nhân sự vào Project:**
@@ -342,6 +343,12 @@ riêng để Swagger/client hiểu sẵn:
 ```json
 { "title": "...", "status": 400, "traceId": "..." }
 ```
+### Audit Fields ✅
+`BaseEntity` mang `CreatedAt` (bắt buộc) và `UpdatedAt` (nullable), được đóng dấu tập
+trung trong `PmsDbContext.ApplyAuditFields()`, gọi SAU `ApplySoftDelete()` để bản ghi
+xóa mềm (đã bị đổi state `Deleted → Modified`) vẫn nhận được `UpdatedAt`.
+Trước đây mỗi entity tự khai báo `CreatedAt` rời rạc (`Notification`, `Comment`,
+`RefreshToken`) và `ActivityLog` dùng tên `Timestamp` — nay gom về một chỗ.
 
 ### API Versioning ✅
 Route đã theo chuẩn `/api/v1/...` ngay từ đầu — tránh phải đổi route sau này nếu API
@@ -360,18 +367,22 @@ nếu không mọi request từ browser sẽ bị chặn bởi same-origin polic
 - **Production**: biến môi trường (Environment Variables) hoặc Azure Key Vault/AWS
   Secrets Manager nếu deploy cloud
 - File `appsettings.json` chỉ chứa placeholder/giá trị non-sensitive
+- **Fail fast**: `JwtOptions` validate bằng `AddOptions<T>().Validate(...).ValidateOnStart()`
+  — thiếu `Jwt:Secret` thì app chết ngay lúc khởi động với thông báo rõ ràng, thay vì chết
+  ở request đầu tiên bằng lỗi `IDX10703` không gợi ý nguyên nhân.
 
 ### Health Check ⬜ *(chưa code — chưa có `AddHealthChecks`/`MapHealthChecks` trong `Program.cs`)*
 Endpoint `/health` (dùng `Microsoft.Extensions.Diagnostics.HealthChecks`) kiểm tra
 API còn sống và kết nối database còn ổn — cần thiết khi có Docker/CI-CD hoặc load
 balancer để biết khi nào restart instance.
 
-### Chiến lược môi trường (Environment Strategy) ⬜ *(mới có nhánh rẽ Dev/không-Dev qua `IsDevelopment()`, chưa có `appsettings.Staging.json` hay cấu hình riêng cho Staging)*
+### Chiến lược môi trường (Environment Strategy) ✅
+
 | Môi trường | Mục đích | Khác biệt cấu hình |
 |---|---|---|
-| `Development` | Code & test local | Swagger bật, log chi tiết (Debug), seed data đầy đủ, HTTPS không bắt buộc redirect gắt |
-| `Staging` *(tùy chọn)* | Test trước khi release | Giống Production nhưng dùng database riêng, dữ liệu giả |
-| `Production` | Chạy thật/demo báo cáo | Swagger tắt hoặc giới hạn, log mức Warning/Error, HTTPS bắt buộc, secrets qua biến môi trường |
+| `Development` | Code & test local | Swagger bật, log EF Core mức Information, seed data, secrets qua user-secrets |
+| `Testing` | Integration Test | Config nạp từ `AddInMemoryCollection` trong `PmsWebApplicationFactory`, DB riêng `PmsTestDb` — không dùng file `appsettings` |
+| `Production` | Chạy thật/demo báo cáo | Swagger tắt, log Warning/Error, HTTPS bắt buộc, secrets qua biến môi trường |
 
 Dùng `ASPNETCORE_ENVIRONMENT` để switch giữa các file `appsettings.{Environment}.json`.
 
@@ -476,7 +487,7 @@ project khác nhau):
 | Use Case Diagram | Tổng quan chức năng theo actor (SystemAdmin, ProjectManager, Member, Viewer) | Done |
 | Class Diagram | Chi tiết entity, thuộc tính, quan hệ, OOP | Done |
 | ERD | Thiết kế database quan hệ | Done |
-| Sequence Diagram | Luồng: Tạo task, Gán nhân sự, Hoàn thành task, Gửi Notification khi gán task | 3/4: đã có Tạo task, Gán nhân sự, Đổi status (`seq-01/02/03`) — chưa tách riêng luồng Notification |
+| Sequence Diagram | Tạo task, Gán nhân sự, Đổi status, Mời thành viên, Phản hồi lời mời | 5/5: `seq-01/02/03` (task) + `seq-04` (mời) + `seq-05` (accept/decline). Luồng Notification không tách riêng — đã thể hiện trong seq-04/05 |
 
 ---
 
@@ -565,6 +576,11 @@ còn đủ thời gian trước deadline báo cáo.
 | 2026-07-27 | **(ADR-008)** Soft delete Project: chặn 409 nếu còn task chưa `Done`, cascade tường minh xuống Task/Sprint trong cùng 1 `SaveChangesAsync` | Global Query Filter không tự lan qua quan hệ; cascade EF ngầm không kích hoạt vì entity đổi state `Deleted→Modified` — chi tiết bên dưới |
 | 2026-07-27 | **(ADR-009)** Test dùng Shouldly + NSubstitute, không dùng FluentAssertions/Moq | FluentAssertions v8+ thương mại; Moq 4.20.0 từng nhúng SponsorLink thu thập email developer — chi tiết bên dưới |
 | 2026-07-27 | **(ADR-010)** Integration test chạy trên SQL Server thật (`PmsTestDb`), không dùng EF InMemory/SQLite/Testcontainers | InMemory/SQLite không phản ánh đúng FK, Query Filter, dialect thật; Testcontainers chậm do emulation trên Apple Silicon — chi tiết bên dưới |
+| 2026-07-28 | **(ADR-011)** Thêm `DomainException` riêng cho tầng Domain, middleware map thành 409 | Domain không được phụ thuộc Application; lỗi nghiệp vụ hợp lệ không được trả 500 — chi tiết bên dưới |
+| 2026-07-28 | **(ADR-012)** Vòng đời lời mời và invariant thành viên đặt trong aggregate `Project` | Đảm bảo luôn có ≥1 PM Accepted, không mời trùng; DB unique index là chốt chặn cuối — chi tiết bên dưới |
+| 2026-07-28 | **(ADR-013)** ActivityLog ghi tường minh qua `IActivityLogger`, không dùng EF Interceptor | Interceptor chỉ thấy cột đổi, không biết ý nghĩa nghiệp vụ; log chung transaction với thay đổi nghiệp vụ — chi tiết bên dưới |
+| 2026-07-28 | **(ADR-014)** Gom audit fields vào `BaseEntity` | Chuẩn hóa `CreatedAt`/`UpdatedAt`, tránh property hiding và giữ dữ liệu log bằng migration `RenameColumn` — chi tiết bên dưới |
+
 | | | |
 
 ### Chi tiết ADR-006 → ADR-010
@@ -632,6 +648,10 @@ filter đều lọc theo `is ISoftDeletable` nên bỏ qua `Sprint` → sprint b
 project thay vì xóa mềm. Đã bổ sung `SoftDeletableContractTests` (unit test) để chặn lớp lỗi
 này ngay từ tầng thấp nhất, không phải đợi tới integration test mới phát hiện.
 
+**Đính chính (2026-07-28):** ADR-008 từng ghi `Project.SoftDelete()` đã bị xóa, nhưng method
+vẫn còn trong `Project.cs` tới 2026-07-28 — tài liệu đi trước code. Nay đã xóa thật. Bài học:
+khi ADR mô tả một thay đổi code, phải verify lại repo trước khi đánh dấu hoàn thành.
+
 #### ADR-009 (2026-07-27) — Chọn thư viện Assertion & Mocking cho test
 **Assertion: Shouldly.** Đã chốt từ đầu — `FluentAssertions` từ v8+ (2025) chuyển sang
 thương mại (Xceed). Giữ nguyên lựa chọn.
@@ -675,6 +695,54 @@ Bốn phương án, và tại sao ba cái bị loại:
 - **✅ SQL Server thật, database riêng `PmsTestDb`.** Dùng lại container OrbStack đang có
   sẵn cho dev, không thêm hạ tầng gì. Fidelity 100%, test được migration thật
   (`MigrateAsync()`), và mốc `DeletedAt` so sánh được chính xác vì cùng kiểu `datetime2`.
+
+#### ADR-011 (2026-07-28) — `DomainException` riêng cho tầng Domain
+**Bối cảnh:** `TaskItem.ChangeStatus` ném `InvalidOperationException`; middleware chỉ map
+`AppException`, nên lỗi nghiệp vụ hợp lệ trả về **500**.
+
+**Quyết định:** Thêm `DomainException` trong `PMS.Domain/Common`; middleware map exception
+này thành **409 Conflict**.
+
+**Lý do:** `PMS.Domain` không được tham chiếu `PMS.Application` (dependency đi vào trong),
+nên không tái dùng được `AppException`. Khối `catch (DomainException)` phải đặt **trước**
+`catch (Exception)`, vì C# khớp theo thứ tự khai báo.
+
+#### ADR-012 (2026-07-28) — Vòng đời lời mời & invariant thành viên
+**Quyết định:** Lời mời đi theo `Pending → Accepted/Declined`; thành viên `Declined` có thể
+được mời lại bằng cách reset row cũ, vì unique index là `(ProjectId, EmployeeId)`. "Gỡ" là
+**xóa cứng** row, không thêm status `Removed`. Invariant nằm trong aggregate root `Project`:
+luôn còn ≥1 `ProjectManager` Accepted và không mời trùng. `JoinedDate` nullable, chỉ set lúc
+`Accept()`.
+
+**Lý do không thêm `Removed`:** Mọi query membership sẽ phải nhớ lọc thêm một điều kiện —
+đúng loại lỗi mà thiếu `ISoftDeletable` từng gây ra. Audit trail do `ActivityLog` đảm nhiệm.
+
+**Giới hạn đã biết:** Invariant ở domain chỉ đúng khi repository nạp đủ `Members` bằng
+`Include`. Chốt chặn cuối vẫn là unique index ở tầng database.
+
+#### ADR-013 (2026-07-28) — ActivityLog ghi tường minh, không dùng EF Interceptor
+**Quyết định:** Service gọi trực tiếp `IActivityLogger`; logger chỉ `Add` vào `ChangeTracker`,
+không tự gọi `SaveChanges`. `ActivityLog.Action` đổi từ `string` sang enum `ActivityAction`
+với `HasConversion<string>()`, nên schema không đổi.
+
+**Lý do:** Interceptor chỉ thấy cột thay đổi, không hiểu ý nghĩa nghiệp vụ — không phân biệt
+được "người được mời chấp nhận" với "PM sửa nhầm". Không tự `SaveChanges` để log và thay đổi
+nghiệp vụ ở chung một transaction, nhất quán ADR-007.
+
+**Rủi ro chấp nhận:** Có thể quên gọi logger; mỗi action phải có integration test khẳng định
+số dòng `ActivityLogs` tăng đúng.
+
+#### ADR-014 (2026-07-28) — Audit fields gom về `BaseEntity`
+**Quyết định:** Đưa `CreatedAt`/`UpdatedAt` lên `BaseEntity`, đóng dấu tại
+`ApplyAuditFields()` sau `ApplySoftDelete()`. Bỏ `CreatedAt` khai báo lẻ ở các entity con và
+`ActivityLog.Timestamp`.
+
+**Lý do:** Trước đó `Project`/`TaskItem` không biết thời điểm được tạo, còn các entity khác
+mỗi nơi một kiểu. Khai báo trùng tên với property của lớp cha còn gây *property hiding*
+(`CS0108`).
+
+**Ghi chú migration:** `Timestamp → CreatedAt` phải sửa tay thành `RenameColumn`; EF mặc
+định sinh `DropColumn` + `AddColumn`, tức mất dữ liệu log cũ.
 
 > 📌 Cập nhật bảng này mỗi khi có quyết định kiến trúc mới hoặc thay đổi — đây sẽ là
 > phần rất hữu ích khi viết chương "Phân tích thiết kế" trong báo cáo tốt nghiệp.
