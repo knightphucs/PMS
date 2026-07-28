@@ -21,5 +21,7 @@ public class WatcherConfiguration : IEntityTypeConfiguration<Watcher>
                .WithMany(e => e.Watching)
                .HasForeignKey(w => w.EmployeeId)
                .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasQueryFilter(w => !w.Task.IsDeleted);
     }
 }

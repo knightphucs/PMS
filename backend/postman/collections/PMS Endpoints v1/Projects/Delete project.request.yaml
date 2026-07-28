@@ -1,0 +1,26 @@
+$kind: http-request
+name: Delete project
+url: "{{api_url}}/Projects/:id"
+method: DELETE
+pathVariables:
+  - key: id
+    value: d702eef4-5e71-4c05-a024-4d1a932652d6
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 3719754590006927

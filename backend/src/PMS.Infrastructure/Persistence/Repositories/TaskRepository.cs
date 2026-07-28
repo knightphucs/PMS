@@ -55,7 +55,13 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
         };
 
         var items = await query.Skip(request.Skip).Take(request.PageSize).ToListAsync(ct);
-        return new PagedResult<TaskItem>(items, totalCount, request);
+        return new PagedResult<TaskItem>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = request.Page,
+            PageSize = request.PageSize
+        };
     }
 
     public async Task<IReadOnlyList<TaskItem>> GetBacklogAsync(

@@ -24,5 +24,7 @@ public class TaskLinkConfiguration : IEntityTypeConfiguration<TaskLink>
                .WithMany(t => t.IncomingLinks)
                .HasForeignKey(tl => tl.TargetTaskId)
                .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasQueryFilter(tl => !tl.SourceTask.IsDeleted && !tl.TargetTask.IsDeleted);
     }
 }

@@ -13,8 +13,10 @@ public class SprintConfiguration : IEntityTypeConfiguration<Sprint>
 
         builder.Property(s => s.Name).IsRequired().HasMaxLength(200);
         builder.Property(s => s.Goal).HasMaxLength(500);
+        builder.Property(s => s.IsDeleted).HasDefaultValue(false);
 
         builder.HasIndex(s => s.ProjectId);
+        builder.HasIndex(s => s.IsDeleted);
 
         // Restrict: nếu SetNull sẽ tạo 2 đường cascade từ Projects tới Tasks
         // (trực tiếp + qua Sprints) -> SQL Server lỗi 1785.
@@ -23,5 +25,7 @@ public class SprintConfiguration : IEntityTypeConfiguration<Sprint>
                .WithOne(t => t.Sprint)
                .HasForeignKey(t => t.SprintId)
                .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasQueryFilter(s => !s.Project.IsDeleted);
     }
 }

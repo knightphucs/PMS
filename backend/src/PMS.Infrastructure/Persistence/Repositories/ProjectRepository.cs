@@ -16,13 +16,6 @@ public class ProjectRepository : Repository<Project>, IProjectRepository
                 .ThenInclude(m => m.Employee)
             .FirstOrDefaultAsync(p => p.Id == id, ct);
 
-    public async Task<bool> IsActiveMemberAsync(
-        Guid projectId, Guid employeeId, CancellationToken ct = default)
-        => await Context.ProjectMembers
-            .AnyAsync(m => m.ProjectId == projectId
-                        && m.EmployeeId == employeeId
-                        && m.InvitationStatus == InvitationStatus.Accepted, ct);
-
     public async Task<PagedResult<Project>> GetPagedForEmployeeAsync(
         Guid employeeId, PagedRequest request, CancellationToken ct = default)
     {
@@ -55,6 +48,27 @@ public class ProjectRepository : Repository<Project>, IProjectRepository
             .Take(request.PageSize)
             .ToListAsync(ct);
 
-        return new PagedResult<Project>(items, totalCount, request);
+        return new PagedResult<Project>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = request.Page,
+            PageSize = request.PageSize
+        };
     }
+
+    public async Task<RoleInProject?> GetRoleInProjectAsync(Guid projectId, Guid employeeId, CancellationToken ct = default)
+        => await DbSet
+            .Where(p => p.Id == projectId)
+            .SelectMany(p => p.Members)
+            .Where(m => m.EmployeeId == employeeId && m.InvitationStatus == InvitationStatus.Accepted)
+            .Select(m => (RoleInProject?)m.RoleInProject)
+            .FirstOrDefaultAsync(ct);
+
+    public async Task<Project?> GetForDeletionAsync(Guid id, CancellationToken ct = default)
+        => await DbSet
+            .Include(p => p.Tasks)
+            .Include(p => p.Sprints)
+            .AsSplitQuery()      // 2 collection Include -> tránh cartesian explosion
+            .FirstOrDefaultAsync(p => p.Id == id, ct);
 }

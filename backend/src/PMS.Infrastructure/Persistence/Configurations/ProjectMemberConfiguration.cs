@@ -25,5 +25,7 @@ public class ProjectMemberConfiguration : IEntityTypeConfiguration<ProjectMember
                .WithMany(e => e.ProjectMemberships)
                .HasForeignKey(pm => pm.EmployeeId)
                .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasQueryFilter(pm => !pm.Project.IsDeleted);
     }
 }

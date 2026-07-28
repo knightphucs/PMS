@@ -46,15 +46,17 @@ public class PmsDbContext : DbContext
         }
     }
 
-    // 2. PmsDbContext.cs — thay method SaveChangesAsync hiện tại
 private void ApplySoftDelete()
 {
+    var now = DateTime.UtcNow;
+
     foreach (var entry in ChangeTracker.Entries<ISoftDeletable>())
     {
         if (entry.State != EntityState.Deleted) continue;
+
         entry.State = EntityState.Modified;
         entry.Entity.IsDeleted = true;
-        entry.Entity.DeletedAt = DateTime.UtcNow;
+        entry.Entity.DeletedAt = now;
     }
 }
 

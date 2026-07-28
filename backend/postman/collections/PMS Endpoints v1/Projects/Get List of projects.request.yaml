@@ -1,0 +1,45 @@
+$kind: http-request
+name: Get List of projects
+url: "{{api_url}}/Projects?Page=1&PageSize=200&SortBy=&SortDirection=&Search=&IsDescending=&Skip="
+method: GET
+queryParams:
+  - key: Page
+    value: "1"
+    disabled: false
+    description: ""
+    $type: integer
+  - key: PageSize
+    value: "200"
+    disabled: false
+    description: ""
+    $type: integer
+  - key: SortBy
+    value: ""
+    disabled: false
+    description: ""
+    $type: string
+  - key: SortDirection
+    value: ""
+    disabled: false
+    description: ""
+    $type: string
+  - key: Search
+    value: ""
+    disabled: false
+    description: ""
+    $type: string
+  - key: IsDescending
+    value: ""
+    disabled: false
+    description: ""
+    $type: boolean
+  - key: Skip
+    value: ""
+    disabled: false
+    description: ""
+    $type: string
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 2343040274222189

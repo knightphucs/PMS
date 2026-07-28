@@ -20,4 +20,14 @@ public class PagedResult<T>
         Page = request.Page;
         PageSize = request.PageSize;
     }
+
+    /// <summary>Ánh xạ Items sang kiểu khác, giữ nguyên thông tin phân trang.</summary>
+    public PagedResult<TDestination> Map<TDestination>(Func<T, TDestination> selector)
+        => new()
+        {
+            Items = Items.Select(selector).ToList(),
+            Page = Page,
+            PageSize = PageSize,
+            TotalCount = TotalCount
+        };
 }

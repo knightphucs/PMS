@@ -25,5 +25,7 @@ public class TaskAssignmentConfiguration : IEntityTypeConfiguration<TaskAssignme
                .WithMany(e => e.TaskAssignments)
                .HasForeignKey(ta => ta.EmployeeId)
                .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasQueryFilter(ta => !ta.Task.IsDeleted);
     }
 }
