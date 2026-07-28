@@ -12,5 +12,10 @@ public partial class ProjectMapper
 
     [MapProperty(nameof(ProjectMember.Employee.Name), nameof(ProjectMemberResponse.EmployeeName))]
     public partial ProjectMemberResponse ToMemberResponse(ProjectMember member);
+
+    [MapProperty("Project.Name", nameof(MyInvitationResponse.ProjectName))]
+    [MapProperty(nameof(ProjectMember.CreatedAt), nameof(MyInvitationResponse.InvitedAt))]
+    [MapProperty(nameof(ProjectMember.RoleInProject), nameof(MyInvitationResponse.Role))]
+    public partial MyInvitationResponse ToMyInvitation(ProjectMember member);
 #pragma warning restore RMG020 // Source member is not mapped to any target member
 }

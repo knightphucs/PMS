@@ -13,4 +13,4 @@ public record ProjectDetailResponse(
     DateTime ExpectedCompletionDate, IReadOnlyList<ProjectMemberResponse> Members);
 
 public record ProjectMemberResponse(
-    Guid EmployeeId, string EmployeeName, RoleInProject RoleInProject, InvitationStatus InvitationStatus);
+    Guid EmployeeId, string EmployeeName, RoleInProject RoleInProject, InvitationStatus InvitationStatus, DateTime? JoinedDate);

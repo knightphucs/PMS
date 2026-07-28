@@ -9,6 +9,9 @@ public interface IUnitOfWork
     IEmployeeRepository Employees { get; }
     IRefreshTokenRepository RefreshTokens { get; }
     IRepository<Sprint> Sprints { get; }
+    IProjectMemberRepository ProjectMembers { get; }
+    IRepository<ActivityLog> ActivityLogs { get; }
+    IRepository<Notification> Notifications { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 

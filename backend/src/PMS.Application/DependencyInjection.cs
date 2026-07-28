@@ -1,6 +1,8 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using PMS.Application.Common.Authorization;
+using PMS.Application.Common.Interfaces;
+using PMS.Application.Common.Services;
 using PMS.Application.Features.Auth;
 using PMS.Application.Features.Projects;
 
@@ -14,6 +16,9 @@ public static class DependencyInjection
         services.AddSingleton<EmployeeMapper>();
         services.AddScoped<IProjectAuthorizationService, ProjectAuthorizationService>();
         services.AddScoped<IProjectService, ProjectService>();
+        services.AddScoped<IProjectMemberService, ProjectMemberService>();
+        services.AddScoped<IActivityLogger, ActivityLogger>();
+        services.AddScoped<INotificationService, NotificationService>();
         services.AddSingleton<ProjectMapper>();
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
         return services;
