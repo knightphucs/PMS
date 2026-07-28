@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "name": "Test-flow PMS",
+  "description": "",
+  "flow": {
+    "description": "",
+    "nodes": {
+      "CFNPKDo6": {
+        "type": "ev/endpoint@3",
+        "pos": {
+          "x": 0,
+          "y": 0
+        },
+        "config": {
+          "inputs": [],
+          "data": "",
+          "language": "json",
+          "allowAnyType": false
+        },
+        "ui": {
+          "data": {
+            "triggerType": "ev/endpoint@3"
+          },
+          "namedInputsExpanded": true
+        }
+      }
+    },
+    "connections": {},
+    "annotations": {},
+    "groups": {},
+    "webhook": {
+      "payloadContent": "body-only",
+      "responseType": "default"
+    },
+    "forms": {},
+    "modules": {},
+    "io": {},
+    "ports": {},
+    "meta": {},
+    "scenes": {},
+    "scenarios": {},
+    "config": {
+      "definitions": {},
+      "constants": {}
+    }
+  },
+  "lockbox": {},
+  "info": {
+    "_postman_id": "f10426df-4e89-4c4f-bff2-509ad86380ad"
+  },
+  "_postman_exported_at": "2026-07-28T01:15:52.166Z",
+  "_postman_exported_using": "Postman/Local Mode"
+}

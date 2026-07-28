@@ -1,5 +1,6 @@
 using PMS.Application.Common.Models;
 using PMS.Domain.Entities;
+using PMS.Domain.Enums;
 
 namespace PMS.Application.Common.Interfaces;
 
@@ -12,6 +13,9 @@ public interface IProjectRepository : IRepository<Project>
     Task<PagedResult<Project>> GetPagedForEmployeeAsync(
         Guid employeeId, PagedRequest request, CancellationToken ct = default);
 
-    /// <summary>Kiểm tra membership nhanh, không nạp cả object (dùng cho authorization).</summary>
-    Task<bool> IsActiveMemberAsync(Guid projectId, Guid employeeId, CancellationToken ct = default);
+    /// <summary>Vai trò của employee trong project (null nếu không phải thành viên Accepted).</summary>
+    Task<RoleInProject?> GetRoleInProjectAsync(Guid projectId, Guid employeeId, CancellationToken ct = default);
+
+    /// <summary>Nạp kèm Tasks + Sprints — cần cho việc kiểm tra và cascade khi xóa project.</summary>
+    Task<Project?> GetForDeletionAsync(Guid id, CancellationToken ct = default);
 }

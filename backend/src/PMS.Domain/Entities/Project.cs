@@ -39,9 +39,31 @@ public class Project : BaseEntity, ISoftDeletable
         return member;
     }
 
-    // Trả nullable: người không phải thành viên (hoặc lời mời chưa Accepted) => null.
-    public RoleInProject? GetRoleOf(Employee employee)
+    public RoleInProject? GetRoleOf(Guid employeeId)
         => Members
-            .FirstOrDefault(m => m.EmployeeId == employee.Id && m.IsActive())
+            .FirstOrDefault(m => m.EmployeeId == employeeId && m.IsActive())
             ?.RoleInProject;
+
+    public static Project Create(string name, string description, DateTime expectedCompletionDate, Guid creatorId)
+    {
+        var project = new Project
+        {
+            Id = Guid.NewGuid(),
+            Name = name.Trim(),
+            Description = description.Trim(),
+            ExpectedCompletionDate = expectedCompletionDate
+        };
+
+        project.Members.Add(new ProjectMember
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = project.Id,
+            EmployeeId = creatorId,
+            RoleInProject = RoleInProject.ProjectManager,
+            InvitationStatus = InvitationStatus.Accepted,
+            JoinedDate = DateTime.UtcNow
+        });
+
+        return project;
+    }
 }

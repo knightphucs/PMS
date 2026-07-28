@@ -1,0 +1,34 @@
+$kind: http-request
+name: Update project
+url: "{{api_url}}/Projects/:id"
+method: PUT
+pathVariables:
+  - key: id
+    value: 1ee624ad-06da-4311-8973-31771d09d9a2
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: |-
+    {
+        "name": "Tools giám sát LOLRMM",
+        "description": "Giám sát công cụ Remote từ xa",
+        "expectedCompletionDate": "2026-07-31"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 3312837698155824

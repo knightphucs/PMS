@@ -1,0 +1,17 @@
+$kind: http-request
+name: Create Project
+url: "{{api_url}}/Projects"
+method: POST
+body:
+  type: json
+  content: |-
+    {
+        "name": "Dự án build tool LOLRMM",
+        "description": "Giám sát công cụ Remote từ xa",
+        "expectedCompletionDate": "2026-07-31"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1785125645547
