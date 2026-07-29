@@ -62,7 +62,7 @@ public class TaskItem : BaseEntity, ISoftDeletable
     public void ChangeStatus(Status target)
     {
         if (!CanTransitionTo(target))
-            throw new InvalidOperationException(
+            throw new DomainException(
                 $"Không thể chuyển trạng thái từ {Status} sang {target}.");
         Status = target;
     }

@@ -1,6 +1,6 @@
 $kind: http-request
 name: Create Project
-url: "{{api_url}}/Projects"
+url: "{{api_url}}/projects"
 method: POST
 body:
   type: json

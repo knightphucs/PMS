@@ -33,6 +33,7 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | Domain layer (Entity, Enum) | ✅ | Toàn bộ entity ở §5 đã có trong `PMS.Domain` |
 | Auth (Register/Login/Refresh/Logout) | ✅ | Chi tiết xem bảng ở §10 — 2 mục con (Reset Password, khóa/mở tài khoản) vẫn ⬜ |
 | Project (CRUD + phân quyền 2 tầng + soft delete) | ✅ | Có Unit + Integration Test |
+| Project — quản lý thành viên (mời/accept/decline/đổi role/gỡ) | ⬜ | Domain đã có invariant, chưa có Service/Controller |
 | Sprint | ⬜ | Chỉ có entity + migration, chưa có `SprintService`/Controller |
 | Task (kể cả Subtask, Workflow Transition Rules) | ⬜ | Chưa có `TaskService`/Controller — chưa bắt đầu |
 | Comment / Activity Log / Notification | ⬜ | Chỉ có entity, chưa có Service/Controller |
@@ -154,8 +155,8 @@ ProjectManagementSystem/
 
 ### Entity phân quyền (Role 2 tầng) ✅ *(đã hoạt động thật cho Project, có test)*
 - **`ProjectMember`** *(bảng trung gian Employee–Project, thay cho quan hệ N–N đơn thuần)*:
-  `EmployeeId`, `ProjectId`, `RoleInProject` (`ProjectManager` / `Member` / `Viewer`),
-  `JoinedDate`, `InvitationStatus` (`Pending` / `Accepted` / `Declined`)
+  `EmployeeId`, `ProjectId`, `RoleInProject`, `JoinedDate` *(nullable — chỉ set khi Accept)*,
+  `InvitationStatus` (`Pending` / `Accepted` / `Declined`)
   → Đây là nơi quyết định 1 người làm PM ở project này nhưng chỉ là Member ở project khác.
 
   **Luồng mời nhân sự vào Project:**
@@ -342,13 +343,19 @@ riêng để Swagger/client hiểu sẵn:
 ```json
 { "title": "...", "status": 400, "traceId": "..." }
 ```
+### Audit Fields ✅
+`BaseEntity` mang `CreatedAt` (bắt buộc) và `UpdatedAt` (nullable), được đóng dấu tập
+trung trong `PmsDbContext.ApplyAuditFields()`, gọi SAU `ApplySoftDelete()` để bản ghi
+xóa mềm (đã bị đổi state `Deleted → Modified`) vẫn nhận được `UpdatedAt`.
+Trước đây mỗi entity tự khai báo `CreatedAt` rời rạc (`Notification`, `Comment`,
+`RefreshToken`) và `ActivityLog` dùng tên `Timestamp` — nay gom về một chỗ.
 
 ### API Versioning ✅
 Route đã theo chuẩn `/api/v1/...` ngay từ đầu — tránh phải đổi route sau này nếu API
 thay đổi breaking. *(Hiện dùng tiền tố route tĩnh, chưa cài package `Asp.Versioning.Mvc`
 — chỉ cần khi cần v2 song song với v1.)*
 
-### CORS Policy ⬜ *(chưa code — chưa có `AddCors`/`UseCors` trong `Program.cs`)*
+### CORS Policy ✅
 Cấu hình CORS rõ ràng cho phép origin của Frontend (Next.js dev: `localhost:3000`,
 production: domain thật) — không dùng `AllowAnyOrigin` khi có JWT/cookie. Bắt buộc phải
 làm trước khi Frontend (chưa có, xem "Tiến độ triển khai theo module" ở §1) gọi API thật,
@@ -360,18 +367,22 @@ nếu không mọi request từ browser sẽ bị chặn bởi same-origin polic
 - **Production**: biến môi trường (Environment Variables) hoặc Azure Key Vault/AWS
   Secrets Manager nếu deploy cloud
 - File `appsettings.json` chỉ chứa placeholder/giá trị non-sensitive
+- **Fail fast**: `JwtOptions` validate bằng `AddOptions<T>().Validate(...).ValidateOnStart()`
+  — thiếu `Jwt:Secret` thì app chết ngay lúc khởi động với thông báo rõ ràng, thay vì chết
+  ở request đầu tiên bằng lỗi `IDX10703` không gợi ý nguyên nhân.
 
-### Health Check ⬜ *(chưa code — chưa có `AddHealthChecks`/`MapHealthChecks` trong `Program.cs`)*
+### Health Check ✅
 Endpoint `/health` (dùng `Microsoft.Extensions.Diagnostics.HealthChecks`) kiểm tra
 API còn sống và kết nối database còn ổn — cần thiết khi có Docker/CI-CD hoặc load
 balancer để biết khi nào restart instance.
 
-### Chiến lược môi trường (Environment Strategy) ⬜ *(mới có nhánh rẽ Dev/không-Dev qua `IsDevelopment()`, chưa có `appsettings.Staging.json` hay cấu hình riêng cho Staging)*
+### Chiến lược môi trường (Environment Strategy) ✅
+
 | Môi trường | Mục đích | Khác biệt cấu hình |
 |---|---|---|
-| `Development` | Code & test local | Swagger bật, log chi tiết (Debug), seed data đầy đủ, HTTPS không bắt buộc redirect gắt |
-| `Staging` *(tùy chọn)* | Test trước khi release | Giống Production nhưng dùng database riêng, dữ liệu giả |
-| `Production` | Chạy thật/demo báo cáo | Swagger tắt hoặc giới hạn, log mức Warning/Error, HTTPS bắt buộc, secrets qua biến môi trường |
+| `Development` | Code & test local | Swagger bật, log EF Core mức Information, seed data, secrets qua user-secrets |
+| `Testing` | Integration Test | Config nạp từ `AddInMemoryCollection` trong `PmsWebApplicationFactory`, DB riêng `PmsTestDb` — không dùng file `appsettings` |
+| `Production` | Chạy thật/demo báo cáo | Swagger tắt, log Warning/Error, HTTPS bắt buộc, secrets qua biến môi trường |
 
 Dùng `ASPNETCORE_ENVIRONMENT` để switch giữa các file `appsettings.{Environment}.json`.
 
@@ -416,9 +427,8 @@ Dùng `ASPNETCORE_ENVIRONMENT` để switch giữa các file `appsettings.{Envir
 | Password hash bằng BCrypt (work factor 11), không lưu plaintext | ✅ Đã có (`BCryptPasswordHasher`) |
 | Rate limiting cho endpoint đăng nhập (chống brute-force) | ✅ Đã có (`[EnableRateLimiting("login")]`) |
 | HTTPS bắt buộc (`app.UseHttpsRedirection()`) | ✅ Đã có |
-| Khóa/mở tài khoản, cấp `SystemAdmin` role cho người khác | ⬜ Chưa code — chưa có Admin Controller/endpoint nào; `Employee` cũng chưa có field kiểu `IsLocked`. Mọi tài khoản đăng ký đều mặc định `SystemRole.User`, chưa có cách nâng lên `SystemAdmin` ngoài sửa thẳng DB |
-| Quên mật khẩu / Reset password qua token hết hạn 15-30 phút | ⬜ Chưa code — `PasswordResetToken` entity (dự kiến: `EmployeeId`, `Token`, `ExpiresAt`, `IsUsed`) chưa tồn tại trong `PMS.Domain` |
-
+| Khóa/mở tài khoản, cấp `SystemAdmin` role cho người khác | ✅ Đã có — `AdminEmployeesController`, policy `RequireSystemAdmin`. Khóa/đổi role đều thu hồi toàn bộ refresh token. Bất biến: luôn còn ≥1 SystemAdmin chưa bị khóa |
+| Quên mật khẩu / Reset password qua token hết hạn 15-30 phút | ⬜ Chưa code — `PasswordResetToken` chưa tồn tại; còn phụ thuộc email service |
 > 📌 Hai mục ⬜ là quyết định thiết kế có sẵn từ đầu (ADR §15, 2026-07-22), chưa tới
 > lượt implement — không phải bug hay bị bỏ sót giữa chừng.
 
@@ -476,7 +486,7 @@ project khác nhau):
 | Use Case Diagram | Tổng quan chức năng theo actor (SystemAdmin, ProjectManager, Member, Viewer) | Done |
 | Class Diagram | Chi tiết entity, thuộc tính, quan hệ, OOP | Done |
 | ERD | Thiết kế database quan hệ | Done |
-| Sequence Diagram | Luồng: Tạo task, Gán nhân sự, Hoàn thành task, Gửi Notification khi gán task | 3/4: đã có Tạo task, Gán nhân sự, Đổi status (`seq-01/02/03`) — chưa tách riêng luồng Notification |
+| Sequence Diagram | Tạo task, Gán nhân sự, Đổi status, Mời thành viên, Phản hồi lời mời | 5/5: `seq-01/02/03` (task) + `seq-04` (mời) + `seq-05` (accept/decline). Luồng Notification không tách riêng — đã thể hiện trong seq-04/05 |
 
 ---
 
@@ -537,13 +547,13 @@ còn đủ thời gian trước deadline báo cáo.
 | [điền ngày khi code] | Cho phép nhiều người/1 Task (Employee N–N Task qua `TaskAssignment`) | Phản ánh thực tế: task lớn thường cần nhiều người phối hợp — *entity đã có, chưa có `TaskService`/API dùng được* |
 | 2026-07-22 | Áp dụng phân quyền 2 tầng: SystemRole + RoleInProject (`ProjectMember`) | Sát với mô hình doanh nghiệp thật, 1 người có thể khác role ở project khác nhau — đã hoạt động thật cho Project (`ProjectAuthorizationService`) |
 | [điền ngày khi code] | Nâng Sprint/Backlog/Board từ "tương lai" thành tính năng core | Mục tiêu làm sản phẩm dùng được thật, không chỉ CRUD đơn thuần — *entity + migration đã có, chưa có `SprintService`/Controller* |
-| [điền ngày khi code] | Thêm Comment, Activity Log, Notification vào core | Đây là tính năng tối thiểu để 1 team thật sự dùng được hệ thống hàng ngày — *chỉ mới entity, chưa có Service/Controller nào* |
+| 2026-07-22 | Thêm Comment, Activity Log, Notification vào core | Đây là tính năng tối thiểu để 1 team thật sự dùng được hệ thống hàng ngày — *chỉ mới entity, chưa có Service/Controller nào* |
 | 2026-07-22 | Áp dụng Soft Delete cho Project/Task | Bảo toàn ActivityLog/Comment liên quan, cho phép khôi phục — đã hoạt động thật, có test |
 | 2026-07-22 | Chuẩn hóa Pagination, Global Exception Handling, API Versioning | Đạt chuẩn API production-grade, không phải sửa lại kiến trúc giữa chừng |
-| [điền ngày khi code] | Chuẩn hóa CORS Policy | Bắt buộc trước khi Frontend gọi API thật — *chưa có `AddCors`/`UseCors` trong `Program.cs`* |
+| 2026-07-29 | Chuẩn hóa CORS Policy | Bắt buộc trước khi Frontend gọi API thật — đã có `AddCors`/`UseCors` với policy `PmsFrontend` |
 | 2026-07-22 | Thêm mục Non-Functional Requirements + Data Seeding | Phục vụ demo báo cáo trôi chảy và thể hiện đầy đủ tư duy thiết kế hệ thống — `DbSeeder` đã chạy được ở môi trường Development |
 | 2026-07-22 | Mọi `User` được tạo Project, tự động thành `ProjectManager` của project đó | Tránh bottleneck xin duyệt qua SystemAdmin, khớp cách Jira/Trello vận hành thật |
-| [điền ngày khi code] | `SystemAdmin` tách bạch khỏi Project Role: chỉ read-only toàn hệ thống, muốn thao tác phải là `ProjectMember` như bình thường | Tránh "God Mode" — giữ đúng nguyên tắc Least Privilege, dễ audit trách nhiệm — *chưa có code nào cho SystemAdmin bypass đọc toàn hệ thống* |
+| 2026-07-29 | `SystemAdmin` tách bạch khỏi Project Role: chỉ read-only toàn hệ thống, muốn thao tác phải là `ProjectMember` như bình thường | Tránh "God Mode" — giữ đúng nguyên tắc Least Privilege, dễ audit trách nhiệm — *chưa có code nào cho SystemAdmin bypass đọc toàn hệ thống* |
 | 2026-07-22 | Giữ `Viewer` như 1 actor riêng trong Use Case Diagram | Phản ánh nhu cầu thực tế: stakeholder/khách hàng/auditor cần xem mà không cần sửa — đã có trong `RoleInProject` + `ProjectPermissions`, có test |
 | [điền ngày khi code] | Cho phép `Member` tự self-assign task đang `ToDo` (không cần PM gán); gán người khác/gỡ người khác vẫn chỉ PM | Khớp mô hình Kanban thực tế (tự "pick up" task), giảm bottleneck qua PM, vẫn tránh xung đột nhờ điều kiện task phải đang `ToDo` — *chưa có `TaskService`* |
 | [điền ngày khi code] | Thêm Reporter, Priority, Label, Watcher, TaskLink, Workflow Transition Rules vào core | Đối chiếu trực tiếp mô hình Jira thật — đây là các khái niệm cơ bản mà thiếu sẽ khiến hệ thống thiếu tính thực tế — *field/entity đã có, `TaskStatusTransitionService` chưa tồn tại* |
@@ -552,7 +562,7 @@ còn đủ thời gian trước deadline báo cáo.
 | 2026-07-22 | Thêm `InvitationStatus` (Pending/Accepted/Declined) cho `ProjectMember` | Phản ánh đúng luồng mời thành viên thực tế, không tự tạo tài khoản hộ người chưa đăng ký — enum đã dùng thật trong filter membership |
 | [điền ngày khi code] | Thêm Reset Password qua token có hạn 15-30 phút | Tính năng Auth cơ bản, thiếu sẽ không dùng được thật — *`PasswordResetToken` chưa tồn tại trong `PMS.Domain`* |
 | 2026-07-22 | Bắt buộc HTTPS toàn hệ thống | Bảo vệ JWT token khỏi bị nghe lén qua kênh không mã hóa — đã có `app.UseHttpsRedirection()` |
-| [điền ngày khi code] | Thêm Health Check endpoint (`/health`) | Cần thiết khi có Docker/CI-CD để biết trạng thái API — *chưa có `AddHealthChecks`/`MapHealthChecks` trong `Program.cs`* |
+| 2026-07-29 | Thêm Health Check endpoint (`/health`) | Cần thiết khi có Docker/CI-CD để biết trạng thái API — đã có `AddHealthChecks`/`MapHealthChecks` trong `Program.cs` |
 | [điền ngày khi code] | Định nghĩa 3 môi trường Dev/Staging/Production qua `ASPNETCORE_ENVIRONMENT` | Tách cấu hình rõ ràng, tránh lẫn lộn dữ liệu test và thật — *mới chỉ có nhánh rẽ Dev/không-Dev trong `Program.cs`, chưa có `appsettings.Staging.json` hay cấu hình riêng cho Staging* |
 | [điền ngày khi code] | Subtask không tự động đóng Task cha khi tất cả subtask `Done`; chỉ hiển thị progress bar (%) | Giữ đúng hành vi mặc định của Jira thật — Task cha có thể còn việc ngoài các subtask đã liệt kê — *chưa có `TaskService` để áp dụng quy tắc này* |
 | [điền ngày khi code] | Subtask là 1 Task đầy đủ (Status, Assignee, Comment, Watcher, TaskLink riêng), không phải checklist item; giới hạn chỉ 1 cấp cha–con | Task/Subtask dùng chung class, đúng nguyên lý OOP tái sử dụng; tránh phức tạp hóa với đệ quy vô hạn — *`ParentTaskId` đã có trong domain, chưa có logic giới hạn 1 cấp hay API thao tác* |
@@ -565,6 +575,12 @@ còn đủ thời gian trước deadline báo cáo.
 | 2026-07-27 | **(ADR-008)** Soft delete Project: chặn 409 nếu còn task chưa `Done`, cascade tường minh xuống Task/Sprint trong cùng 1 `SaveChangesAsync` | Global Query Filter không tự lan qua quan hệ; cascade EF ngầm không kích hoạt vì entity đổi state `Deleted→Modified` — chi tiết bên dưới |
 | 2026-07-27 | **(ADR-009)** Test dùng Shouldly + NSubstitute, không dùng FluentAssertions/Moq | FluentAssertions v8+ thương mại; Moq 4.20.0 từng nhúng SponsorLink thu thập email developer — chi tiết bên dưới |
 | 2026-07-27 | **(ADR-010)** Integration test chạy trên SQL Server thật (`PmsTestDb`), không dùng EF InMemory/SQLite/Testcontainers | InMemory/SQLite không phản ánh đúng FK, Query Filter, dialect thật; Testcontainers chậm do emulation trên Apple Silicon — chi tiết bên dưới |
+| 2026-07-28 | **(ADR-011)** Thêm `DomainException` riêng cho tầng Domain, middleware map thành 409 | Domain không được phụ thuộc Application; lỗi nghiệp vụ hợp lệ không được trả 500 — chi tiết bên dưới |
+| 2026-07-28 | **(ADR-012)** Vòng đời lời mời và invariant thành viên đặt trong aggregate `Project` | Đảm bảo luôn có ≥1 PM Accepted, không mời trùng; DB unique index là chốt chặn cuối — chi tiết bên dưới |
+| 2026-07-28 | **(ADR-013)** ActivityLog ghi tường minh qua `IActivityLogger`, không dùng EF Interceptor | Interceptor chỉ thấy cột đổi, không biết ý nghĩa nghiệp vụ; log chung transaction với thay đổi nghiệp vụ — chi tiết bên dưới |
+| 2026-07-28 | **(ADR-014)** Gom audit fields vào `BaseEntity` | Chuẩn hóa `CreatedAt`/`UpdatedAt`, tránh property hiding và giữ dữ liệu log bằng migration `RenameColumn` — chi tiết bên dưới |
+| 2026-07-28 | **(ADR-015)** Khóa tài khoản phải thu hồi refresh token | `SystemRole` nằm trong JWT claim; khóa tài khoản hoặc đổi role phải vô hiệu hóa khả năng refresh token — chi tiết bên dưới |
+
 | | | |
 
 ### Chi tiết ADR-006 → ADR-010
@@ -632,6 +648,10 @@ filter đều lọc theo `is ISoftDeletable` nên bỏ qua `Sprint` → sprint b
 project thay vì xóa mềm. Đã bổ sung `SoftDeletableContractTests` (unit test) để chặn lớp lỗi
 này ngay từ tầng thấp nhất, không phải đợi tới integration test mới phát hiện.
 
+**Đính chính (2026-07-28):** ADR-008 từng ghi `Project.SoftDelete()` đã bị xóa, nhưng method
+vẫn còn trong `Project.cs` tới 2026-07-28 — tài liệu đi trước code. Nay đã xóa thật. Bài học:
+khi ADR mô tả một thay đổi code, phải verify lại repo trước khi đánh dấu hoàn thành.
+
 #### ADR-009 (2026-07-27) — Chọn thư viện Assertion & Mocking cho test
 **Assertion: Shouldly.** Đã chốt từ đầu — `FluentAssertions` từ v8+ (2025) chuyển sang
 thương mại (Xceed). Giữ nguyên lựa chọn.
@@ -675,6 +695,75 @@ Bốn phương án, và tại sao ba cái bị loại:
 - **✅ SQL Server thật, database riêng `PmsTestDb`.** Dùng lại container OrbStack đang có
   sẵn cho dev, không thêm hạ tầng gì. Fidelity 100%, test được migration thật
   (`MigrateAsync()`), và mốc `DeletedAt` so sánh được chính xác vì cùng kiểu `datetime2`.
+
+#### ADR-011 (2026-07-28) — `DomainException` riêng cho tầng Domain
+**Bối cảnh:** `TaskItem.ChangeStatus` ném `InvalidOperationException`; middleware chỉ map
+`AppException`, nên lỗi nghiệp vụ hợp lệ trả về **500**.
+
+**Quyết định:** Thêm `DomainException` trong `PMS.Domain/Common`; middleware map exception
+này thành **409 Conflict**.
+
+**Lý do:** `PMS.Domain` không được tham chiếu `PMS.Application` (dependency đi vào trong),
+nên không tái dùng được `AppException`. Khối `catch (DomainException)` phải đặt **trước**
+`catch (Exception)`, vì C# khớp theo thứ tự khai báo.
+
+#### ADR-012 (2026-07-28) — Vòng đời lời mời & invariant thành viên
+**Quyết định:** Lời mời đi theo `Pending → Accepted/Declined`; thành viên `Declined` có thể
+được mời lại bằng cách reset row cũ, vì unique index là `(ProjectId, EmployeeId)`. "Gỡ" là
+**xóa cứng** row, không thêm status `Removed`. Invariant nằm trong aggregate root `Project`:
+luôn còn ≥1 `ProjectManager` Accepted và không mời trùng. `JoinedDate` nullable, chỉ set lúc
+`Accept()`.
+
+**Lý do không thêm `Removed`:** Mọi query membership sẽ phải nhớ lọc thêm một điều kiện —
+đúng loại lỗi mà thiếu `ISoftDeletable` từng gây ra. Audit trail do `ActivityLog` đảm nhiệm.
+
+**Giới hạn đã biết:** Invariant ở domain chỉ đúng khi repository nạp đủ `Members` bằng
+`Include`. Chốt chặn cuối vẫn là unique index ở tầng database.
+
+#### ADR-013 (2026-07-28) — ActivityLog ghi tường minh, không dùng EF Interceptor
+**Quyết định:** Service gọi trực tiếp `IActivityLogger`; logger chỉ `Add` vào `ChangeTracker`,
+không tự gọi `SaveChanges`. `ActivityLog.Action` đổi từ `string` sang enum `ActivityAction`
+với `HasConversion<string>()`, nên schema không đổi.
+
+**Lý do:** Interceptor chỉ thấy cột thay đổi, không hiểu ý nghĩa nghiệp vụ — không phân biệt
+được "người được mời chấp nhận" với "PM sửa nhầm". Không tự `SaveChanges` để log và thay đổi
+nghiệp vụ ở chung một transaction, nhất quán ADR-007.
+
+**Rủi ro chấp nhận:** Có thể quên gọi logger; mỗi action phải có integration test khẳng định
+số dòng `ActivityLogs` tăng đúng.
+
+#### ADR-014 (2026-07-28) — Audit fields gom về `BaseEntity`
+**Quyết định:** Đưa `CreatedAt`/`UpdatedAt` lên `BaseEntity`, đóng dấu tại
+`ApplyAuditFields()` sau `ApplySoftDelete()`. Bỏ `CreatedAt` khai báo lẻ ở các entity con và
+`ActivityLog.Timestamp`.
+
+**Lý do:** Trước đó `Project`/`TaskItem` không biết thời điểm được tạo, còn các entity khác
+mỗi nơi một kiểu. Khai báo trùng tên với property của lớp cha còn gây *property hiding*
+(`CS0108`).
+
+**Ghi chú migration:** `Timestamp → CreatedAt` phải sửa tay thành `RenameColumn`; EF mặc
+định sinh `DropColumn` + `AddColumn`, tức mất dữ liệu log cũ.
+
+#### ADR-015 (2026-07-28) — Khóa tài khoản phải thu hồi refresh token
+**Bối cảnh:** `SystemRole` nằm trong JWT claim và access token sống 15 phút, refresh token
+sống 7 ngày. Chỉ chặn `IsLocked` ở `LoginAsync` thì người bị khóa vẫn gọi `/Auth/refresh`
+lấy token mới suốt 7 ngày — khóa tài khoản trở thành vô nghĩa.
+
+**Quyết định:**
+1. Kiểm `IsLocked` ở **cả** `LoginAsync` và `RefreshAsync`.
+2. Thu hồi toàn bộ refresh token đang hoạt động ngay tại thời điểm khóa **và** khi đổi `SystemRole`.
+3. `LoginAsync` trả **403** (kèm lý do), `RefreshAsync` trả **401** (chung chung) — refresh
+   phải trả 401 để client tự chuyển sang màn hình đăng nhập.
+4. Kiểm `IsLocked` **sau** khi verify mật khẩu, để không rò rỉ trạng thái tài khoản cho
+   người không biết mật khẩu (giữ nguyên lớp chống user enumeration của `DummyHash`).
+
+**Giới hạn còn lại (chấp nhận có ý thức):** access token đã phát vẫn dùng được tối đa 15 phút
+sau khi khóa. Triệt tiêu hoàn toàn sẽ phải kiểm DB mỗi request — đánh mất tính stateless của
+JWT. Đây chính là lý do `RoleInProject` không được nhét vào token (ADR-006).
+
+**Bất biến mới:** hệ thống luôn còn ≥1 `SystemAdmin` **chưa bị khóa** — song song với
+"project luôn còn ≥1 PM Accepted" (ADR-012). Điều kiện `!IsLocked` là bắt buộc: đếm theo
+role không thôi sẽ cho phép khóa hết mọi admin.
 
 > 📌 Cập nhật bảng này mỗi khi có quyết định kiến trúc mới hoặc thay đổi — đây sẽ là
 > phần rất hữu ích khi viết chương "Phân tích thiết kế" trong báo cáo tốt nghiệp.

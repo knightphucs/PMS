@@ -36,14 +36,11 @@ public class AuthService : IAuthService
         if (await _uow.Employees.EmailExistsAsync(email, ct))
             throw new ConflictException("Email này đã được đăng ký.");
 
-        var employee = new Employee
-        {
-            Id = Guid.NewGuid(),
-            Name = request.Name.Trim(),
-            Email = email,
-            PasswordHash = _passwordHasher.Hash(request.Password),
-            SystemRole = SystemRole.User   // KHÔNG lấy từ request
-        };
+        var employee = Employee.Register(
+            request.Name,
+            request.Email,
+            _passwordHasher.Hash(request.Password)
+        );
 
         await _uow.Employees.AddAsync(employee, ct);
 
@@ -71,6 +68,14 @@ public class AuthService : IAuthService
             _logger.LogWarning("Đăng nhập thất bại cho {Email} từ {Ip}",
                 employee.Email, _currentUser.IpAddress);
             throw new UnauthorizedException("Email hoặc mật khẩu không đúng.");
+        }
+
+        if (employee.IsLocked)
+        {
+            _logger.LogWarning("Tài khoản bị khóa {EmployeeId} thử đăng nhập từ {Ip}",
+                employee.Id, _currentUser.IpAddress);
+            throw new ForbiddenException(
+                "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên hệ thống.");
         }
 
         var (response, _) = BuildTokens(employee);
@@ -103,6 +108,18 @@ public class AuthService : IAuthService
 
         var employee = await _uow.Employees.GetByIdAsync(stored.EmployeeId, ct)
             ?? throw new UnauthorizedException("Tài khoản không còn tồn tại.");
+
+        if (employee.IsLocked)
+        {
+            // Dọn sạch mọi session còn sót — phòng trường hợp token được cấp trước lúc khóa.
+            await RevokeAllAsync(employee.Id, ct);
+            await _uow.SaveChangesAsync(ct);
+
+            _logger.LogWarning("Tài khoản bị khóa {EmployeeId} thử refresh token từ {Ip}",
+                employee.Id, _currentUser.IpAddress);
+
+            throw new UnauthorizedException("Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại.");
+        }
 
         var (response, newToken) = BuildTokens(employee);
         stored.Revoke(newToken.Id);                    // rotation: token cũ chết ngay

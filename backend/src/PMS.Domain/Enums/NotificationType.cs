@@ -9,4 +9,9 @@ public enum NotificationType
     StatusChanged,
     InvitedToProject,
     InvitationResponsed,
+    InvitationAccepted,
+    InvitationDeclined,
+    RoleChanged,
+    RemovedFromProject,
+    MemberLeftProject
 }

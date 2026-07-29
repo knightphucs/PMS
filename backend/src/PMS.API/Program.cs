@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -9,6 +11,7 @@ using PMS.API.Middleware;
 using PMS.API.Services;
 using PMS.Application;
 using PMS.Application.Common.Interfaces;
+using PMS.Domain.Enums;
 using PMS.Infrastructure;
 using PMS.Infrastructure.Persistence;
 using PMS.Infrastructure.Security;
@@ -25,6 +28,16 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
 // JWT
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()!;
+const string CorsPolicy = "PmsFrontend";
+
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+
+builder.Services.AddCors(options =>
+    options.AddPolicy(CorsPolicy, policy => policy
+        .WithOrigins(allowedOrigins)
+        .AllowAnyHeader()
+        .AllowAnyMethod()));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -40,10 +53,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ClockSkew = TimeSpan.FromSeconds(30)
         };
     });
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("CanCreateProject", policy => policy.RequireAuthenticatedUser());
-});
+
+builder.Services.AddOptions<JwtOptions>()
+    .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
+    .Validate(o => o.Secret.Length >= 32,
+        "Jwt:Secret phải có tối thiểu 32 ký tự (HMAC-SHA256). "
+      + "Local dev: dotnet user-secrets set \"Jwt:Secret\" \"...\"")
+    .Validate(o => o.AccessTokenMinutes is > 0 and <= 60,
+        "Jwt:AccessTokenMinutes phải trong khoảng 1–60.")
+    .ValidateOnStart();
+
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("CanCreateProject", policy => policy.RequireAuthenticatedUser())
+    .AddPolicy("RequireSystemAdmin", policy => policy.RequireClaim(ClaimTypes.Role, nameof(SystemRole.SystemAdmin)));
     
 builder.Services.AddRateLimiter(options =>
 {
@@ -58,6 +80,8 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0
             }));
 });
+
+builder.Services.AddHealthChecks();
 
 builder.Services.AddControllers(options => options.Filters.Add<ValidationFilter>());
 builder.Services.AddEndpointsApiExplorer();
@@ -97,7 +121,20 @@ if (app.Environment.IsDevelopment())
     await DbSeeder.SeedAsync(context);
 }
 app.UseSerilogRequestLogging();
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsJsonAsync(new
+        {
+            status = report.Status.ToString(),
+            duration = report.TotalDuration.TotalMilliseconds
+        });
+    }
+}).AllowAnonymous();
 app.UseHttpsRedirection();
+app.UseCors();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();

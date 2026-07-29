@@ -1,0 +1,8 @@
+$kind: http-request
+url: "{{api_url}}/projects/invitations"
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4491894557130832

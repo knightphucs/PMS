@@ -40,13 +40,15 @@ namespace PMS.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("PMS.Domain.Entities.ActivityLog", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Action")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Detail")
                         .IsRequired()
@@ -64,7 +66,7 @@ namespace PMS.Infrastructure.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<DateTime>("Timestamp")
+                    b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
@@ -79,7 +81,6 @@ namespace PMS.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("PMS.Domain.Entities.Comment", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Content")
@@ -96,6 +97,9 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("TaskId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
 
                     b.HasIndex("EmployeeId");
@@ -108,13 +112,24 @@ namespace PMS.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("PMS.Domain.Entities.Employee", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
+
+                    b.Property<bool>("IsLocked")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LockReason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("LockedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -129,6 +144,9 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Property<int>("SystemRole")
                         .HasColumnType("int");
 
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
@@ -140,13 +158,18 @@ namespace PMS.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("PMS.Domain.Entities.Label", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -159,7 +182,6 @@ namespace PMS.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("PMS.Domain.Entities.Notification", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Content")
@@ -184,6 +206,9 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Property<int>("Type")
                         .HasColumnType("int");
 
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
 
                     b.HasIndex("EmployeeId", "IsRead");
@@ -194,8 +219,10 @@ namespace PMS.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("PMS.Domain.Entities.Project", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime2");
@@ -221,6 +248,9 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
 
                     b.HasIndex("IsDeleted");
@@ -231,8 +261,10 @@ namespace PMS.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("PMS.Domain.Entities.ProjectMember", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<Guid>("EmployeeId")
                         .HasColumnType("uniqueidentifier");
@@ -240,7 +272,7 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Property<int>("InvitationStatus")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("JoinedDate")
+                    b.Property<DateTime?>("JoinedDate")
                         .HasColumnType("datetime2");
 
                     b.Property<Guid>("ProjectId")
@@ -248,6 +280,9 @@ namespace PMS.Infrastructure.Persistence.Migrations
 
                     b.Property<int>("RoleInProject")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -262,7 +297,6 @@ namespace PMS.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("PMS.Domain.Entities.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedAt")
@@ -289,6 +323,9 @@ namespace PMS.Infrastructure.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
 
                     b.HasIndex("EmployeeId");
@@ -302,8 +339,10 @@ namespace PMS.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("PMS.Domain.Entities.Sprint", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime2");
@@ -332,6 +371,9 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
 
                     b.HasIndex("IsDeleted");
@@ -344,10 +386,12 @@ namespace PMS.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("PMS.Domain.Entities.TaskAssignment", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("AssignedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<Guid>("EmployeeId")
@@ -358,6 +402,9 @@ namespace PMS.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("TaskId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -372,8 +419,10 @@ namespace PMS.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("PMS.Domain.Entities.TaskItem", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime2");
@@ -409,6 +458,9 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
 
                     b.HasIndex("IsDeleted");
@@ -427,8 +479,10 @@ namespace PMS.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("PMS.Domain.Entities.TaskLink", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("LinkType")
                         .HasColumnType("int");
@@ -438,6 +492,9 @@ namespace PMS.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("TargetTaskId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 

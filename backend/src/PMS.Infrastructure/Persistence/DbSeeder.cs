@@ -150,10 +150,10 @@ public static class DbSeeder
         // ---------- ActivityLog + Notification ----------
         await context.ActivityLogs.AddRangeAsync(new[]
         {
-            NewLog("Project", project1.Id, an.Id, "Created", "Tạo project 'Hệ thống quản lý dự án'"),
-            NewLog("Task", t1.Id, an.Id, "StatusChanged", "Chuyển trạng thái: Review -> Done"),
-            NewLog("Task", t2.Id, an.Id, "Assigned", "Gán Tran Thi Binh làm Owner"),
-            NewLog("Task", t4.Id, cuong.Id, "StatusChanged", "Chuyển trạng thái: ToDo -> InProgress"),
+            NewLog("Project", project1.Id, an.Id, ActivityAction.Created,       "Tạo project 'Hệ thống quản lý dự án'"),
+            NewLog("Task",    t1.Id,       an.Id, ActivityAction.StatusChanged, "Chuyển trạng thái: Review -> Done"),
+            NewLog("Task",    t2.Id,       an.Id, ActivityAction.Assigned,      "Gán Tran Thi Binh làm Owner"),
+            NewLog("Task",    t4.Id,    cuong.Id, ActivityAction.StatusChanged, "Chuyển trạng thái: ToDo -> InProgress"),
         }, ct);
 
         await context.Notifications.AddRangeAsync(new[]
@@ -175,11 +175,11 @@ public static class DbSeeder
 
     private static Employee NewEmployee(
         string name, string email, string hash, SystemRole role = SystemRole.User)
-        => new()
-        {
-            Id = Guid.NewGuid(), Name = name, Email = email,
-            PasswordHash = hash, SystemRole = role
-        };
+    {
+        var employee = Employee.Register(name, email, hash);
+        employee.ChangeSystemRole(role);
+        return employee;
+    }
 
     private static Project NewProject(string name, string description, int daysFromNow)
         => new()
@@ -190,7 +190,7 @@ public static class DbSeeder
 
     private static void AddMember(Project project, Employee employee, RoleInProject role, bool accepted)
     {
-        var member = project.AddMember(employee, role);
+        var member = project.Invite(employee, role);
         if (accepted) member.Accept();
     }
 
@@ -242,12 +242,11 @@ public static class DbSeeder
         };
 
     private static ActivityLog NewLog(
-        string entityType, Guid entityId, Guid employeeId, string action, string detail)
+        string entityType, Guid entityId, Guid employeeId, ActivityAction action, string detail)
         => new()
         {
             Id = Guid.NewGuid(), EntityType = entityType, EntityId = entityId,
             EmployeeId = employeeId, Action = action, Detail = detail,
-            Timestamp = DateTime.UtcNow.AddHours(-Random.Shared.Next(1, 100))
         };
 
     private static Notification NewNotification(

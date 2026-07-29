@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using PMS.Application.Common.Exceptions;
+using PMS.Domain.Common;
 
 namespace PMS.API.Middleware;
 
@@ -20,6 +21,11 @@ public class ExceptionHandlingMiddleware
         {
             _logger.LogInformation("Business exception: {Message}", ex.Message);
             await Write(context, ex.StatusCode, ex.Message);
+        }
+        catch (DomainException ex)
+        {
+            _logger.LogInformation("Domain invariant violated: {Message}", ex.Message);
+            await Write(context, StatusCodes.Status409Conflict, ex.Message);
         }
         catch (Exception ex)
         {

@@ -10,6 +10,8 @@ public class NotFoundException : AppException
     public override int StatusCode => 404;
     public NotFoundException(string entity, object key)
         : base($"Không tìm thấy {entity} với định danh '{key}'.") { }
+    
+    public NotFoundException(string message) : base(message) { }
 }
 
 public class UnauthorizedException : AppException

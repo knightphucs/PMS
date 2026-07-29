@@ -29,6 +29,20 @@ public class PmsDbContext : DbContext
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(PmsDbContext).Assembly);
 
         ApplySoftDeleteQueryFilter(modelBuilder);
+        ApplyIdNeverGenerated(modelBuilder);
+    }
+
+    private static void ApplyIdNeverGenerated(ModelBuilder modelBuilder)
+    {
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (!typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+                continue;
+
+            modelBuilder.Entity(entityType.ClrType)
+                        .Property(nameof(BaseEntity.Id))
+                        .ValueGeneratedNever();
+        }
     }
 
     private static void ApplySoftDeleteQueryFilter(ModelBuilder modelBuilder)
@@ -46,19 +60,37 @@ public class PmsDbContext : DbContext
         }
     }
 
-private void ApplySoftDelete()
-{
-    var now = DateTime.UtcNow;
-
-    foreach (var entry in ChangeTracker.Entries<ISoftDeletable>())
+    private void ApplySoftDelete()
     {
-        if (entry.State != EntityState.Deleted) continue;
+        var now = DateTime.UtcNow;
 
-        entry.State = EntityState.Modified;
-        entry.Entity.IsDeleted = true;
-        entry.Entity.DeletedAt = now;
+        foreach (var entry in ChangeTracker.Entries<ISoftDeletable>())
+        {
+            if (entry.State != EntityState.Deleted) continue;
+
+            entry.State = EntityState.Modified;
+            entry.Entity.IsDeleted = true;
+            entry.Entity.DeletedAt = now;
+        }
     }
-}
+
+    private void ApplyAuditFields()
+    {
+        var now = DateTime.UtcNow;
+
+        foreach (var entry in ChangeTracker.Entries<BaseEntity>())
+        {
+            switch (entry.State)
+            {
+                case EntityState.Added:
+                    if (entry.Entity.CreatedAt == default) entry.Entity.CreatedAt = now;
+                    break;
+                case EntityState.Modified:
+                    entry.Entity.UpdatedAt = now;
+                    break;
+            }
+        }
+    }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
@@ -70,6 +102,7 @@ private void ApplySoftDelete()
         bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
         ApplySoftDelete();
+        ApplyAuditFields();
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 }
