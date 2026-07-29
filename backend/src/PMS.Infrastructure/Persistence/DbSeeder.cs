@@ -175,11 +175,11 @@ public static class DbSeeder
 
     private static Employee NewEmployee(
         string name, string email, string hash, SystemRole role = SystemRole.User)
-        => new()
-        {
-            Id = Guid.NewGuid(), Name = name, Email = email,
-            PasswordHash = hash, SystemRole = role
-        };
+    {
+        var employee = Employee.Register(name, email, hash);
+        employee.ChangeSystemRole(role);
+        return employee;
+    }
 
     private static Project NewProject(string name, string description, int daysFromNow)
         => new()

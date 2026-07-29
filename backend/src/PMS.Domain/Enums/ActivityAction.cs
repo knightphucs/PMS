@@ -12,5 +12,8 @@ public enum ActivityAction
     MemberRoleChanged,
     MemberRemoved,
     Assigned,
-    Unassigned
+    Unassigned,
+    AccountLocked,
+    AccountUnlocked,
+    SystemRoleChanged
 }

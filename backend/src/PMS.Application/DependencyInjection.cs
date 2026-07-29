@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PMS.Application.Common.Authorization;
 using PMS.Application.Common.Interfaces;
 using PMS.Application.Common.Services;
+using PMS.Application.Features.Admin;
 using PMS.Application.Features.Auth;
 using PMS.Application.Features.Projects;
 
@@ -13,6 +14,8 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IEmployeeAdminService, EmployeeAdminService>();
+        services.AddSingleton<EmployeeAdminMapper>();
         services.AddSingleton<EmployeeMapper>();
         services.AddScoped<IProjectAuthorizationService, ProjectAuthorizationService>();
         services.AddScoped<IProjectService, ProjectService>();
