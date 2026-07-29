@@ -49,7 +49,7 @@ public class ProjectsAuthorizationTests : IntegrationTestBase
         var id = await CreateProjectAsync(a.Client);
 
         var res = await b.Client.PutAsJsonAsync($"/api/v1/Projects/{id}",
-            new UpdateProjectRequest("Hack", "Hack", DateTime.UtcNow.AddDays(10)));
+            new UpdateProjectRequest("Hack", "Hack", DateTime.UtcNow.AddDays(10), [1]));
 
         res.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -80,7 +80,7 @@ public class ProjectsAuthorizationTests : IntegrationTestBase
 
         // nhưng Update thì không -> 403, KHÁC với 404 của người ngoài
         var res = await b.Client.PutAsJsonAsync($"/api/v1/Projects/{id}",
-            new UpdateProjectRequest("Đổi", "Đổi", DateTime.UtcNow.AddDays(10)));
+            new UpdateProjectRequest("Đổi", "Đổi", DateTime.UtcNow.AddDays(10), [1]));
 
         res.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }

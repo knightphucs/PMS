@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -64,8 +65,11 @@ builder.Services.AddOptions<JwtOptions>()
     .ValidateOnStart();
 
 builder.Services.AddAuthorizationBuilder()
-    .AddPolicy("CanCreateProject", policy => policy.RequireAuthenticatedUser())
-    .AddPolicy("RequireSystemAdmin", policy => policy.RequireClaim(ClaimTypes.Role, nameof(SystemRole.SystemAdmin)));
+    .AddPolicy("can-create-project", policy => policy.RequireAuthenticatedUser())
+    .AddPolicy("require-system-admin", policy => policy.RequireClaim(ClaimTypes.Role, nameof(SystemRole.SystemAdmin)))
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build());
     
 builder.Services.AddRateLimiter(options =>
 {
@@ -77,6 +81,24 @@ builder.Services.AddRateLimiter(options =>
             {
                 Window = TimeSpan.FromMinutes(1),
                 PermitLimit = 5,
+                QueueLimit = 0
+            }));
+    options.AddPolicy("register", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 5,
+                QueueLimit = 0
+            }));
+    options.AddPolicy("refresh", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 10,
                 QueueLimit = 0
             }));
 });
@@ -135,7 +157,8 @@ app.MapHealthChecks("/health", new HealthCheckOptions
 }).AllowAnonymous();
 app.UseHttpsRedirection();
 app.UseCors();
-app.UseRateLimiter();
+if (!app.Environment.IsEnvironment("Testing"))
+    app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

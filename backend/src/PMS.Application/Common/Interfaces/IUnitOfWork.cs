@@ -21,4 +21,12 @@ public interface IUnitOfWork
     /// ra tầng Application (giữ Application độc lập hạ tầng).
     /// </summary>
     Task ExecuteInTransactionAsync(Func<Task> operation, CancellationToken ct = default);
+
+    /// <summary>
+    /// Ghi đè original value của cột RowVersion trên 1 entity đã tracked, bằng token client
+    /// gửi lên (đọc được từ response GET trước đó). Bắt buộc phải gọi trước SaveChangesAsync
+    /// để optimistic concurrency check so với đúng version client đang thấy, thay vì so với
+    /// version vừa load trong cùng request (luôn khớp, nên không bao giờ conflict).
+    /// </summary>
+    void SetConcurrencyToken<TEntity>(TEntity entity, byte[] rowVersion) where TEntity : class;
 }

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using PMS.Application.Common.Exceptions;
 using PMS.Domain.Common;
 
@@ -26,6 +27,12 @@ public class ExceptionHandlingMiddleware
         {
             _logger.LogInformation("Domain invariant violated: {Message}", ex.Message);
             await Write(context, StatusCodes.Status409Conflict, ex.Message);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogInformation("Concurrency conflict: {Message}", ex.Message);
+            await Write(context, StatusCodes.Status409Conflict,
+                "Dữ liệu đã bị người khác thay đổi, vui lòng tải lại và thử lại.");
         }
         catch (Exception ex)
         {

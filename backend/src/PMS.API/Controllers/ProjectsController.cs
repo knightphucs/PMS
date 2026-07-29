@@ -15,7 +15,7 @@ public class ProjectsController : ControllerBase
     public ProjectsController(IProjectService projects) => _projects = projects;
 
     [HttpPost]
-    [Authorize(Policy = "CanCreateProject")]
+    [Authorize(Policy = "can-create-project")]
     [ProducesResponseType(typeof(ProjectSummaryResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ProjectSummaryResponse>> Create(
@@ -39,8 +39,10 @@ public class ProjectsController : ControllerBase
 
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(ProjectDetailResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<ProjectDetailResponse>> Update(
         Guid id, UpdateProjectRequest req, CancellationToken ct)
         => Ok(await _projects.UpdateAsync(id, req, ct));

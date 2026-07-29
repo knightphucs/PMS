@@ -31,13 +31,13 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | Module | Trạng thái | Ghi chú |
 |---|---|---|
 | Domain layer (Entity, Enum) | ✅ | Toàn bộ entity ở §5 đã có trong `PMS.Domain` |
-| Auth (Register/Login/Refresh/Logout) | ✅ | Chi tiết xem bảng ở §10 — 2 mục con (Reset Password, khóa/mở tài khoản) vẫn ⬜ |
-| Project (CRUD + phân quyền 2 tầng + soft delete) | ✅ | Có Unit + Integration Test |
-| Project — quản lý thành viên (mời/accept/decline/đổi role/gỡ) | ⬜ | Domain đã có invariant, chưa có Service/Controller |
+| Auth (Register/Login/Refresh/Logout/Me) | ✅ | Chi tiết xem bảng ở §10 — chỉ còn Reset Password ⬜, khóa/mở tài khoản đã xong |
+| Project (CRUD + phân quyền 2 tầng + soft delete + optimistic concurrency) | ✅ | Có Unit + Integration Test. `RowVersion` đã wire đầy đủ qua DTO (không chỉ có ở schema) — xem ADR-016 |
+| Project — quản lý thành viên (mời/accept/decline/đổi role/gỡ) | ✅ | `ProjectMemberService`/`ProjectMembersController`, có Integration Test (seq-04/05) — *bảng này từng ghi ⬜ dù đã code xong từ commit `ca8ff0b`, đã sửa lại 2026-07-29* |
 | Sprint | ⬜ | Chỉ có entity + migration, chưa có `SprintService`/Controller |
 | Task (kể cả Subtask, Workflow Transition Rules) | ⬜ | Chưa có `TaskService`/Controller — chưa bắt đầu |
-| Comment / Activity Log / Notification | ⬜ | Chỉ có entity, chưa có Service/Controller |
-| Employee management (ngoài Auth) | ⬜ | Chưa có Admin Controller (khóa/mở tài khoản, cấp `SystemAdmin`) |
+| Comment / Activity Log / Notification | ⬜ | ActivityLog đã ghi qua `IActivityLogger` (ADR-013); Comment/Notification-API vẫn chưa có Service/Controller |
+| Employee management (ngoài Auth) | ✅ | `AdminEmployeesController` — khóa/mở tài khoản, cấp `SystemAdmin` — *bảng này từng ghi ⬜ dù đã code xong, đã sửa lại 2026-07-29* |
 | Thống kê / Dashboard | ⬜ | Chưa bắt đầu |
 | Frontend (toàn bộ) | ⬜ | Thư mục `frontend/` chưa tồn tại trong repo |
 | Real-time (SignalR) | ⬜ | Có chủ đích — chỉ làm sau khi core CRUD ổn định (xem §6) |
@@ -580,6 +580,7 @@ còn đủ thời gian trước deadline báo cáo.
 | 2026-07-28 | **(ADR-013)** ActivityLog ghi tường minh qua `IActivityLogger`, không dùng EF Interceptor | Interceptor chỉ thấy cột đổi, không biết ý nghĩa nghiệp vụ; log chung transaction với thay đổi nghiệp vụ — chi tiết bên dưới |
 | 2026-07-28 | **(ADR-014)** Gom audit fields vào `BaseEntity` | Chuẩn hóa `CreatedAt`/`UpdatedAt`, tránh property hiding và giữ dữ liệu log bằng migration `RenameColumn` — chi tiết bên dưới |
 | 2026-07-28 | **(ADR-015)** Khóa tài khoản phải thu hồi refresh token | `SystemRole` nằm trong JWT claim; khóa tài khoản hoặc đổi role phải vô hiệu hóa khả năng refresh token — chi tiết bên dưới |
+| 2026-07-29 | **(ADR-016)** Optimistic concurrency (`RowVersion`) cho `Project`/`TaskItem`, wire đầy đủ qua DTO cho Project | Cột `RowVersion` không tự nhiên giải quyết lost-update nếu không round-trip qua client — chi tiết bên dưới |
 
 | | | |
 
@@ -764,6 +765,35 @@ JWT. Đây chính là lý do `RoleInProject` không được nhét vào token (A
 **Bất biến mới:** hệ thống luôn còn ≥1 `SystemAdmin` **chưa bị khóa** — song song với
 "project luôn còn ≥1 PM Accepted" (ADR-012). Điều kiện `!IsLocked` là bắt buộc: đếm theo
 role không thôi sẽ cho phép khóa hết mọi admin.
+
+#### ADR-016 (2026-07-29) — Optimistic concurrency (`RowVersion`) cho `Project`/`TaskItem`
+
+**Bối cảnh:** Cột `RowVersion` (SQL `rowversion`, `IsConcurrencyToken()`) + middleware map
+`DbUpdateConcurrencyException` → 409 chỉ là điều kiện cần. Pattern update hiện tại của
+`ProjectService.UpdateAsync` là load entity → sửa → `SaveChanges` **trong cùng 1 request/
+DbContext** — nếu không có gì khác can thiệp, EF luôn so sánh với chính version vừa load,
+nên concurrency check **không bao giờ kích hoạt** cho đúng kịch bản cần chặn: 2 người cùng mở
+form sửa 1 project, người thứ hai submit sau phải bị từ chối vì dữ liệu đã đổi.
+
+**Quyết định:**
+1. `RowVersion` được trả về trong `ProjectDetailResponse` và bắt buộc phải gửi lại trong
+   `UpdateProjectRequest` — client phải round-trip đúng token đã nhận từ lần `GET` gần nhất.
+2. `IUnitOfWork.SetConcurrencyToken<TEntity>(entity, rowVersion)` ghi đè **original value**
+   của cột `RowVersion` trên entity đã tracked, gọi trước `SaveChangesAsync`, để EF build câu
+   `UPDATE ... WHERE Id = @id AND RowVersion = @clientToken` thay vì so với version vừa load.
+3. `UpdateProjectRequestValidator` (trước đây **không tồn tại** — `UpdateProjectRequest`
+   không được validate gì cả) bắt buộc `RowVersion` không rỗng.
+4. Có integration test khẳng định sửa lần 2 với `RowVersion` cũ nhận **409**.
+
+**Giới hạn đã biết:** Chỉ mới wire cho `Project`. `TaskItem.RowVersion` đã có ở schema nhưng
+chưa wire qua DTO — sẽ làm cùng lúc dựng `TaskService`, tránh lặp lại đúng cái bẫy "chỉ có ở
+schema" mà ADR này vừa sửa cho Project.
+
+**Bài học:** Migration ban đầu (`AlterColumn` `Notifications.Type` từ `int` sang
+`nvarchar(50)`) cũng bị phát hiện cùng đợt — SQL Server tự CAST số thành chuỗi số ("0", "1"),
+không thành tên enum ("TaskAssigned") mà `HasConversion<string>()` cần khi đọc lại. Đã sửa
+migration để tự `UPDATE` map giá trị cũ sang tên enum trước khi đổi kiểu cột, tránh làm hỏng
+dữ liệu `Notification` đã seed/tồn tại trong DB dev.
 
 > 📌 Cập nhật bảng này mỗi khi có quyết định kiến trúc mới hoặc thay đổi — đây sẽ là
 > phần rất hữu ích khi viết chương "Phân tích thiết kế" trong báo cáo tốt nghiệp.

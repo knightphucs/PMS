@@ -55,13 +55,32 @@ public class ProjectsCrudTests : IntegrationTestBase
     {
         var a = await CreateUserAsync();
         var id = await CreateProjectAsync(a.Client);
+        var before = await a.Client.GetFromJsonAsync<ProjectDetailResponse>($"/api/v1/Projects/{id}");
 
         var res = await a.Client.PutAsJsonAsync($"/api/v1/Projects/{id}",
-            new UpdateProjectRequest("  Tên đã đổi  ", "Mô tả mới", DateTime.UtcNow.AddDays(60)));
+            new UpdateProjectRequest("  Tên đã đổi  ", "Mô tả mới", DateTime.UtcNow.AddDays(60), before!.RowVersion));
 
         res.StatusCode.ShouldBe(HttpStatusCode.OK);
         var detail = await res.Content.ReadFromJsonAsync<ProjectDetailResponse>();
         detail!.Name.ShouldBe("Tên đã đổi");     // service có Trim()
+    }
+
+    [Fact]
+    public async Task Sua_project_voi_RowVersion_cu_thi_bi_chan_409()
+    {
+        var a = await CreateUserAsync();
+        var id = await CreateProjectAsync(a.Client);
+        var before = await a.Client.GetFromJsonAsync<ProjectDetailResponse>($"/api/v1/Projects/{id}");
+
+        // Sửa lần 1 thành công -> RowVersion trên DB đã đổi
+        await a.Client.PutAsJsonAsync($"/api/v1/Projects/{id}",
+            new UpdateProjectRequest("Lần sửa 1", "Mô tả 1", DateTime.UtcNow.AddDays(60), before!.RowVersion));
+
+        // Sửa lần 2 vẫn dùng RowVersion cũ (giả lập request đến sau khi đã có người khác sửa)
+        var res = await a.Client.PutAsJsonAsync($"/api/v1/Projects/{id}",
+            new UpdateProjectRequest("Lần sửa 2", "Mô tả 2", DateTime.UtcNow.AddDays(60), before.RowVersion));
+
+        res.StatusCode.ShouldBe(HttpStatusCode.Conflict);
     }
 
     [Theory] // KB9 + KB10

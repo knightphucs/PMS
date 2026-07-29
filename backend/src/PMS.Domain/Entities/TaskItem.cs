@@ -10,6 +10,8 @@ public class TaskItem : BaseEntity, ISoftDeletable
     public Status Status { get; private set; } = Status.ToDo;
     public Priority Priority { get; set; } = Priority.Medium;
 
+    public byte[] RowVersion { get; set; } = null!;
+
     public Guid ProjectId { get; set; }
     public Guid? SprintId { get; set; }
     public Guid? ParentTaskId { get; set; }

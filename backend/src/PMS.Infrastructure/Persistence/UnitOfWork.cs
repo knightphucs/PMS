@@ -31,6 +31,9 @@ public class UnitOfWork : IUnitOfWork
 
     public Task<int> SaveChangesAsync(CancellationToken ct = default) => _context.SaveChangesAsync(ct);
 
+    public void SetConcurrencyToken<TEntity>(TEntity entity, byte[] rowVersion) where TEntity : class
+        => _context.Entry(entity).Property("RowVersion").OriginalValue = rowVersion;
+
     public async Task ExecuteInTransactionAsync(
         Func<Task> operation, CancellationToken ct = default)
     {

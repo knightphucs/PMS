@@ -12,6 +12,7 @@ public class Project : BaseEntity, ISoftDeletable
 
     public bool IsDeleted { get; set; }
     public DateTime? DeletedAt { get; set; }
+    public byte[] RowVersion { get; set; } = null!;
 
     public ICollection<TaskItem> Tasks { get; set; } = [];
     public ICollection<Sprint> Sprints { get; set; } = [];

@@ -69,6 +69,8 @@ public class ProjectService : IProjectService
         var project = await _uow.Projects.GetWithMembersAsync(id, ct)
             ?? throw new NotFoundException(nameof(Project), id);
 
+        _uow.SetConcurrencyToken(project, request.RowVersion);
+
         project.Name = request.Name.Trim();
         project.Description = request.Description.Trim();
         project.ExpectedCompletionDate = request.ExpectedCompletionDate;
