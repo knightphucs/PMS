@@ -5,7 +5,21 @@
 > Mục đích: đảm bảo tính nhất quán xuyên suốt quá trình phát triển, và làm tài liệu
 > tham chiếu cho báo cáo thực tập tốt nghiệp.
 >
-> Cập nhật lần cuối: 2026-07-27
+> Cập nhật lần cuối: 2026-07-29
+
+> ## 🧭 Bắt đầu phiên mới ở đây
+> **Trạng thái:** Auth + Project (kể cả quản lý thành viên) đã xong, có test, đã review
+> kỹ (build sạch, 93 test pass). Employee management (khóa/mở tài khoản) cũng đã xong.
+> **Việc tiếp theo: module Task** (kể cả Subtask, Sprint, Workflow Transition Rules).
+> **Trước khi viết code Task, đọc theo thứ tự:**
+> 1. §5 (Domain Model) — đặc biệt phần Task/Subtask/Sprint/Workflow Transition Rules
+> 2. §15, mục con **"Task module — quyết định trước khi code"** (đầu §15, trước log
+>    ADR) — 5 câu hỏi thiết kế đã được chốt (2 câu vừa quyết ở phiên này, 3 câu hóa ra
+>    đã có sẵn trong UML nhưng chưa ai đối chiếu) + danh sách "diagram debt" cần sửa
+>    trước khi tin tưởng 100% vào UML hiện có (đặc biệt `seq-03-change-status`)
+> 3. `docs/uml/diagram_png/seq-01/02/03` — đã vẽ sẵn luồng create/assign/change-status,
+>    tái dùng chứ không cần vẽ lại từ đầu (trừ seq-03 cần sửa theo ADR-017)
+> 4. §12 để biết diagram nào cần cập nhật trước khi code, diagram nào dùng được ngay
 
 ---
 
@@ -183,6 +197,12 @@ ProjectManagementSystem/
   Mọi hành động assign/unassign đều sinh `ActivityLog` + `Notification` cho PM, để PM
   luôn nắm được ai đang làm gì dù không tự tay gán.
 
+  > 📌 Bảng trên đã được xác nhận bằng `seq-02-assign-task` (check `IsProjectMember`
+  > trước khi assign, 403 nếu target không phải member) — không chỉ là ý định thiết kế
+  > chưa kiểm chứng. Assignee **bắt buộc** là `ProjectMember` với `InvitationStatus =
+  > Accepted` của đúng project chứa task đó — chặn ở `TaskAssignmentService`, không
+  > phải ở domain (`Task` không có nav property tới `ProjectMember`).
+
 ### Entity Sprint/Board (nay là core, không còn là "tương lai") ⬜ *(entity + migration đã có, chưa có `SprintService`/Controller)*
 - **`Sprint`**: Tên, `ProjectId`, `StartDate`, `EndDate`, `Goal` (mục tiêu sprint ngắn)
   - 1 Project có nhiều Sprint
@@ -211,6 +231,9 @@ ToDo → InProgress → Review → Done
 - Logic này đặt trong Application layer (`TaskStatusTransitionService`), không phải
   if-else rải rác — dễ mở rộng quy tắc sau này, đúng tinh thần OOP (Strategy Pattern
   hoặc State Pattern có thể áp dụng ở đây)
+- **Ai được gọi đổi status:** `Assignee` của chính task đó, HOẶC `ProjectManager` của
+  project (override được cả task không do mình assign) — xem ADR-017 (§15). `Viewer`
+  và `Member` không phải assignee thì không được.
 
 ### Subtask — là 1 Task đầy đủ, không phải checklist item đơn giản ⬜ *(`ParentTaskId` đã có trong domain, chưa có `TaskService`/API)*
 Vì `Task` tự tham chiếu chính nó (`ParentTaskId`, self-referencing), **Subtask thừa
@@ -232,6 +255,9 @@ tái sử dụng thay vì trùng lặp code cho 2 khái niệm về bản chất
 
 **Giới hạn hợp lý:** Subtask không được có Subtask con của chính nó (chỉ 1 cấp cha–con,
 không đệ quy vô hạn) — tránh phức tạp hóa UI/logic không cần thiết ở quy mô hệ thống này.
+Đã xác nhận trong use-case diagram (annotation trên bubble "Tạo subtask"). Enforce ở
+**domain method** `Task.AddSubtask()` (từ chối nếu `this.ParentTaskId != null`), nhất
+quán với cách invariant của `Project` đặt trong aggregate root thay vì Service (ADR-012).
 
 ### Subtask — Progress Bar, không tự động đóng Task cha ⬜ *(chưa code)*
 Theo đúng hành vi mặc định của Jira (đã xác nhận): Subtask có Status/Assignee độc
@@ -483,10 +509,10 @@ project khác nhau):
 
 | Diagram | Mục đích | Trạng thái |
 |---|---|---|
-| Use Case Diagram | Tổng quan chức năng theo actor (SystemAdmin, ProjectManager, Member, Viewer) | Done |
-| Class Diagram | Chi tiết entity, thuộc tính, quan hệ, OOP | Done |
-| ERD | Thiết kế database quan hệ | Done |
-| Sequence Diagram | Tạo task, Gán nhân sự, Đổi status, Mời thành viên, Phản hồi lời mời | 5/5: `seq-01/02/03` (task) + `seq-04` (mời) + `seq-05` (accept/decline). Luồng Notification không tách riêng — đã thể hiện trong seq-04/05 |
+| Use Case Diagram | Tổng quan chức năng theo actor (SystemAdmin, ProjectManager, Member, Viewer) | Done — nhưng theo ADR-017, box PM cần thêm 1 bubble "Cập nhật trạng thái task" (hiện chỉ có ở box Member) |
+| Class Diagram | Chi tiết entity, thuộc tính, quan hệ, OOP | Done — nhưng `Task` đang có method `SoftDelete()` liệt kê, mâu thuẫn với ADR-008 (soft delete là persistence concern, không phải domain method). Sửa trước khi dùng làm tài liệu chấm điểm |
+| ERD | Thiết kế database quan hệ | Done — chưa phản ánh `RowVersion` (ADR-016) và `Notifications.Type` đã đổi sang `nvarchar` (ADR-016); không chặn code, chỉ lệch hình ảnh |
+| Sequence Diagram | Tạo task, Gán nhân sự, Đổi status, Mời thành viên, Phản hồi lời mời | 5/5 tồn tại (`seq-01/02/03` + `seq-04/05`), nhưng **`seq-03-change-status` cần vẽ lại** theo ADR-017: hiện chỉ vẽ actor "Assignee", thiếu nhánh 403 cho người không phải assignee/PM, và thiếu nhánh cho PM gọi. Luồng self-assign (Member tự nhận task) cũng chưa có sequence diagram riêng — chỉ có trong prose (§5) và UC annotation |
 
 ---
 
@@ -539,6 +565,38 @@ còn đủ thời gian trước deadline báo cáo.
 
 ## 15. Nhật ký quyết định (Architecture Decision Log)
 
+### Task module — quyết định trước khi code
+
+> Mục này gom lại đúng 5 câu hỏi thiết kế mà phiên trước (Auth/Project review) đã liệt
+> kê là "cần quyết trước khi vào Task". Khi soát lại UML hiện có (2026-07-29), hóa ra
+> 3/5 câu đã có câu trả lời sẵn — chỉ là chưa ai đối chiếu qua các diagram để viết
+> tường minh vào đây. Ghi lại nguồn cụ thể để không phải suy đoán lại lần nữa.
+
+### Đã có sẵn câu trả lời (chỉ cần implement đúng theo đã thiết kế)
+
+| # | Câu hỏi | Trả lời | Nguồn |
+|---|---|---|---|
+| 1 | Assignee có bắt buộc là `ProjectMember` đã `Accepted`? | **Có** | `seq-02-assign-task`: check `IsProjectMember(projectId, employeeId)`, 403 nếu không phải; UC annotation trên bubble "Tự nhận task" |
+| 2 | Subtask giới hạn 1 cấp — enforce ở đâu? | **Domain**, method `Task.AddSubtask()` | UC annotation ("tối đa 1 cấp"); nhất quán với ADR-012 (invariant trong aggregate root) |
+| 3 | Sprint có tách module riêng khỏi Task không? | **Không** — build chung 1 đợt với Task | UC diagram gộp "Quản lý Sprint" + "Sắp xếp Backlog ↔ Sprint" vào cùng box PM với các use case Task khác |
+
+### Vừa quyết định (2026-07-29, ADR-017/018 — xem chi tiết ADR ở "Log đầy đủ" bên dưới)
+
+| # | Câu hỏi | Trả lời |
+|---|---|---|
+| 4 | Ai được đổi status của task? | `Assignee` HOẶC `ProjectManager` của project (ADR-017) |
+| 5 | Xóa task còn subtask chưa `Done` thì sao? | Chặn **409 Conflict**, không cascade (ADR-018) |
+
+### Diagram debt cần dọn trước/trong khi code Task (xem chi tiết ở §12)
+1. `seq-03-change-status.drawio` — vẽ lại theo ADR-017 (thêm nhánh PM + nhánh 403 cho
+   người không liên quan).
+2. `class-diagram.drawio` — xóa method `SoftDelete()` khỏi `Task` (mâu thuẫn ADR-008).
+3. `use-case-diagram.drawio` — thêm bubble "Cập nhật trạng thái task" vào box PM.
+4. (Tùy chọn, không chặn) — vẽ thêm seq riêng cho luồng self-assign, hiện chỉ có ở
+   dạng prose.
+
+### Log đầy đủ
+
 | Ngày | Quyết định | Lý do |
 |---|---|---|
 | 2026-07-20 | Chọn .NET thay vì Python | Đề bài yêu cầu OOP rõ ràng, đã có nền tảng C# |
@@ -581,6 +639,8 @@ còn đủ thời gian trước deadline báo cáo.
 | 2026-07-28 | **(ADR-014)** Gom audit fields vào `BaseEntity` | Chuẩn hóa `CreatedAt`/`UpdatedAt`, tránh property hiding và giữ dữ liệu log bằng migration `RenameColumn` — chi tiết bên dưới |
 | 2026-07-28 | **(ADR-015)** Khóa tài khoản phải thu hồi refresh token | `SystemRole` nằm trong JWT claim; khóa tài khoản hoặc đổi role phải vô hiệu hóa khả năng refresh token — chi tiết bên dưới |
 | 2026-07-29 | **(ADR-016)** Optimistic concurrency (`RowVersion`) cho `Project`/`TaskItem`, wire đầy đủ qua DTO cho Project | Cột `RowVersion` không tự nhiên giải quyết lost-update nếu không round-trip qua client — chi tiết bên dưới |
+| 2026-07-29 | **(ADR-017)** Đổi status task: `Assignee` HOẶC `ProjectManager` được phép, không phải "chỉ assignee" hay "mọi Member" | UC diagram và seq-03 mâu thuẫn nhau về phạm vi — chi tiết bên dưới |
+| 2026-07-29 | **(ADR-018)** Xóa task còn subtask chưa `Done`: chặn 409, không cascade | Nhất quán triết lý "không xóa ngầm" đã dùng ở ADR-008 (project) và invite/remove member — chi tiết bên dưới |
 
 | | | |
 
@@ -793,7 +853,55 @@ schema" mà ADR này vừa sửa cho Project.
 `nvarchar(50)`) cũng bị phát hiện cùng đợt — SQL Server tự CAST số thành chuỗi số ("0", "1"),
 không thành tên enum ("TaskAssigned") mà `HasConversion<string>()` cần khi đọc lại. Đã sửa
 migration để tự `UPDATE` map giá trị cũ sang tên enum trước khi đổi kiểu cột, tránh làm hỏng
-dữ liệu `Notification` đã seed/tồn tại trong DB dev.
+dữ liệu `Notification` đã seed/tồn tại trong DB dev. DB dev đã migrate trước khi sửa migration
+này cũng được vá tay bằng đúng câu `UPDATE` tương ứng, không cần drop/reseed.
+
+#### ADR-017 (2026-07-29) — Ai được đổi status của task
+
+**Bối cảnh:** Đây là 1/5 câu hỏi thiết kế được liệt kê là "cần quyết trước khi code Task".
+Khi đối chiếu UML hiện có để trả lời, phát hiện 2 diagram **mâu thuẫn nhau**:
+- `use-case-diagram`: bubble "Cập nhật trạng thái task" nằm trong box **Member** chung,
+  không có annotation giới hạn (khác với bubble "Tự nhận task" có ghi rõ điều kiện).
+- `seq-03-change-status`: actor được đặt tên cụ thể là **"Assignee"**, không phải "Member".
+- Box **ProjectManager** không liệt kê use case này ở đâu cả.
+
+Nếu implement theo đúng nghĩa đen của UC diagram (bất kỳ Accepted Member nào của project),
+hệ thống lỏng hơn Jira thật và PM mất khả năng tự sửa status khi cần gấp mà không phải
+assignee. Nếu theo đúng nghĩa đen của seq-03 (chỉ Assignee), PM muốn sửa phải tự
+assign/unassign trước — vòng vo không cần thiết cho vai trò cao nhất của project.
+
+**Quyết định:** Cho phép đổi status nếu người gọi là **Assignee của chính task đó** HOẶC
+**ProjectManager của project chứa task đó** (override được, kể cả task không do mình gán).
+`Member` không phải assignee, và `Viewer`, đều bị từ chối.
+
+**Hệ quả:**
+- Check đặt ở Service layer (`TaskStatusTransitionService`, tương tự cách `IProjectAuthorizationService`
+  tách riêng khỏi domain — ADR-006), vì cần biết cả `RoleInProject` (từ `ProjectMember`) lẫn
+  danh sách assignee (từ `TaskAssignment`) — hai nguồn dữ liệu domain `Task` không tự có.
+- `seq-03-change-status.drawio` cần vẽ lại: thêm bước kiểm tra quyền (hiện đang thiếu hẳn,
+  khác với `seq-02-assign-task` đã có bước `IsProjectMember` + nhánh 403 rõ ràng), thêm
+  nhánh 403 cho người không phải Assignee/PM.
+- `use-case-diagram.drawio` cần thêm bubble "Cập nhật trạng thái task" vào box PM.
+
+#### ADR-018 (2026-07-29) — Xóa task còn subtask chưa `Done`
+
+**Bối cảnh:** Câu hỏi thiết kế còn lại không có diagram nào đề cập. Hai lựa chọn: chặn cứng,
+hoặc cascade soft-delete xuống toàn bộ subtask (giống cách Project cascade xuống Task/Sprint
+ở ADR-008).
+
+**Quyết định:** Chặn **409 Conflict** nếu task còn subtask chưa `Done` — không cascade.
+
+**Lý do:** Đây là lần thứ ba áp dụng cùng triết lý "không xóa ngầm": Project chặn 409 nếu còn
+task active (ADR-008), gỡ member chặn nếu còn task đang gán (đã có test ở `ProjectMemberService`),
+và nay task chặn nếu còn subtask active. Khác với ADR-008 (Project→Task/Sprint), quan hệ
+Task→Subtask là công việc con **cùng cấp chi tiết** với task cha (không phải "hạ tầng đi kèm"),
+nên rủi ro mất dữ liệu ý nghĩa nếu cascade cao hơn — chặn và bắt PM xử lý dứt điểm subtask
+trước là lựa chọn an toàn hơn.
+
+**Ghi chú:** Không mâu thuẫn với ADR-008 — ADR-008 áp dụng cho quan hệ Project→Task (Task là
+"nội dung" của Project), còn đây là Task→Subtask. Khi Project bị xóa (đã cascade xuống Task),
+Subtask cũng cascade theo vì `Task` (cha) đã bị soft-delete — không cần rule riêng cho
+trường hợp đó, chỉ cần rule này áp dụng cho `DeleteAsync` gọi trực tiếp trên 1 Task cụ thể.
 
 > 📌 Cập nhật bảng này mỗi khi có quyết định kiến trúc mới hoặc thay đổi — đây sẽ là
 > phần rất hữu ích khi viết chương "Phân tích thiết kế" trong báo cáo tốt nghiệp.
