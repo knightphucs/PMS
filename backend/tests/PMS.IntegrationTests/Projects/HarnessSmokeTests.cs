@@ -24,4 +24,16 @@ public class HarnessSmokeTests : IntegrationTestBase
         var res = await client.GetAsync("/api/v1/Projects");
         res.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
+
+    [Fact]
+    public async Task Health_endpoint_khong_can_token_va_khong_lo_thong_tin_ha_tang()
+    {
+        var res = await Factory.CreateClient().GetAsync("/health");
+
+        res.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var body = await res.Content.ReadAsStringAsync();
+        body.ShouldContain("Healthy");
+        body.ShouldNotContain("Server="); 
+        body.ShouldNotContain("Password");
+    }
 }
