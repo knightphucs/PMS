@@ -355,7 +355,7 @@ Route đã theo chuẩn `/api/v1/...` ngay từ đầu — tránh phải đổi 
 thay đổi breaking. *(Hiện dùng tiền tố route tĩnh, chưa cài package `Asp.Versioning.Mvc`
 — chỉ cần khi cần v2 song song với v1.)*
 
-### CORS Policy ⬜ *(chưa code — chưa có `AddCors`/`UseCors` trong `Program.cs`)*
+### CORS Policy ✅
 Cấu hình CORS rõ ràng cho phép origin của Frontend (Next.js dev: `localhost:3000`,
 production: domain thật) — không dùng `AllowAnyOrigin` khi có JWT/cookie. Bắt buộc phải
 làm trước khi Frontend (chưa có, xem "Tiến độ triển khai theo module" ở §1) gọi API thật,
@@ -371,7 +371,7 @@ nếu không mọi request từ browser sẽ bị chặn bởi same-origin polic
   — thiếu `Jwt:Secret` thì app chết ngay lúc khởi động với thông báo rõ ràng, thay vì chết
   ở request đầu tiên bằng lỗi `IDX10703` không gợi ý nguyên nhân.
 
-### Health Check ⬜ *(chưa code — chưa có `AddHealthChecks`/`MapHealthChecks` trong `Program.cs`)*
+### Health Check ✅
 Endpoint `/health` (dùng `Microsoft.Extensions.Diagnostics.HealthChecks`) kiểm tra
 API còn sống và kết nối database còn ổn — cần thiết khi có Docker/CI-CD hoặc load
 balancer để biết khi nào restart instance.
@@ -427,9 +427,8 @@ Dùng `ASPNETCORE_ENVIRONMENT` để switch giữa các file `appsettings.{Envir
 | Password hash bằng BCrypt (work factor 11), không lưu plaintext | ✅ Đã có (`BCryptPasswordHasher`) |
 | Rate limiting cho endpoint đăng nhập (chống brute-force) | ✅ Đã có (`[EnableRateLimiting("login")]`) |
 | HTTPS bắt buộc (`app.UseHttpsRedirection()`) | ✅ Đã có |
-| Khóa/mở tài khoản, cấp `SystemAdmin` role cho người khác | ⬜ Chưa code — chưa có Admin Controller/endpoint nào; `Employee` cũng chưa có field kiểu `IsLocked`. Mọi tài khoản đăng ký đều mặc định `SystemRole.User`, chưa có cách nâng lên `SystemAdmin` ngoài sửa thẳng DB |
-| Quên mật khẩu / Reset password qua token hết hạn 15-30 phút | ⬜ Chưa code — `PasswordResetToken` entity (dự kiến: `EmployeeId`, `Token`, `ExpiresAt`, `IsUsed`) chưa tồn tại trong `PMS.Domain` |
-
+| Khóa/mở tài khoản, cấp `SystemAdmin` role cho người khác | ✅ Đã có — `AdminEmployeesController`, policy `RequireSystemAdmin`. Khóa/đổi role đều thu hồi toàn bộ refresh token. Bất biến: luôn còn ≥1 SystemAdmin chưa bị khóa |
+| Quên mật khẩu / Reset password qua token hết hạn 15-30 phút | ⬜ Chưa code — `PasswordResetToken` chưa tồn tại; còn phụ thuộc email service |
 > 📌 Hai mục ⬜ là quyết định thiết kế có sẵn từ đầu (ADR §15, 2026-07-22), chưa tới
 > lượt implement — không phải bug hay bị bỏ sót giữa chừng.
 
@@ -548,13 +547,13 @@ còn đủ thời gian trước deadline báo cáo.
 | [điền ngày khi code] | Cho phép nhiều người/1 Task (Employee N–N Task qua `TaskAssignment`) | Phản ánh thực tế: task lớn thường cần nhiều người phối hợp — *entity đã có, chưa có `TaskService`/API dùng được* |
 | 2026-07-22 | Áp dụng phân quyền 2 tầng: SystemRole + RoleInProject (`ProjectMember`) | Sát với mô hình doanh nghiệp thật, 1 người có thể khác role ở project khác nhau — đã hoạt động thật cho Project (`ProjectAuthorizationService`) |
 | [điền ngày khi code] | Nâng Sprint/Backlog/Board từ "tương lai" thành tính năng core | Mục tiêu làm sản phẩm dùng được thật, không chỉ CRUD đơn thuần — *entity + migration đã có, chưa có `SprintService`/Controller* |
-| [điền ngày khi code] | Thêm Comment, Activity Log, Notification vào core | Đây là tính năng tối thiểu để 1 team thật sự dùng được hệ thống hàng ngày — *chỉ mới entity, chưa có Service/Controller nào* |
+| 2026-07-22 | Thêm Comment, Activity Log, Notification vào core | Đây là tính năng tối thiểu để 1 team thật sự dùng được hệ thống hàng ngày — *chỉ mới entity, chưa có Service/Controller nào* |
 | 2026-07-22 | Áp dụng Soft Delete cho Project/Task | Bảo toàn ActivityLog/Comment liên quan, cho phép khôi phục — đã hoạt động thật, có test |
 | 2026-07-22 | Chuẩn hóa Pagination, Global Exception Handling, API Versioning | Đạt chuẩn API production-grade, không phải sửa lại kiến trúc giữa chừng |
-| [điền ngày khi code] | Chuẩn hóa CORS Policy | Bắt buộc trước khi Frontend gọi API thật — *chưa có `AddCors`/`UseCors` trong `Program.cs`* |
+| 2026-07-29 | Chuẩn hóa CORS Policy | Bắt buộc trước khi Frontend gọi API thật — đã có `AddCors`/`UseCors` với policy `PmsFrontend` |
 | 2026-07-22 | Thêm mục Non-Functional Requirements + Data Seeding | Phục vụ demo báo cáo trôi chảy và thể hiện đầy đủ tư duy thiết kế hệ thống — `DbSeeder` đã chạy được ở môi trường Development |
 | 2026-07-22 | Mọi `User` được tạo Project, tự động thành `ProjectManager` của project đó | Tránh bottleneck xin duyệt qua SystemAdmin, khớp cách Jira/Trello vận hành thật |
-| [điền ngày khi code] | `SystemAdmin` tách bạch khỏi Project Role: chỉ read-only toàn hệ thống, muốn thao tác phải là `ProjectMember` như bình thường | Tránh "God Mode" — giữ đúng nguyên tắc Least Privilege, dễ audit trách nhiệm — *chưa có code nào cho SystemAdmin bypass đọc toàn hệ thống* |
+| 2026-07-29 | `SystemAdmin` tách bạch khỏi Project Role: chỉ read-only toàn hệ thống, muốn thao tác phải là `ProjectMember` như bình thường | Tránh "God Mode" — giữ đúng nguyên tắc Least Privilege, dễ audit trách nhiệm — *chưa có code nào cho SystemAdmin bypass đọc toàn hệ thống* |
 | 2026-07-22 | Giữ `Viewer` như 1 actor riêng trong Use Case Diagram | Phản ánh nhu cầu thực tế: stakeholder/khách hàng/auditor cần xem mà không cần sửa — đã có trong `RoleInProject` + `ProjectPermissions`, có test |
 | [điền ngày khi code] | Cho phép `Member` tự self-assign task đang `ToDo` (không cần PM gán); gán người khác/gỡ người khác vẫn chỉ PM | Khớp mô hình Kanban thực tế (tự "pick up" task), giảm bottleneck qua PM, vẫn tránh xung đột nhờ điều kiện task phải đang `ToDo` — *chưa có `TaskService`* |
 | [điền ngày khi code] | Thêm Reporter, Priority, Label, Watcher, TaskLink, Workflow Transition Rules vào core | Đối chiếu trực tiếp mô hình Jira thật — đây là các khái niệm cơ bản mà thiếu sẽ khiến hệ thống thiếu tính thực tế — *field/entity đã có, `TaskStatusTransitionService` chưa tồn tại* |
@@ -563,7 +562,7 @@ còn đủ thời gian trước deadline báo cáo.
 | 2026-07-22 | Thêm `InvitationStatus` (Pending/Accepted/Declined) cho `ProjectMember` | Phản ánh đúng luồng mời thành viên thực tế, không tự tạo tài khoản hộ người chưa đăng ký — enum đã dùng thật trong filter membership |
 | [điền ngày khi code] | Thêm Reset Password qua token có hạn 15-30 phút | Tính năng Auth cơ bản, thiếu sẽ không dùng được thật — *`PasswordResetToken` chưa tồn tại trong `PMS.Domain`* |
 | 2026-07-22 | Bắt buộc HTTPS toàn hệ thống | Bảo vệ JWT token khỏi bị nghe lén qua kênh không mã hóa — đã có `app.UseHttpsRedirection()` |
-| [điền ngày khi code] | Thêm Health Check endpoint (`/health`) | Cần thiết khi có Docker/CI-CD để biết trạng thái API — *chưa có `AddHealthChecks`/`MapHealthChecks` trong `Program.cs`* |
+| 2026-07-29 | Thêm Health Check endpoint (`/health`) | Cần thiết khi có Docker/CI-CD để biết trạng thái API — đã có `AddHealthChecks`/`MapHealthChecks` trong `Program.cs` |
 | [điền ngày khi code] | Định nghĩa 3 môi trường Dev/Staging/Production qua `ASPNETCORE_ENVIRONMENT` | Tách cấu hình rõ ràng, tránh lẫn lộn dữ liệu test và thật — *mới chỉ có nhánh rẽ Dev/không-Dev trong `Program.cs`, chưa có `appsettings.Staging.json` hay cấu hình riêng cho Staging* |
 | [điền ngày khi code] | Subtask không tự động đóng Task cha khi tất cả subtask `Done`; chỉ hiển thị progress bar (%) | Giữ đúng hành vi mặc định của Jira thật — Task cha có thể còn việc ngoài các subtask đã liệt kê — *chưa có `TaskService` để áp dụng quy tắc này* |
 | [điền ngày khi code] | Subtask là 1 Task đầy đủ (Status, Assignee, Comment, Watcher, TaskLink riêng), không phải checklist item; giới hạn chỉ 1 cấp cha–con | Task/Subtask dùng chung class, đúng nguyên lý OOP tái sử dụng; tránh phức tạp hóa với đệ quy vô hạn — *`ParentTaskId` đã có trong domain, chưa có logic giới hạn 1 cấp hay API thao tác* |
@@ -580,6 +579,7 @@ còn đủ thời gian trước deadline báo cáo.
 | 2026-07-28 | **(ADR-012)** Vòng đời lời mời và invariant thành viên đặt trong aggregate `Project` | Đảm bảo luôn có ≥1 PM Accepted, không mời trùng; DB unique index là chốt chặn cuối — chi tiết bên dưới |
 | 2026-07-28 | **(ADR-013)** ActivityLog ghi tường minh qua `IActivityLogger`, không dùng EF Interceptor | Interceptor chỉ thấy cột đổi, không biết ý nghĩa nghiệp vụ; log chung transaction với thay đổi nghiệp vụ — chi tiết bên dưới |
 | 2026-07-28 | **(ADR-014)** Gom audit fields vào `BaseEntity` | Chuẩn hóa `CreatedAt`/`UpdatedAt`, tránh property hiding và giữ dữ liệu log bằng migration `RenameColumn` — chi tiết bên dưới |
+| 2026-07-28 | **(ADR-015)** Khóa tài khoản phải thu hồi refresh token | `SystemRole` nằm trong JWT claim; khóa tài khoản hoặc đổi role phải vô hiệu hóa khả năng refresh token — chi tiết bên dưới |
 
 | | | |
 
@@ -743,6 +743,27 @@ mỗi nơi một kiểu. Khai báo trùng tên với property của lớp cha c�
 
 **Ghi chú migration:** `Timestamp → CreatedAt` phải sửa tay thành `RenameColumn`; EF mặc
 định sinh `DropColumn` + `AddColumn`, tức mất dữ liệu log cũ.
+
+#### ADR-015 (2026-07-28) — Khóa tài khoản phải thu hồi refresh token
+**Bối cảnh:** `SystemRole` nằm trong JWT claim và access token sống 15 phút, refresh token
+sống 7 ngày. Chỉ chặn `IsLocked` ở `LoginAsync` thì người bị khóa vẫn gọi `/Auth/refresh`
+lấy token mới suốt 7 ngày — khóa tài khoản trở thành vô nghĩa.
+
+**Quyết định:**
+1. Kiểm `IsLocked` ở **cả** `LoginAsync` và `RefreshAsync`.
+2. Thu hồi toàn bộ refresh token đang hoạt động ngay tại thời điểm khóa **và** khi đổi `SystemRole`.
+3. `LoginAsync` trả **403** (kèm lý do), `RefreshAsync` trả **401** (chung chung) — refresh
+   phải trả 401 để client tự chuyển sang màn hình đăng nhập.
+4. Kiểm `IsLocked` **sau** khi verify mật khẩu, để không rò rỉ trạng thái tài khoản cho
+   người không biết mật khẩu (giữ nguyên lớp chống user enumeration của `DummyHash`).
+
+**Giới hạn còn lại (chấp nhận có ý thức):** access token đã phát vẫn dùng được tối đa 15 phút
+sau khi khóa. Triệt tiêu hoàn toàn sẽ phải kiểm DB mỗi request — đánh mất tính stateless của
+JWT. Đây chính là lý do `RoleInProject` không được nhét vào token (ADR-006).
+
+**Bất biến mới:** hệ thống luôn còn ≥1 `SystemAdmin` **chưa bị khóa** — song song với
+"project luôn còn ≥1 PM Accepted" (ADR-012). Điều kiện `!IsLocked` là bắt buộc: đếm theo
+role không thôi sẽ cho phép khóa hết mọi admin.
 
 > 📌 Cập nhật bảng này mỗi khi có quyết định kiến trúc mới hoặc thay đổi — đây sẽ là
 > phần rất hữu ích khi viết chương "Phân tích thiết kế" trong báo cáo tốt nghiệp.
