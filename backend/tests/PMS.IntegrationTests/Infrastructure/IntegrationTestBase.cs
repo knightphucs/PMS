@@ -52,6 +52,38 @@ public abstract class IntegrationTestBase
         return new TestUser(client, employeeId, email);
     }
 
+    /// <summary>
+    /// Tạo user rồi nâng lên SystemAdmin thẳng trong DB. Không có API tự phong quyền —
+    /// đó là chủ ý chống privilege escalation, nên test buộc phải "mồi" ở tầng DB.
+    /// </summary>
+    protected async Task<TestUser> CreateSystemAdminAsync()
+    {
+        var email = $"admin-{Guid.NewGuid():N}@pms.test";
+        var client = Factory.CreateClient();
+
+        await client.PostAsJsonAsync("/api/v1/Auth/register", new RegisterRequest(
+            "Admin", email, "Test@1234", "Test@1234"));
+
+        var id = await WithDbAsync(async db =>
+        {
+            var e = await db.Employees.SingleAsync(x => x.Email == email);
+            e.ChangeSystemRole(SystemRole.SystemAdmin);
+            await db.SaveChangesAsync();
+            return e.Id;
+        });
+
+        // Đăng nhập LẠI để token mang claim SystemAdmin — token cũ vẫn mang role User.
+        // Chính hiện tượng này là lý do phải thu hồi refresh token khi đổi SystemRole.
+        var login = await client.PostAsJsonAsync("/api/v1/Auth/login",
+            new LoginRequest(email, "Test@1234"));
+        var auth = await login.Content.ReadFromJsonAsync<AuthResponse>();
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", auth!.AccessToken);
+
+        return new TestUser(client, id, email);
+    }
+
     protected async Task<T> WithDbAsync<T>(Func<PmsDbContext, Task<T>> action)
     {
         using var scope = Factory.Services.CreateScope();
