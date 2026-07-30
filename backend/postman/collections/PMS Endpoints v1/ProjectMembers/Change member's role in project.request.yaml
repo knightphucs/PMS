@@ -37,7 +37,7 @@ body:
   type: json
   content: |-
     {
-        "role": 1
+        "role": "Member"
     }
 auth:
   type: bearer

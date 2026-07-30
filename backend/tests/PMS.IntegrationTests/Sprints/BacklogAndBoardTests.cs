@@ -22,7 +22,7 @@ public class BacklogAndBoardTests : IntegrationTestBase
         await CreateTaskAsync(pm.Client, projectId, "Đã xếp sprint", sprintId: sprintId);
 
         var backlog = await pm.Client.GetFromJsonAsync<List<TaskSummaryResponse>>(
-            $"/api/v1/projects/{projectId}/backlog");
+            $"/api/v1/projects/{projectId}/backlog", TestJson.Options);
 
         backlog!.ShouldHaveSingleItem().Id.ShouldBe(trongBacklog);
     }
@@ -39,13 +39,13 @@ public class BacklogAndBoardTests : IntegrationTestBase
             new MoveTaskToSprintRequest(sprintId));
         vaoSprint.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await pm.Client.GetFromJsonAsync<List<TaskSummaryResponse>>(
-            $"/api/v1/projects/{projectId}/backlog"))!.ShouldBeEmpty();
+            $"/api/v1/projects/{projectId}/backlog", TestJson.Options))!.ShouldBeEmpty();
 
         var veBacklog = await pm.Client.PutAsJsonAsync($"/api/v1/tasks/{taskId}/sprint",
             new MoveTaskToSprintRequest(null));
         veBacklog.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await pm.Client.GetFromJsonAsync<List<TaskSummaryResponse>>(
-            $"/api/v1/projects/{projectId}/backlog"))!.ShouldHaveSingleItem().Id.ShouldBe(taskId);
+            $"/api/v1/projects/{projectId}/backlog", TestJson.Options))!.ShouldHaveSingleItem().Id.ShouldBe(taskId);
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public class BacklogAndBoardTests : IntegrationTestBase
         var projectId = await CreateProjectAsync(pm.Client);
 
         var board = await pm.Client.GetFromJsonAsync<BoardResponse>(
-            $"/api/v1/projects/{projectId}/board");
+            $"/api/v1/projects/{projectId}/board", TestJson.Options);
 
         board!.Columns.Count.ShouldBe(4);
         board.Columns.Select(c => c.Status).ShouldBe(
@@ -88,7 +88,7 @@ public class BacklogAndBoardTests : IntegrationTestBase
         await AdvanceStatusAsync(pm.Client, inProgress, Status.InProgress);
 
         var board = await pm.Client.GetFromJsonAsync<BoardResponse>(
-            $"/api/v1/projects/{projectId}/board");
+            $"/api/v1/projects/{projectId}/board", TestJson.Options);
 
         board!.Columns.Single(c => c.Status == Status.ToDo)
              .Tasks.ShouldHaveSingleItem().Id.ShouldBe(todo);
@@ -107,7 +107,7 @@ public class BacklogAndBoardTests : IntegrationTestBase
         await CreateTaskAsync(pm.Client, projectId, "Ngoài sprint");
 
         var board = await pm.Client.GetFromJsonAsync<BoardResponse>(
-            $"/api/v1/projects/{projectId}/board?sprintId={sprintId}");
+            $"/api/v1/projects/{projectId}/board?sprintId={sprintId}", TestJson.Options);
 
         board!.SprintId.ShouldBe(sprintId);
         board.Columns.SelectMany(c => c.Tasks).ShouldHaveSingleItem().Id.ShouldBe(trongSprint);
@@ -122,7 +122,7 @@ public class BacklogAndBoardTests : IntegrationTestBase
         await CreateTaskAsync(pm.Client, projectId, "Subtask", parentTaskId: parentId);
 
         var board = await pm.Client.GetFromJsonAsync<BoardResponse>(
-            $"/api/v1/projects/{projectId}/board");
+            $"/api/v1/projects/{projectId}/board", TestJson.Options);
 
         board!.Columns.SelectMany(c => c.Tasks).ShouldHaveSingleItem().Id.ShouldBe(parentId);
     }

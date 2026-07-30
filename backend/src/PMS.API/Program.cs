@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -110,7 +111,13 @@ builder.Services.AddRateLimiter(options =>
 
 builder.Services.AddHealthChecks();
 
-builder.Services.AddControllers(options => options.Filters.Add<ValidationFilter>());
+// ADR-022: enum đi qua JSON dưới dạng TÊN, không phải số thứ tự. Converter có tác dụng
+// hai chiều và vẫn nhận được số ở chiều request, nên client cũ không vỡ; đổi lại response
+// và Swagger đều đọc được bằng mắt ("Review" thay vì 2) và frontend không phải tự dựng
+// bảng map số -> tên ở mọi chỗ hiển thị.
+builder.Services.AddControllers(options => options.Filters.Add<ValidationFilter>())
+    .AddJsonOptions(options =>
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {

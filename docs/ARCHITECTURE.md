@@ -559,11 +559,15 @@ chỉ có ở schema ở ADR-016, `AddAssignee` không sinh `Id` ở phiên 2026
 Collection ở `backend/postman/collections/PMS Endpoints v1/`, đã có **18 request cho
 Task + Sprint** khớp 1-1 với 18 endpoint. Ba điểm dễ vấp khi chạy tay:
 
-1. **Enum truyền bằng SỐ**, không phải chuỗi — `Program.cs` chưa cấu hình
-   `JsonStringEnumConverter`. `Status`: `0`=ToDo, `1`=InProgress, `2`=Review, `3`=Done.
-   `Priority`: `0`=Highest … `4`=Lowest. `RoleInTask`: `0`=Owner, `1`=Contributor.
-   Gửi `{"target": 0}` cho đổi status nghĩa là "chuyển sang ToDo" → task đang ToDo sẽ nhận
-   **409** vì đứng yên không phải chuyển đổi hợp lệ.
+1. **Enum truyền bằng TÊN** kể từ ADR-022 — `"priority": "Medium"`, `"target": "Done"`,
+   `"role": "Member"`. Giá trị hợp lệ: `Status` = `ToDo`/`InProgress`/`Review`/`Done`;
+   `Priority` = `Highest`/`High`/`Medium`/`Low`/`Lowest`; `RoleInProject` =
+   `ProjectManager`/`Member`/`Viewer`; `RoleInTask` = `Owner`/`Contributor`; `SystemRole` =
+   `User`/`SystemAdmin`; `NotificationType` xem `PMS.Domain/Enums/NotificationType.cs`.
+   Chiều request **vẫn nhận số** nên collection cũ không vỡ, nhưng response thì luôn trả
+   tên — đừng viết test script Postman so sánh với số.
+   Gửi `{"target": "ToDo"}` cho đổi status nghĩa là "chuyển sang ToDo" → task đang ToDo sẽ
+   nhận **409** vì đứng yên không phải chuyển đổi hợp lệ.
 2. **`rowVersion` là chuỗi base64**, copy nguyên từ response `GET /tasks/{id}` gần nhất.
    Gửi rỗng → 400 (validator), gửi giá trị cũ sau khi đã sửa một lần → 409 (ADR-021).
 3. **Trường nullable phải gửi `null`**, không gửi chuỗi `"string"` — `sprintId`,

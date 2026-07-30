@@ -84,7 +84,7 @@ public class TasksAuthorizationTests : IntegrationTestBase
         await InviteAndAcceptAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
-        var detail = await viewer.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{taskId}");
+        var detail = await viewer.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{taskId}", TestJson.Options);
         detail.ShouldNotBeNull();
 
         var update = await viewer.Client.PutAsJsonAsync($"/api/v1/tasks/{taskId}",

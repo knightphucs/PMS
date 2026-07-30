@@ -11,7 +11,7 @@ body:
         "sprintId": "c42eb789-111a-4b97-b77c-b62587f058e6",
         "parentTaskId": "8DD5602C-EB76-4E72-BFF4-707011B0E6AF",
         "dueDate": "2026-07-31",
-        "priority": 2
+        "priority": "Medium"
     }
 auth:
   type: bearer

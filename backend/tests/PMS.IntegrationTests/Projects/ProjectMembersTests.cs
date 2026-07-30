@@ -26,30 +26,30 @@ public class ProjectMembersTests : IntegrationTestBase
             new InviteMemberRequest(invitee.Email, RoleInProject.Member));
 
         invite.StatusCode.ShouldBe(HttpStatusCode.Created);
-        var pending = await invite.Content.ReadFromJsonAsync<ProjectMemberResponse>();
+        var pending = await invite.Content.ReadFromJsonAsync<ProjectMemberResponse>(TestJson.Options);
         pending!.InvitationStatus.ShouldBe(InvitationStatus.Pending);
         pending.JoinedDate.ShouldBeNull();
 
         // Người được mời thấy lời mời trong hộp của mình
         var box = await invitee.Client.GetFromJsonAsync<List<MyInvitationResponse>>(
-            "/api/v1/Projects/invitations");
+            "/api/v1/Projects/invitations", TestJson.Options);
         box!.ShouldHaveSingleItem().ProjectId.ShouldBe(projectId);
 
         var accept = await invitee.Client.PostAsync(
             $"/api/v1/Projects/{projectId}/members/me/accept", null);
         accept.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var joined = await accept.Content.ReadFromJsonAsync<ProjectMemberResponse>();
+        var joined = await accept.Content.ReadFromJsonAsync<ProjectMemberResponse>(TestJson.Options);
         joined!.InvitationStatus.ShouldBe(InvitationStatus.Accepted);
         joined.JoinedDate.ShouldNotBeNull();
 
         // Đã là thành viên -> project hiện trong danh sách của họ
         var members = await invitee.Client.GetFromJsonAsync<List<ProjectMemberResponse>>(
-            $"/api/v1/Projects/{projectId}/members");
+            $"/api/v1/Projects/{projectId}/members", TestJson.Options);
         members!.Count.ShouldBe(2);
 
         // Hộp lời mời rỗng trở lại
         (await invitee.Client.GetFromJsonAsync<List<MyInvitationResponse>>(
-            "/api/v1/Projects/invitations"))!.ShouldBeEmpty();
+            "/api/v1/Projects/invitations", TestJson.Options))!.ShouldBeEmpty();
     }
 
     [Fact] // KB18 — ADR-013: log và notification phải cùng transaction với dữ liệu
@@ -249,6 +249,6 @@ public class ProjectMembersTests : IntegrationTestBase
         // Query filter !Project.IsDeleted của ProjectMemberConfiguration lo việc này,
         // service không cần lọc tay.
         (await invitee.Client.GetFromJsonAsync<List<MyInvitationResponse>>(
-            "/api/v1/Projects/invitations"))!.ShouldBeEmpty();
+            "/api/v1/Projects/invitations", TestJson.Options))!.ShouldBeEmpty();
     }
 }
