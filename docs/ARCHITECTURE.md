@@ -5,27 +5,42 @@
 > Mục đích: đảm bảo tính nhất quán xuyên suốt quá trình phát triển, và làm tài liệu
 > tham chiếu cho báo cáo thực tập tốt nghiệp.
 >
-> Cập nhật lần cuối: 2026-07-30
+> Cập nhật lần cuối: 2026-07-30 (phiên Notification API + Comment API)
 
 > ## 🧭 Bắt đầu phiên mới ở đây
-> **Trạng thái:** Auth + Project (kể cả quản lý thành viên) + Employee management đã
-> xong từ trước. **Task + Sprint/Backlog/Board vừa hoàn thành ở phiên 2026-07-30** —
-> build sạch, **247 test pass** (153 unit + 94 integration).
-> **Việc tiếp theo: Notification API rồi Comment API** — xem bảng "Lộ trình các phiên
-> tiếp theo" ngay dưới bảng tiến độ ở §1. Notification xếp trước vì hiện tại nó đang
-> được **sinh ra ở mọi luồng nhưng không có đường nào đọc**; Comment/Watcher/Label/
-> TaskLink đều đã có entity + EF configuration + migration sẵn từ `InitialCreate`, chỉ
-> thiếu tầng Application/API — đúng tình trạng mà Task/Sprint vừa ở trước phiên này.
-> **Trước khi viết code, đọc theo thứ tự:**
-> 1. §15, ADR-019 (phân quyền tái dùng `ProjectAction`), ADR-020, ADR-021 — ba quyết
->    định mới của phiên Task, áp dụng nguyên cho các module còn lại
-> 2. `PMS.Application/Features/Tasks/` — khuôn mẫu gần nhất để sao chép: DTO,
->    validator, Mapperly mapper, service, `TaskAuthorizationExtensions.AuthorizeTaskAsync`
->    (chuẩn hóa 404 theo ADR-019)
-> 3. ⚠️ **`Watcher` không kế thừa `BaseEntity`** (khóa kép `TaskId + EmployeeId`) nên
->    `ApplyAuditFields()` không đóng dấu `CreatedAt`, và `IRepository<T> where T :
->    BaseEntity` không phục vụ được nó — phải xử lý riêng, đừng mất thời gian phát hiện lại
-> 4. §12 — toàn bộ diagram debt đã dọn xong, 9/9 sequence diagram khớp code hiện tại
+> **Trạng thái:** backend core đã ĐẦY ĐỦ. Auth, Project (kể cả quản lý thành viên),
+> Employee management, Task, Sprint/Backlog/Board xong từ trước; **Notification API +
+> Comment API vừa hoàn thành ở phiên 2026-07-30 (tiếp)** — build sạch, **315 test pass**
+> (189 unit + 126 integration), **0 migration** cho cả phiên vì schema đã đủ sẵn.
+>
+> ### ⚠️ Phiên tiếp theo PHẢI là Frontend, không thêm module backend nào nữa
+> Bảng lộ trình ở §1 đã khuyên "xong hạng mục 1–2 rồi chuyển sang frontend" — hai hạng mục
+> đó (Notification, Comment) đã xong. Thư mục `frontend/` vẫn **chưa tồn tại**, trong khi
+> đây là phần chiếm nhiều thời gian nhất và là thứ hội đồng nhìn thấy đầu tiên. Mọi hạng
+> mục backend còn lại (Watcher/Label/TaskLink, ActivityLog API, Dashboard, job quá hạn)
+> đều làm xen kẽ được và **không cái nào chặn** việc dựng 4 màn hình đầu tiên.
+>
+> **Hai cái bẫy đắt nhất của bước frontend đã được dọn trước ở phiên này:**
+> - Enum nay trả về dạng **chuỗi** (`"Review"` thay vì `2`) — ADR-022. Định nghĩa
+>   TypeScript types theo string union, đừng theo số.
+> - CORS trước đây **chưa từng hoạt động** dù ADR ghi ✅ (hai lỗi im lặng, xem đính chính
+>   cuối §15). Nay đã sửa và có `CorsPolicyTests` giữ. Thêm origin của Next.js vào
+>   `Cors:AllowedOrigins` trong `appsettings.Development.json` là đủ.
+>
+> **Trước khi viết code frontend, đọc theo thứ tự:**
+> 1. §6 (Kiến trúc Frontend) và §13 bước 6 — thứ tự màn hình đã chốt
+> 2. Swagger ở `/swagger` khi chạy Development — enum nay hiện dropdown tên, dùng để đối
+>    chiếu DTO thay vì đọc code C#
+> 3. `backend/postman/collections/PMS Endpoints v1/` — 8 folder, đã có Notifications và
+>    Comments; §11 có 3 điểm dễ vấp khi gọi tay
+> 4. §15 ADR-022 → ADR-026 — năm quyết định mới của phiên này
+>
+> **Nếu vì lý do nào đó vẫn phải làm backend trước:** khuôn mẫu gần nhất là
+> `PMS.Application/Features/Comments/` (mới nhất, đủ cả 4 thao tác CRUD + phân quyền
+> per-row) hoặc `Features/Notifications/` (nếu là dữ liệu không project-scoped).
+> ⚠️ **`Watcher` không kế thừa `BaseEntity`** (khóa kép `TaskId + EmployeeId`) nên
+> `ApplyAuditFields()` không đóng dấu `CreatedAt`, và `IRepository<T> where T : BaseEntity`
+> không phục vụ được nó — phải xử lý riêng, đừng mất thời gian phát hiện lại.
 
 ---
 
@@ -59,8 +74,10 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | Task — Workflow Transition Rules | ✅ | `TaskStatusTransitionService`, quyền theo ADR-017 (Assignee HOẶC PM), chặn task đang bị `Blocks`/`IsBlockedBy` |
 | Task — giao việc (gán/tự nhận/gỡ) | ✅ | `TaskAssignmentService`, đúng bảng "Quy tắc gán việc" ở §5 và seq-02 |
 | Board (Kanban) + Backlog | ✅ | `GET /projects/{id}/board?sprintId=` và `/backlog`; board luôn trả đủ 4 cột kể cả cột rỗng |
-| Comment / Watcher / Label / TaskLink — API | ⬜ | Entity + configuration + migration đã có; `TaskLink` đang được dùng gián tiếp qua blocker check nhưng chưa có API tạo/xóa link |
-| Activity Log / Notification | ⬜ | ActivityLog đã ghi qua `IActivityLogger` (ADR-013) và Notification đã được sinh ra ở mọi luồng, nhưng chưa có API để đọc/đánh dấu đã đọc |
+| Comment — API | ✅ | `CommentService`/`CommentsController`, có Unit + Integration Test. Quyền theo ADR-026: viết = PM/Member, sửa = chỉ tác giả, xóa = tác giả hoặc PM. Xóa cứng |
+| Watcher / Label / TaskLink — API | ⬜ | Entity + configuration + migration đã có; `TaskLink` đang được dùng gián tiếp qua blocker check nhưng chưa có API tạo/xóa link |
+| Notification — API đọc | ✅ | `NotificationFeedService`/`NotificationsController` — danh sách có phân trang, đếm chưa đọc, đánh dấu một/tất cả. Ngoại lệ hợp lệ của ADR-006/019 — xem ADR-023 |
+| Activity Log — API đọc | ⬜ | Đã ghi đủ qua `IActivityLogger` (ADR-013) ở mọi luồng Project/Task/Comment, nhưng chưa có endpoint nào đọc lịch sử ra — cùng loại khoảng trống mà Notification vừa đóng |
 | Employee management (ngoài Auth) | ✅ | `AdminEmployeesController` — khóa/mở tài khoản, cấp `SystemAdmin` — *bảng này từng ghi ⬜ dù đã code xong, đã sửa lại 2026-07-29* |
 | Thống kê / Dashboard | ⬜ | Chưa bắt đầu |
 | Frontend (toàn bộ) | ⬜ | Thư mục `frontend/` chưa tồn tại trong repo |
@@ -68,24 +85,25 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 
 ### Lộ trình các phiên tiếp theo
 
-> Sắp theo thứ tự phụ thuộc và giá trị, không phải theo độ khó. Cập nhật 2026-07-30.
+> Sắp theo thứ tự phụ thuộc và giá trị, không phải theo độ khó. Cập nhật 2026-07-30 (phiên
+> Notification + Comment). Hai hạng mục 1–2 của bảng cũ **đã xong**, nên Frontend lên #1.
 
 | # | Hạng mục | Vì sao xếp ở đây | Quy mô ước tính |
 |---|---|---|---|
-| 1 | **Notification API** (đọc danh sách, đánh dấu đã đọc, đếm chưa đọc) | Mắt xích thiếu rõ nhất hiện tại: Notification **đang được sinh ra ở mọi luồng** Project/Task nhưng không có đường nào đọc — dữ liệu chỉ ghi vào rồi nằm đó. Không có nó thì mọi công sức `NotifyMany` ở các phiên trước là vô hình | Nhỏ — 1 service, 3 endpoint, không có nhánh quyền phức tạp (chỉ đọc thông báo của chính mình) |
-| 2 | **Comment API** | Hoàn tất nhóm "cộng tác" trên task. Entity + configuration đã sẵn, quyền đơn giản (mọi thành viên viết được, sửa/xóa chỉ tác giả hoặc PM) | Nhỏ — sao chép khuôn `Features/Tasks` |
-| 3 | **Watcher + Label + TaskLink API** | Ba cái nhỏ, gom một đợt. ⚠️ `Watcher` **không** kế thừa `BaseEntity` nên `IRepository<T>` không phục vụ được, phải xử lý riêng. `TaskLink` cần thêm guard chống link vòng (A blocks B và B blocks A cùng lúc sẽ khóa chết cả hai ở blocker check) | Vừa |
-| 4 | **Frontend — bắt đầu** (Next.js scaffold → Auth → Project list → Board/Backlog) | API của Project + Task + Sprint đã đủ ổn định để dựng 4 màn hình chính. §13 bước 6 đã nói không đợi backend xong hết. **Đây là rủi ro tiến độ lớn nhất** — thư mục `frontend/` vẫn chưa tồn tại, mà đây là phần chiếm nhiều thời gian nhất và là thứ hội đồng nhìn thấy đầu tiên | Lớn — nhiều phiên |
+| 1 | **Frontend — bắt đầu** (Next.js scaffold → Auth → Project list → Board/Backlog) | API của Project + Task + Sprint + Comment + Notification đã đủ ổn định để dựng các màn hình chính. §13 bước 6 đã nói không đợi backend xong hết. **Đây là rủi ro tiến độ lớn nhất** — thư mục `frontend/` vẫn chưa tồn tại, mà đây là phần chiếm nhiều thời gian nhất và là thứ hội đồng nhìn thấy đầu tiên. Enum đã trả về dạng chuỗi (ADR-022) và CORS đã thật sự hoạt động, nên hai cái bẫy đắt nhất của bước này đã được dọn trước | Lớn — nhiều phiên |
+| 2 | **Watcher + Label + TaskLink API** | Ba cái nhỏ, gom một đợt. ⚠️ `Watcher` **không** kế thừa `BaseEntity` nên `IRepository<T>` không phục vụ được, phải xử lý riêng. `TaskLink` cần thêm guard chống link vòng (A blocks B và B blocks A cùng lúc sẽ khóa chết cả hai ở blocker check). `Watcher` giờ có thêm lý do rõ ràng để làm: nó đã nằm trong `InterestedEmployeeIds` của cả luồng đổi status lẫn comment, nhưng chưa có API nào để đăng ký theo dõi | Vừa |
+| 3 | **Background job task quá hạn** → Notification `DueSoon` | `ITaskRepository.GetOverdueAsync` **đã tồn tại nhưng chưa có caller nào** — đúng loại code chờ sẵn mà nếu để lâu sẽ lệch khỏi nghiệp vụ. Phụ thuộc cũ đã được giải: giờ đã đọc được thông báo nên job có ý nghĩa thật | Nhỏ |
+| 4 | **Activity Log API đọc** | Khoảng trống cùng loại với Notification trước phiên này: `IActivityLogger` ghi ở mọi luồng (nay có cả 3 action của Comment) nhưng chưa endpoint nào đọc ra. Cần cho tab "Activity" ở màn hình chi tiết task (§6) | Nhỏ — 1 service, 1–2 endpoint |
 | 5 | **Dashboard thống kê** | `ProjectAction.ViewStatistics` đã có sẵn trong ma trận quyền nhưng chưa ai dùng. Cần cả API lẫn màn hình Recharts | Vừa |
-| 6 | **Background job task quá hạn** → Notification `DueSoon` | `ITaskRepository.GetOverdueAsync` **đã tồn tại nhưng chưa có caller nào** — đúng loại code chờ sẵn mà nếu để lâu sẽ lệch khỏi nghiệp vụ. Phụ thuộc hạng mục 1 (phải đọc được thông báo thì job mới có ý nghĩa) | Nhỏ |
-| 7 | **Reset password** | Mục ⬜ cuối cùng của Auth. Còn phụ thuộc email service nên để sau | Nhỏ–vừa |
-| 8 | **Real-time (SignalR)** | Theo §6, chỉ làm sau khi core CRUD **và** frontend đã ổn định | Vừa |
+| 6 | **Reset password** | Mục ⬜ cuối cùng của Auth. Còn phụ thuộc email service nên để sau | Nhỏ–vừa |
+| 7 | **Real-time (SignalR)** | Theo §6, chỉ làm sau khi core CRUD **và** frontend đã ổn định | Vừa |
 
-**Rủi ro tiến độ cần nói thẳng:** backend core giờ đã khá đầy đủ (Auth, Project, Member,
-Task, Sprint, Board), nhưng frontend vẫn ở con số không. Nếu tiếp tục làm hết backend rồi
-mới quay sang frontend thì sẽ dồn toàn bộ phần nặng nhất vào cuối. Đề xuất: sau khi xong
-hạng mục 1–2 (đều nhỏ) thì **chuyển sang frontend**, và làm nốt 3, 5, 6 xen kẽ khi frontend
-cần tới chúng.
+**Rủi ro tiến độ cần nói thẳng:** backend core giờ đã đầy đủ (Auth, Project, Member, Task,
+Sprint, Board, Comment, Notification) nhưng frontend **vẫn ở con số không**. Lời khuyên của
+bảng này ở phiên trước là "xong hạng mục 1–2 rồi chuyển sang frontend" — hai hạng mục đó
+đã xong, nên **phiên tới phải là frontend**, không thêm module backend nào nữa. Các hạng mục
+2–5 đều là thứ làm xen kẽ được khi frontend cần tới chúng; không hạng mục nào trong đó chặn
+việc dựng 4 màn hình đầu tiên.
 
 ---
 
@@ -301,15 +319,31 @@ tổng hợp kết quả...).
 - Không cần thêm logic tự động trong `TaskStatusTransitionService` cho việc này —
   chỉ cần 1 hàm tính `SubtaskProgress` ở tầng Application để hiển thị lên UI
 
-### Entity cộng tác (Nhóm A — core) ⬜ *(ActivityLog/Notification đã được SINH RA ở mọi luồng Project/Task, nhưng chưa có API đọc; Comment mới chỉ có entity)*
-- **`Comment`**: `TaskId`, `EmployeeId` (người viết), `Content`, `CreatedAt`
-- **`ActivityLog`**: `EntityType` (Project/Task), `EntityId`, `EmployeeId` (người thực hiện),
-  `Action` (Created/Updated/StatusChanged/Assigned...), `Detail`, `Timestamp`
-  → Dùng để hiển thị lịch sử thay đổi trên Task/Project (audit trail)
-- **`Notification`**: `EmployeeId` (người nhận), `Type` (TaskAssigned/DueSoon/CommentAdded/...),
-  `Content`, `IsRead`, `CreatedAt`, `RelatedEntityId`
-  → Sinh ra bởi các sự kiện: được gán task, task sắp đến hạn (background job check định kỳ),
-  có comment mới trên task mình theo dõi
+### Entity cộng tác (Nhóm A — core) *(Comment ✅ và Notification ✅ đã có API đầy đủ từ phiên 2026-07-30 (tiếp); ActivityLog vẫn ⬜ — ghi đủ nhưng chưa có API đọc)*
+- **`Comment`** ✅ *(CRUD đã chạy được qua API)*: `TaskId`, `EmployeeId` (người viết),
+  `Content`, `CreatedAt`
+  → Quyền theo ADR-026: đọc = mọi thành viên kể cả `Viewer`; viết = `ProjectManager`/`Member`;
+    sửa = **chỉ tác giả**; xóa = tác giả hoặc `ProjectManager`. Xóa **cứng** (nhất quán
+    ADR-012), audit trail do `ActivityLog` đảm nhiệm.
+  → `CommentConfiguration` có `HasQueryFilter(c => !c.Task.IsDeleted)`: comment của task đã
+    xóa mềm tự biến mất khỏi mọi query — bảo đảm bằng cấu trúc, không service nào phải nhớ lọc.
+- **`ActivityLog`** ⬜ *(ghi đủ qua `IActivityLogger` nhưng chưa có API đọc)*:
+  `EntityType` (Project/Task), `EntityId`, `EmployeeId` (người thực hiện),
+  `Action` (Created/Updated/StatusChanged/Assigned/Commented...), `Detail`, `CreatedAt`
+  → Dùng để hiển thị lịch sử thay đổi trên Task/Project (audit trail). Đây là khoảng trống
+    còn lại **cùng loại** với khoảng trống mà Notification vừa đóng: dữ liệu đã ghi đủ ở mọi
+    luồng nhưng không có đường nào đọc ra. Xem hạng mục 4 của bảng lộ trình §1.
+- **`Notification`** ✅ *(API đọc/đánh dấu đã đọc đã chạy được)*: `EmployeeId` (người nhận),
+  `Type` (TaskAssigned/DueSoon/CommentAdded/...), `Content`, `IsRead`, `CreatedAt`,
+  `RelatedEntityId`
+  → Sinh ra bởi các sự kiện: được gán task, đổi trạng thái task, có comment mới trên task
+    mình theo dõi, các luồng mời/đổi vai trò/gỡ thành viên. Task sắp đến hạn (`DueSoon`) còn
+    chờ background job — hạng mục 3 của bảng lộ trình §1.
+  → `RelatedEntityKind` (`Project`/`Task`/`None`) là property **computed** suy ra từ `Type`,
+    không lưu thành cột (ADR-025) — client dùng cặp (Kind, Id) để điều hướng khi bấm vào
+    thông báo.
+  → Là **ngoại lệ hợp lệ duy nhất** của phân quyền project-scoped (ADR-023): chỉ lọc theo
+    `EmployeeId`, không đi qua `IProjectAuthorizationService`.
 
 ### Quan hệ tổng hợp
 - Project 1—N Task
@@ -533,16 +567,23 @@ project khác nhau):
 - **Integration Test** (xUnit + Shouldly): test API endpoint end-to-end trên SQL Server
   thật, database riêng `PmsTestDb` — xem ADR-010 (§15) về lý do không dùng EF InMemory/SQLite
 
-### Hiện trạng (2026-07-30)
+### Hiện trạng (2026-07-30, sau phiên Notification + Comment)
 
-**247 test pass** — 153 unit + 94 integration, build 0 warning.
+**315 test pass** — 189 unit + 126 integration, build 0 warning.
 
 | Nhóm | Unit | Integration |
 |---|---|---|
-| Domain (invariant, state machine) | `ProjectTests`, `ProjectMemberTests`, `TaskItemTests`, `SoftDeletableContractTests` | — |
+| Domain (invariant, state machine) | `ProjectTests`, `ProjectMemberTests`, `TaskItemTests`, `SoftDeletableContractTests`, `NotificationTests` | — |
 | Auth / Admin | `EmployeeAdminServiceTests` | `AccountLockingTests` |
 | Project | `ProjectServiceTests`, `ProjectMemberServiceTests`, `ProjectPermissionsTests` | `ProjectsCrudTests`, `ProjectsAuthorizationTests`, `ProjectsDeleteTests`, `ProjectMembersTests` |
 | Task / Sprint | `TaskServiceTests`, `TaskStatusTransitionServiceTests`, `TaskAssignmentServiceTests`, `SprintServiceTests` | `TasksCrudTests`, `TasksAuthorizationTests`, `TaskStatusTransitionTests`, `TaskAssignmentTests`, `SubtaskTests`, `SprintsCrudTests`, `BacklogAndBoardTests` |
+| Notification / Comment | `NotificationFeedServiceTests`, `CommentServiceTests` | `NotificationsTests`, `CommentsTests` |
+| Hạ tầng API (cấu hình pipeline) | — | `CorsPolicyTests`, `EnumSerializationTests` |
+
+Nhóm cuối là loại test mới của phiên này và đáng ghi lại lý do: **cấu hình pipeline cũng là
+quyết định kiến trúc và cũng cần test giữ**. `CorsPolicyTests` sinh ra sau khi phát hiện CORS
+đã bị vô hiệu hóa im lặng suốt nhiều phiên dù ADR ghi ✅ — không test nào đỏ, build không
+warning, vì middleware không tìm thấy policy thì chỉ log rồi đi tiếp (xem đính chính ở §15).
 
 **Không đặt mục tiêu % coverage.** Lý do: chỉ số đó thưởng cho test chạm nhiều dòng, trong
 khi thứ dự án này cần bảo vệ là **các quyết định kiến trúc** — và ba lần lỗi thật đã lộ ra
@@ -582,7 +623,7 @@ Task + Sprint** khớp 1-1 với 18 endpoint. Ba điểm dễ vấp khi chạy t
 | Use Case Diagram | Tổng quan chức năng theo actor (SystemAdmin, ProjectManager, Member, Viewer) | ✅ Done — đã đồng bộ ADR-017 (2026-07-30). **Đính chính:** §12 trước đây ghi "box PM cần thêm bubble Cập nhật trạng thái task". Soát lại thì đó là chẩn đoán sai — diagram dùng generalization `PM --\|> Member --\|> Viewer --\|> User`, nên PM **đã** có use case đó qua kế thừa; thêm bubble trùng vào box PM mới là lỗi mô hình hóa. Cái thực sự thiếu là **điều kiện quyền**, nay đã ghi vào note của `UC_Status` (giống cách `UC_SelfAssign` ghi điều kiện "chỉ khi task đang ToDo") |
 | Class Diagram | Chi tiết entity, thuộc tính, quan hệ, OOP | ✅ Done — đã đồng bộ code (2026-07-30): bỏ `SoftDelete()` khỏi **cả `Task` lẫn `Project`** (ADR-008 — không chỉ `Task` như §12 từng ghi), `IsOverdue`/`SubtaskProgress`/`Sprint.IsActive` chuyển thành property, thêm `Task.RemoveAssignee(Guid)`, sửa `Project.AddMember` → `Invite`/`ChangeMemberRole` và `GetRoleOf(Employee)` → `GetRoleOf(Guid)` cho khớp chữ ký thật |
 | ERD | Thiết kế database quan hệ | Done — chưa phản ánh `RowVersion` (ADR-016) và `Notifications.Type` đã đổi sang `nvarchar` (ADR-016); không chặn code, chỉ lệch hình ảnh |
-| Sequence Diagram | 9 luồng nghiệp vụ có nhánh (xem bảng đầy đủ ở `docs/uml/README.md`) | ✅ **9/9** (2026-07-30). `seq-01/02` (tạo task, gán người) và `seq-04/05` (mời, phản hồi lời mời) giữ nguyên — vẫn khớp code. `seq-03` vẽ lại theo ADR-017/019. Bốn diagram mới: `seq-06-self-assign-task`, `seq-07-delete-task` (ADR-018), `seq-08-move-task-sprint`, `seq-09-delete-sprint` (ADR-020). **Nguyên tắc chọn luồng để vẽ:** chỉ vẽ luồng có nhánh nghiệp vụ (guard, 403/404/409, cascade) — CRUD phẳng không vẽ lại vì `seq-01` đã là đại diện cho khuôn "authz → validate → Add → log → 1 lần SaveChanges" |
+| Sequence Diagram | 11 luồng nghiệp vụ có nhánh (xem bảng đầy đủ ở `docs/uml/README.md`) | ✅ **11/11** (2026-07-30). Hai diagram mới của phiên Notification/Comment: `seq-10-read-notification` (ADR-023/024 — 404 cho thông báo người khác, idempotent lần hai, mark-all qua ChangeTracker) và `seq-11-delete-comment` (ADR-026 — ba nhánh quyền chồng nhau: 404 ngoài project / 403 không phải tác giả và không phải PM / xóa cứng). ⚠️ Bẫy mới ghi vào `docs/uml/README.md`: **không dùng `&lt;`/`&gt;` cho generic trong `.mmd`** — draw.io escape thêm một lớp nên PNG hiện nguyên văn `&lt;`; dùng `PagedResult[Notification]`. Trước 2026-07-30 (tiếp): ✅ **9/9**. `seq-01/02` (tạo task, gán người) và `seq-04/05` (mời, phản hồi lời mời) giữ nguyên — vẫn khớp code. `seq-03` vẽ lại theo ADR-017/019. Bốn diagram mới: `seq-06-self-assign-task`, `seq-07-delete-task` (ADR-018), `seq-08-move-task-sprint`, `seq-09-delete-sprint` (ADR-020). **Nguyên tắc chọn luồng để vẽ:** chỉ vẽ luồng có nhánh nghiệp vụ (guard, 403/404/409, cascade) — CRUD phẳng không vẽ lại vì `seq-01` đã là đại diện cho khuôn "authz → validate → Add → log → 1 lần SaveChanges" |
 
 ---
 
@@ -690,7 +731,7 @@ CLI, xem `docs/uml/README.md`. Trước đây nguồn chỉ nằm trong thuộc 
 | 2026-07-22 | Thêm Comment, Activity Log, Notification vào core | Đây là tính năng tối thiểu để 1 team thật sự dùng được hệ thống hàng ngày — *chỉ mới entity, chưa có Service/Controller nào* |
 | 2026-07-22 | Áp dụng Soft Delete cho Project/Task | Bảo toàn ActivityLog/Comment liên quan, cho phép khôi phục — đã hoạt động thật, có test |
 | 2026-07-22 | Chuẩn hóa Pagination, Global Exception Handling, API Versioning | Đạt chuẩn API production-grade, không phải sửa lại kiến trúc giữa chừng |
-| 2026-07-29 | Chuẩn hóa CORS Policy | Bắt buộc trước khi Frontend gọi API thật — đã có `AddCors`/`UseCors` với policy `PmsFrontend` |
+| 2026-07-29 | Chuẩn hóa CORS Policy | Bắt buộc trước khi Frontend gọi API thật. ⚠️ **Đính chính 2026-07-30:** dòng này từng ghi ✅ nhưng thực tế KHÔNG header CORS nào được phát ra — hai lỗi im lặng, xem đính chính chi tiết cuối §15 |
 | 2026-07-22 | Thêm mục Non-Functional Requirements + Data Seeding | Phục vụ demo báo cáo trôi chảy và thể hiện đầy đủ tư duy thiết kế hệ thống — `DbSeeder` đã chạy được ở môi trường Development |
 | 2026-07-22 | Mọi `User` được tạo Project, tự động thành `ProjectManager` của project đó | Tránh bottleneck xin duyệt qua SystemAdmin, khớp cách Jira/Trello vận hành thật |
 | 2026-07-29 | `SystemAdmin` tách bạch khỏi Project Role: chỉ read-only toàn hệ thống, muốn thao tác phải là `ProjectMember` như bình thường | Tránh "God Mode" — giữ đúng nguyên tắc Least Privilege, dễ audit trách nhiệm — *chưa có code nào cho SystemAdmin bypass đọc toàn hệ thống* |
@@ -726,6 +767,11 @@ CLI, xem `docs/uml/README.md`. Trước đây nguồn chỉ nằm trong thuộc 
 | 2026-07-30 | **(ADR-019)** Task/Sprint tái dùng `IProjectAuthorizationService` + mở rộng `ProjectAction`, không dựng service phân quyền riêng | Quyền trên task/sprint về bản chất là quyền project-scoped, cùng nguồn dữ liệu `ProjectMember` — chi tiết bên dưới |
 | 2026-07-30 | **(ADR-020)** Xóa Sprint: đẩy task về Backlog (`SprintId = null`), không chặn, không cascade | Khác ADR-008/018 vì không mất dữ liệu nào — task vẫn sống — chi tiết bên dưới |
 | 2026-07-30 | **(ADR-021)** `RowVersion` bắt buộc cho `UpdateTaskRequest` nhưng KHÔNG bắt buộc khi đổi status | State machine đã tự là chốt chặn concurrency; bắt thêm token chỉ làm vướng UX kéo-thả Kanban — chi tiết bên dưới |
+| 2026-07-30 | **(ADR-022)** Enum serialize ra JSON dưới dạng TÊN, không phải số | Client không phải tự dựng bảng map số→tên ở mọi chỗ hiển thị; làm trước frontend thì rẻ, sau thì phải sửa cả TypeScript types — chi tiết bên dưới |
+| 2026-07-30 | **(ADR-023)** Notification là ngoại lệ hợp lệ duy nhất của ADR-006/019: không project-scoped, phạm vi truy cập bảo đảm bằng chữ ký repository | Thông báo là dữ liệu riêng của người nhận, không thuộc project nào — chi tiết bên dưới |
+| 2026-07-30 | **(ADR-024)** `MarkAllAsRead` đi qua `ChangeTracker`, không dùng `ExecuteUpdateAsync` | Bulk update bỏ qua `ApplyAuditFields()` nên mất `UpdatedAt` — cùng lý do ADR-008 chọn Option A — chi tiết bên dưới |
+| 2026-07-30 | **(ADR-025)** `RelatedEntityKind` suy ra từ `NotificationType` bằng computed property, không thêm cột | Không phải migrate dữ liệu đã tồn tại, và không sinh ra khả năng `Type` lệch với `Kind` — chi tiết bên dưới |
+| 2026-07-30 | **(ADR-026)** Comment: viết = PM/Member, sửa = CHỈ tác giả, xóa = tác giả hoặc PM; xóa cứng | Tách theo mức độ xâm phạm chứ không theo cấp bậc — viết lại lời người khác nặng hơn xóa — chi tiết bên dưới |
 
 | | | |
 
@@ -1054,6 +1100,208 @@ tên task là mất dữ liệu thật kiểu lost-update, không có cơ chế 
 
 **Kiểm chứng:** `TasksCrudTests.Sua_task_voi_RowVersion_cu_thi_bi_chan_409` và
 `TaskStatusTransitionTests.Doi_status_khong_can_RowVersion_nhung_lan_hai_cung_dich_bi_chan_409`.
+
+#### ADR-022 (2026-07-30) — Enum serialize ra JSON dưới dạng tên
+
+**Bối cảnh:** `Program.cs` không cấu hình gì cho enum nên `System.Text.Json` trả về số thứ tự:
+`Status 2` = Review, `Priority 0` = Highest. Hệ quả: mọi client phải tự dựng bảng map số→tên
+ở từng chỗ hiển thị, và thêm một giá trị vào GIỮA enum là đổi ngầm ý nghĩa của mọi payload đã
+lưu ở nơi khác.
+
+**Quyết định:** Thêm `JsonStringEnumConverter` vào `AddControllers().AddJsonOptions(...)`.
+
+**Vì sao làm ngay thay vì để sau:** frontend chưa tồn tại. Đổi bây giờ chỉ động tới backend
+và collection Postman; đổi sau khi đã có Next.js thì phải sửa thêm TypeScript types và mọi
+màn hình đã build — cùng một thay đổi nhưng đắt hơn nhiều lần.
+
+**Chi phí đã đo, không phải phỏng đoán:**
+- Converter có tác dụng **hai chiều** và vẫn nhận số ở chiều request → 18 request Postman
+  hiện có không vỡ. Có test khẳng định cả hai dạng đầu vào đều parse được.
+- Chiều đọc trong test thì vỡ thật: `System.Text.Json` mặc định **không** đọc được tên enum,
+  nên **46 lời gọi** `GetFromJsonAsync`/`ReadFromJsonAsync` trong **13 file** integration test
+  ném `JsonException`. Gom vào một `TestJson.Options` dùng chung thay vì rải
+  `JsonSerializerOptions` mới ở từng lời gọi.
+- Chiều ghi (`PostAsJsonAsync`) giữ nguyên không truyền options — chính nó là bằng chứng sống
+  cho tính tương thích ngược mà ADR này dựa vào.
+
+**Cách test giữ quyết định:** `EnumSerializationTests` đọc **raw JSON** chứ không deserialize.
+Nếu deserialize thì `TestJson` đọc được cả hai dạng nên test vẫn xanh dù converter bị tháo
+khỏi `Program.cs` — tức là không bảo vệ được gì. Đây là dạng bẫy đáng ghi lại: *test đi qua
+cùng một lớp trừu tượng với code cần bảo vệ thì không bảo vệ được lớp đó.*
+
+**Lợi ích phụ:** Swagger tự render enum thành dropdown tên, không cần cấu hình thêm.
+
+#### ADR-023 (2026-07-30) — Notification: ngoại lệ hợp lệ của phân quyền project-scoped
+
+**Bối cảnh:** ADR-019 đã chốt "quyền trên task/sprint về bản chất là quyền project-scoped, tái
+dùng `IProjectAuthorizationService`". Notification không vừa khuôn đó: một thông báo
+`InvitedToProject` thuộc về *người nhận*, không thuộc project nào theo nghĩa phân quyền — và
+có loại thông báo (`DueSoon` do background job sinh ra) không gắn với hành động của ai cả.
+
+**Quyết định:** Notification **không** đi qua `IProjectAuthorizationService`, **không** có
+`ProjectAction` nào. Chỉ lọc theo `EmployeeId` lấy từ `ICurrentUserService`.
+
+**Nhưng "ngoại lệ" không có nghĩa là lỏng hơn.** Bỏ authz đi thì mất luôn chốt chặn tập trung,
+nên phải bù bằng chỗ khác — và chỗ được chọn là **chữ ký của repository**:
+- Mọi method của `INotificationRepository` đều **bắt buộc** nhận `employeeId`. Không có
+  `GetPagedAsync(PagedRequest)` trần nào để service gọi rồi quên lọc.
+- `GetForRecipientAsync(id, employeeId)` trả `null` cho cả hai trường hợp "không tồn tại" và
+  "của người khác" — service không có cách nào phân biệt nên không thể vô tình trả 403.
+
+Đây là cùng một nguyên tắc mà bài học ADR-008 đã rút ra khi bổ sung `ISoftDeletable` cho
+`Sprint`: *ưu tiên bảo đảm bằng cấu trúc hơn bảo đảm bằng kỷ luật lập trình viên.* Ở đó là
+interface trên entity, ở đây là tham số bắt buộc trên interface repository.
+
+**Hệ quả:**
+- Thông báo của người khác trả **404**, không phải 403 — 403 xác nhận cho người ngoài rằng id
+  đó tồn tại thật (OWASP API1:2023, cùng lý do ADR-006).
+- Đánh dấu đã đọc là **idempotent**: `Notification.MarkAsRead()` trả `false` nếu đã đọc thay
+  vì ném `DomainException` như `ProjectMember.Accept()`. Bấm chuông thông báo hai lần không
+  phải vi phạm nghiệp vụ, và luồng idempotent thì client không cần dò trạng thái trước khi gọi.
+  Service dùng giá trị trả về để không phát sinh `UPDATE` vô nghĩa.
+- **Không** gọi `IActivityLogger`. Đây là chủ ý, không phải bỏ sót ADR-013: "tôi đã xem thông
+  báo của tôi" không phải thay đổi nghiệp vụ trên Project/Task, và ghi log mỗi lần mở chuông
+  sẽ làm loãng chính cái audit trail đó. Đã ghi comment tường minh trong service.
+
+**Giới hạn đã biết (chấp nhận có ý thức):** index `(EmployeeId, IsRead)` phục vụ tốt hai truy
+vấn nóng — đếm chưa đọc và đánh dấu tất cả — nhưng **không phủ** sort mặc định
+`CreatedAt DESC` của danh sách. Không thêm index thứ hai vì đường GHI của bảng này chạy ở MỌI
+luồng nghiệp vụ (mỗi `Notify` là một INSERT), nên chi phí index cao hơn lợi ích ở quy mô đồ án.
+Xem lại nếu bảng `Notifications` phình to.
+
+#### ADR-024 (2026-07-30) — `MarkAllAsRead` không dùng bulk update
+
+**Bối cảnh:** "Đánh dấu tất cả đã đọc" là ứng viên kinh điển cho `ExecuteUpdateAsync` — một
+câu `UPDATE` thay vì nạp N entity vào bộ nhớ.
+
+**Quyết định:** Nạp qua `ChangeTracker` (`GetUnreadForRecipientAsync` cố ý **không**
+`AsNoTracking`), sửa từng entity, rồi **một** `SaveChangesAsync` (ADR-007).
+
+**Lý do:** `ExecuteUpdateAsync` đi thẳng xuống SQL nên bỏ qua `ApplyAuditFields()` — `IsRead`
+vẫn đúng nhưng `UpdatedAt` mất. Đây **đúng cùng một cái bẫy** mà ADR-008 đã từ chối một lần
+khi chọn Option A cho soft delete (bulk update bỏ qua `ApplySoftDelete()`), chỉ khác
+interceptor bị bỏ qua. Hai lần cùng một lý do thì nên thành nguyên tắc: *thao tác ghi nào cần
+interceptor của `PmsDbContext` thì phải đi qua `ChangeTracker`.*
+
+**Vì sao chấp nhận được về hiệu năng:** số thông báo **chưa đọc** của một người luôn nhỏ —
+đọc xong là hết. Đây không phải bulk update trên toàn bảng.
+
+**Kiểm chứng:** `NotificationsTests.MarkAllAsRead_dong_dau_UpdatedAt_vi_khong_dung_ExecuteUpdate`
+đọc thẳng DB và khẳng định `UpdatedAt != null`. Bản unit test bổ sung một góc khác:
+`MarkAllAsRead_nap_qua_repository_co_tracking_chu_khong_bulk_update` sẽ đỏ nếu ai đó đổi sang
+`ExecuteUpdateAsync` — cần cả hai vì bulk update cho ra kết quả `IsRead` **đúng**, chỉ âm thầm
+làm mất `UpdatedAt`.
+
+#### ADR-025 (2026-07-30) — `RelatedEntityKind` suy ra, không lưu
+
+**Bối cảnh:** `Notification.RelatedEntityId` là một `Guid?` trơn. Thông báo về project và về
+task đều nhét id vào đó, nên client bấm vào thông báo mà không biết phải điều hướng tới
+`/projects/{id}` hay `/tasks/{id}`.
+
+**Ba lựa chọn:** thêm cột `RelatedEntityType`; để frontend tự dựng bảng map; hoặc suy ra ở
+backend từ `Type`.
+
+**Quyết định:** Suy ra bằng **computed property** `Notification.RelatedEntityKind` trên entity,
+cùng khuôn `TaskItem.IsOverdue`/`SubtaskProgress` — là property (không phải method) để Mapperly
+map tự động, và get-only không backing field nên EF Core bỏ qua.
+
+**Lý do:**
+- Thêm cột thì phải migrate dữ liệu `Notification` đã tồn tại, và tạo ra khả năng `Type` lệch
+  với `RelatedEntityType` — hai nguồn sự thật cho cùng một thông tin.
+- Để frontend tự map thì bảng đó sẽ lệch dần khỏi backend mỗi lần thêm `NotificationType`, và
+  lệch âm thầm (điều hướng sai chỗ, không lỗi gì cả).
+- Đặt ở domain chứ không ở tầng Application vì "thông báo `InvitedToProject` trỏ tới một
+  Project" là **tri thức nghiệp vụ**, không phải mối quan tâm trình bày.
+
+**Kiểm chứng:** `NotificationTests.Moi_gia_tri_NotificationType_phai_duoc_khai_bao_tro_toi_Project_hoac_Task`
+là hợp đồng kiến trúc cùng loại `SoftDeletableContractTests` và
+`ProjectPermissionsTests.Moi_gia_tri_ProjectAction_phai_duoc_khai_bao_tuong_minh`: thêm
+`NotificationType` mới mà quên khai báo thì đỏ ngay ở tầng thấp nhất, thay vì để frontend nhận
+`None` và không điều hướng được.
+
+**Đã xác nhận 0 migration** bằng `dotnet ef migrations has-pending-model-changes` — không phải
+suy luận rằng EF sẽ bỏ qua property, mà là kiểm chứng thật.
+
+#### ADR-026 (2026-07-30) — Ma trận quyền Comment và cơ chế xóa
+
+**Quyết định:**
+
+| Hành động | Ai được làm | Cơ chế |
+|---|---|---|
+| Đọc | Mọi thành viên project, **kể cả Viewer** | `ProjectAction.View` |
+| Viết | `ProjectManager` + `Member` | `ProjectAction.CreateComment` (giá trị mới) |
+| Sửa | **CHỈ tác giả** — PM cũng không | Luật per-row trong `CommentService` |
+| Xóa | Tác giả **HOẶC** `ProjectManager` | Luật per-row trong `CommentService` |
+
+**Vì sao sửa hẹp hơn xóa** — đây là điểm dễ làm ngược: phản xạ thông thường là "PM quyền cao
+hơn nên làm được nhiều hơn ở mọi việc". Nhưng xóa lời người khác là **kiểm duyệt**, một hành vi
+hợp lý của PM; còn viết lại lời người khác thì nội dung vẫn **đứng tên tác giả cũ** — hệ thống
+sẽ hiển thị một câu mà người đó không viết. Phân quyền ở đây tách theo *mức độ xâm phạm*, không
+theo cấp bậc.
+
+**Chỉ thêm MỘT giá trị vào `ProjectAction`** (đúng ADR-019: không dựng service phân quyền
+riêng). Hai luật per-row không nhét vào `ProjectPermissions` được vì nó chỉ nhận `(action,
+role)` — đúng "ranh giới còn lại" mà ADR-019 đã khoanh. Chúng lấy `RoleInProject` từ giá trị
+trả về của `AuthorizeAsync(..., View)` rồi tự áp luật, đúng khuôn
+`TaskStatusTransitionService.EnsureCanChangeStatus` của ADR-017. `ProjectPermissionsTests` tự
+động bắt lỗi nếu thêm action mà quên khai báo.
+
+**Xóa cứng, không `ISoftDeletable`:** nhất quán ADR-012 (gỡ member cũng là xóa cứng, không thêm
+status `Removed`). Thêm cờ đã-xóa thì mọi query comment về sau phải nhớ lọc thêm một điều kiện
+— đúng lớp lỗi mà việc thiếu `ISoftDeletable` từng gây ra ở ADR-008. Audit trail do
+`ActivityLog` đảm nhiệm (3 giá trị `ActivityAction` mới; `HasConversion<string>()` nên schema
+không đổi).
+
+**Không cần `RowVersion`:** chỉ tác giả sửa được nên **không tồn tại** kịch bản hai người cùng
+ghi đè — chính là điều kiện mà ADR-016/021 sinh ra để chặn. Quyền hẹp ở đây thay luôn cho
+optimistic concurrency, không phải bỏ sót.
+
+**Phát hiện kèm — một bảo đảm cấu trúc đã có sẵn mà không ai biết:** `CommentConfiguration` khai
+`HasQueryFilter(c => !c.Task.IsDeleted)` từ `InitialCreate`. Comment của task đã xóa mềm tự biến
+mất khỏi **mọi** query, không service nào phải nhớ lọc. Đã ghi lại và có integration test giữ —
+trước đó nó chỉ là một dòng trong file configuration mà không tài liệu nào nhắc tới.
+
+**Tái dùng thay vì viết bản sao:** `InterestedEmployeeIds` (assignee + watcher + reporter) từng
+là `private static` trong `TaskStatusTransitionService`. Comment cần đúng danh sách đó cho
+`CommentAdded`, nên tách ra `TaskNotificationExtensions` và refactor service cũ dùng lại — hai
+bản sao sẽ lệch nhau ngay lần đầu ai đó thêm một nhóm người nhận mới.
+
+#### Đính chính 2026-07-30 — CORS ghi ✅ nhưng chưa từng hoạt động
+
+Cùng mạch với hai lần đính chính trước (ADR-008: tài liệu nói đã xóa `Project.SoftDelete()`
+nhưng method vẫn còn; ADR-016: `RowVersion` chỉ có ở schema). Lần này là **cấu hình pipeline**.
+
+ADR ngày 2026-07-29 ghi "Chuẩn hóa CORS Policy ✅ — đã có `AddCors`/`UseCors` với policy
+`PmsFrontend`". Cả hai lệnh đó đều có thật trong `Program.cs`. Nhưng **không một header CORS nào
+được phát ra**, vì hai lỗi độc lập cộng lại:
+
+1. `app.UseCors()` gọi **không tham số** nên đi tìm DEFAULT policy, trong khi code chỉ khai báo
+   policy *đặt tên* và không gọi `AddDefaultPolicy`. `CorsMiddleware` không tìm thấy policy thì
+   chỉ ghi log rồi gọi `next()` — không exception, không lỗi.
+2. `builder.Configuration.GetSection("Cors:AllowedOrigins")` đọc **ngay** tại thời điểm dòng đó
+   chạy, nên chỉ thấy các nguồn cấu hình đã đăng ký tới lúc ấy. Nguồn thêm sau bị bỏ qua hoàn
+   toàn → policy nhận mảng origin **rỗng**, tức là dù có gắn đúng tên policy thì vẫn không có
+   origin nào khớp.
+
+**Cách phát hiện:** viết test trước khi sửa. Test đỏ 3/4 → sửa lỗi 1 → **vẫn đỏ** → in
+`IOptions<CorsOptions>` ra và thấy `CONFIG Cors:AllowedOrigins = [http://localhost:3000]` nhưng
+`POLICY origins = []`, `DEFAULT policy null? True`. Nếu chỉ sửa lỗi 1 rồi tin vào chẩn đoán ban
+đầu thì bug vẫn còn nguyên và ADR lại được đánh ✅ lần thứ hai.
+
+**Cách sửa:** truyền tên policy tường minh, và đọc origin qua
+`AddOptions<CorsOptions>().Configure<IConfiguration>(...)` để hoãn tới lúc DI resolve.
+
+**Vì sao sống sót được nhiều phiên:** lỗi 2 không lộ khi `dotnet run` (`WebApplicationBuilder`
+đã nạp sẵn appsettings + user-secrets + biến môi trường trước khi tới dòng đó), và lỗi 1 chỉ
+biểu hiện ở browser — thứ mà dự án chưa có vì `frontend/` chưa tồn tại.
+
+**Rút ra, bổ sung cho bài học 2026-07-30 bên dưới:** bài học đó nói "entity viết trước service
+thì không có gì kiểm chứng nó". Lần này mở rộng phạm vi: **cấu hình pipeline mà chưa có client
+thật gọi vào thì cũng không có gì kiểm chứng nó**, và middleware của ASP.NET Core có xu hướng
+*bỏ qua im lặng* thay vì nổ — nên "build sạch, test xanh, ADR ghi ✅" vẫn có thể là ba lời khai
+sai cùng lúc. Từ nay cấu hình pipeline có ảnh hưởng nghiệp vụ (CORS, rate limit, auth scheme,
+JSON options) phải có ít nhất một integration test chạm vào hành vi thật của nó — đó là lý do
+§11 có thêm nhóm "Hạ tầng API".
 
 #### Bài học 2026-07-30 — "chỉ có ở domain nhưng chưa ai gọi nên chưa lộ"
 

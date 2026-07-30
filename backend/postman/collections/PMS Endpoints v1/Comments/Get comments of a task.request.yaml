@@ -1,0 +1,47 @@
+$kind: http-request
+name: Get comments of a task
+url: "{{api_url}}/tasks/:taskId/comments?Page=1&PageSize=20&SortDirection=&Search="
+method: GET
+pathVariables:
+  - key: taskId
+    value: 8DD5602C-EB76-4E72-BFF4-707011B0E6AF
+    description: Mọi thành viên project đọc được, kể cả Viewer
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+queryParams:
+  - key: Page
+    value: "1"
+    disabled: false
+    description: ""
+    $type: integer
+  - key: PageSize
+    value: "20"
+    disabled: false
+    description: ""
+    $type: integer
+  - key: SortDirection
+    value: ""
+    disabled: false
+    description: Bỏ trống = cũ nhất trước (đọc hội thoại theo thứ tự); desc để đảo lại
+    $type: string
+  - key: Search
+    value: ""
+    disabled: false
+    description: Tìm trong nội dung comment
+    $type: string
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4200000000000202

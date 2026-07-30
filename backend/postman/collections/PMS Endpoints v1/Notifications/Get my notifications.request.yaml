@@ -1,0 +1,40 @@
+$kind: http-request
+name: Get my notifications
+url: "{{api_url}}/notifications?isRead=&Page=1&PageSize=20&SortBy=&SortDirection=&Search="
+method: GET
+queryParams:
+  - key: isRead
+    value: ""
+    disabled: false
+    description: Bỏ trống = cả đã đọc và chưa đọc; false = chỉ chưa đọc
+    $type: boolean
+  - key: Page
+    value: "1"
+    disabled: false
+    description: ""
+    $type: integer
+  - key: PageSize
+    value: "20"
+    disabled: false
+    description: ""
+    $type: integer
+  - key: SortBy
+    value: ""
+    disabled: false
+    description: Bỏ trống = CreatedAt giảm dần (mới nhất trước). Hỗ trợ createdAt, isRead
+    $type: string
+  - key: SortDirection
+    value: ""
+    disabled: false
+    description: ""
+    $type: string
+  - key: Search
+    value: ""
+    disabled: false
+    description: Tìm trong nội dung thông báo
+    $type: string
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4200000000000101

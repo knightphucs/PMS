@@ -1,0 +1,26 @@
+$kind: http-request
+name: Mark one as read
+url: "{{api_url}}/notifications/:id/read"
+method: PATCH
+pathVariables:
+  - key: id
+    value: 00000000-0000-0000-0000-000000000000
+    description: Lấy từ response GET /notifications. Thông báo của người khác trả 404 (ADR-023)
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4200000000000103

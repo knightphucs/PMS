@@ -1,0 +1,58 @@
+%% Sequence Diagram - Xoa comment tren task (ADR-026)
+%% Ba nhanh quyen chong nhau: nguoi ngoai project (404), thanh vien nhung khong phai tac gia
+%% va khong phai PM (403), tac gia HOAC ProjectManager (204).
+%% Doi chieu: SUA comment chi tac gia — PM cung khong, vi noi dung van dung ten tac gia cu.
+sequenceDiagram
+autonumber
+actor Actor as Nguoi goi
+participant API as CommentsController
+participant Service as CommentService
+participant Repo as CommentRepository
+participant Authz as ProjectAuthorizationService
+participant Logger as ActivityLogger
+participant UoW as UnitOfWork
+participant DB as Database
+
+Actor->>API: DELETE /api/v1/comments/{id}
+API->>Service: DeleteAsync(id)
+Service->>Repo: GetWithTaskAsync(id)
+Note over Repo,DB: Query filter !c.Task.IsDeleted da co san tu InitialCreate:<br/>comment cua task xoa mem tu bien mat, khong service nao phai nho loc
+Repo->>DB: SELECT Comment + Task + Author
+DB-->>Repo: row or null
+Repo-->>Service: Comment or null
+
+alt comment khong ton tai (hoac task cua no da bi xoa mem)
+  Service-->>API: NotFoundException(Comment, id)
+  API-->>Actor: 404 Not Found
+else comment ton tai
+  Note over Service,Authz: Nguong dung o day la View, khong phai action ghi:<br/>muc dich chi de loai nguoi ngoai project va LAY RA RoleInProject.<br/>Luat that nam o Service (ADR-019 - ranh gioi con lai)
+  Service->>Authz: AuthorizeAsync(comment.Task.ProjectId, View)
+  Authz->>DB: SELECT ProjectMembers
+  DB-->>Authz: RoleInProject or null
+
+  alt khong phai thanh vien project
+    Authz-->>Service: NotFoundException(Project, projectId)
+    Note over Service: Chuan hoa 404 (ADR-019): bat lai va nem<br/>NotFoundException(Comment, id) — khong de lo projectId<br/>cho nguoi ngoai
+    Service-->>API: NotFoundException(Comment, id)
+    API-->>Actor: 404 Not Found
+  else la thanh vien project
+    Authz-->>Service: RoleInProject
+
+    alt khong phai tac gia VA khong phai ProjectManager
+      Note over Service: Member/Viewer khong xoa duoc loi nguoi khac
+      Service-->>API: ForbiddenException
+      API-->>Actor: 403 Forbidden
+    else la tac gia HOAC la ProjectManager
+      Note over Service,UoW: Xoa CUNG, khong ISoftDeletable (ADR-026):<br/>nhat quan ADR-012 (go member cung xoa cung).<br/>Them co da-xoa thi moi query comment ve sau phai nho<br/>loc them mot dieu kien — dung lop loi cua ADR-008
+      Service->>UoW: Comments.Remove(comment)
+      Service->>Logger: Log(TaskItem, taskId, CommentDeleted, chi ro tac gia hay PM xoa)
+      Note over Logger: Audit trail do ActivityLog dam nhiem thay cho soft delete
+      Service->>UoW: SaveChangesAsync()
+      Note over UoW: MOT lan SaveChanges cho ca xoa comment + ghi log (ADR-007)
+      UoW->>DB: DELETE FROM Comments + INSERT ActivityLog
+      DB-->>UoW: ok
+      Service-->>API: void
+      API-->>Actor: 204 No Content
+    end
+  end
+end

@@ -98,7 +98,10 @@ public class CommentServiceTests
 
         _notifications.Received(1).NotifyMany(
             Arg.Is<IEnumerable<Guid>>(ids =>
-                ids.Contains(assigneeId) && ids.Contains(watcherId) && ids.Contains(task.ReporterId)),
+                ids != null
+                && ids.Contains(assigneeId)
+                && ids.Contains(watcherId)
+                && ids.Contains(task.ReporterId)),
             NotificationType.CommentAdded,
             Arg.Any<string>(),
             _taskId);

@@ -1,0 +1,32 @@
+$kind: http-request
+name: Create a comment
+url: "{{api_url}}/tasks/:taskId/comments"
+method: POST
+pathVariables:
+  - key: taskId
+    value: 8DD5602C-EB76-4E72-BFF4-707011B0E6AF
+    description: Viewer gọi vào đây nhận 403 — chỉ ProjectManager/Member viết được
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: |-
+    {
+        "content": "Phần này em làm xong rồi, anh review giúp em nhé"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4200000000000201
