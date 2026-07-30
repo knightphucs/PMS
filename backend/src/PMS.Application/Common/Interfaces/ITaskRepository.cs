@@ -20,6 +20,14 @@ public interface ITaskRepository : IRepository<TaskItem>
     Task<PagedResult<TaskItem>> GetPagedByProjectAsync(
         Guid projectId, PagedRequest request, CancellationToken ct = default);
     Task<IReadOnlyList<TaskItem>> GetBacklogAsync(Guid projectId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Toàn bộ task gốc của project, không phân trang — dùng dựng Board dạng Kanban cho
+    /// project không chạy theo sprint. Subtask bị loại: chúng hiện trong chi tiết task cha,
+    /// không phải thẻ riêng trên board.
+    /// </summary>
+    Task<IReadOnlyList<TaskItem>> GetRootTasksByProjectAsync(
+        Guid projectId, CancellationToken ct = default);
     Task<IReadOnlyList<TaskItem>> GetBySprintAsync(Guid sprintId, CancellationToken ct = default);
     Task<IReadOnlyList<TaskItem>> GetUnfinishedBlockersAsync(Guid taskId, CancellationToken ct = default);
     Task<IReadOnlyList<TaskItem>> GetOverdueAsync(CancellationToken ct = default);

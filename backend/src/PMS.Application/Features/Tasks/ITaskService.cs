@@ -22,4 +22,14 @@ public interface ITaskService
     /// <summary>Chuyển task giữa Sprint và Backlog (SprintId = null).</summary>
     Task<TaskSummaryResponse> MoveToSprintAsync(
         Guid id, MoveTaskToSprintRequest request, CancellationToken ct = default);
+
+    /// <summary>Task chưa gán sprint của project (Backlog).</summary>
+    Task<IReadOnlyList<TaskSummaryResponse>> GetBacklogAsync(
+        Guid projectId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Board Kanban: task nhóm theo Status. sprintId = null nghĩa là board của cả project.
+    /// </summary>
+    Task<BoardResponse> GetBoardAsync(
+        Guid projectId, Guid? sprintId, CancellationToken ct = default);
 }

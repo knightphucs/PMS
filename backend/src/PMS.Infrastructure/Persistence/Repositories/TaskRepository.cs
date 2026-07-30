@@ -85,6 +85,14 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
             .OrderBy(t => t.Priority)
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<TaskItem>> GetRootTasksByProjectAsync(
+        Guid projectId, CancellationToken ct = default)
+        => await DbSet
+            .AsNoTracking()
+            .Where(t => t.ProjectId == projectId && t.ParentTaskId == null)
+            .OrderBy(t => t.Priority)
+            .ToListAsync(ct);
+
     public async Task<IReadOnlyList<TaskItem>> GetBySprintAsync(
         Guid sprintId, CancellationToken ct = default)
         => await DbSet

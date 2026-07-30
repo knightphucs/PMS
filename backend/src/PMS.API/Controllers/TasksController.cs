@@ -94,6 +94,26 @@ public class TasksController : ControllerBase
         Guid id, MoveTaskToSprintRequest req, CancellationToken ct)
         => Ok(await _tasks.MoveToSprintAsync(id, req, ct));
 
+    /// <summary>Task chưa gán sprint của project.</summary>
+    [HttpGet("projects/{projectId:guid}/backlog")]
+    [ProducesResponseType(typeof(IReadOnlyList<TaskSummaryResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<TaskSummaryResponse>>> GetBacklog(
+        Guid projectId, CancellationToken ct)
+        => Ok(await _tasks.GetBacklogAsync(projectId, ct));
+
+    /// <summary>
+    /// Board Kanban của project. Bỏ trống sprintId để lấy board toàn project.
+    /// Luôn trả đủ 4 cột theo Status, kể cả cột rỗng.
+    /// </summary>
+    [HttpGet("projects/{projectId:guid}/board")]
+    [ProducesResponseType(typeof(BoardResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<BoardResponse>> GetBoard(
+        Guid projectId, [FromQuery] Guid? sprintId, CancellationToken ct)
+        => Ok(await _tasks.GetBoardAsync(projectId, sprintId, ct));
+
     [HttpGet("tasks/{id:guid}/assignees")]
     [ProducesResponseType(typeof(IReadOnlyList<TaskAssigneeResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

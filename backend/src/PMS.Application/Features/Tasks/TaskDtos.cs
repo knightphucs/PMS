@@ -48,6 +48,12 @@ public record TaskAssigneeResponse(
     RoleInTask RoleInTask,
     DateTime AssignedDate);
 
+/// <summary>Một cột của Board Kanban. Luôn xuất hiện đủ 4 cột, kể cả cột rỗng.</summary>
+public record BoardColumn(Status Status, IReadOnlyList<TaskSummaryResponse> Tasks);
+
+/// <summary>SprintId = null nghĩa là board của cả project (kiểu Kanban, không theo sprint).</summary>
+public record BoardResponse(Guid ProjectId, Guid? SprintId, IReadOnlyList<BoardColumn> Columns);
+
 public record TaskDetailResponse(
     Guid Id,
     string Name,

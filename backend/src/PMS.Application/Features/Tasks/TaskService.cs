@@ -188,6 +188,48 @@ public class TaskService : ITaskService
         return _mapper.ToSummary(task);
     }
 
+    public async Task<IReadOnlyList<TaskSummaryResponse>> GetBacklogAsync(
+        Guid projectId, CancellationToken ct = default)
+    {
+        await _authz.AuthorizeAsync(projectId, ProjectAction.View, ct);
+
+        var backlog = await _uow.Tasks.GetBacklogAsync(projectId, ct);
+
+        return backlog.Select(_mapper.ToSummary).ToList();
+    }
+
+    public async Task<BoardResponse> GetBoardAsync(
+        Guid projectId, Guid? sprintId, CancellationToken ct = default)
+    {
+        await _authz.AuthorizeAsync(projectId, ProjectAction.View, ct);
+
+        IReadOnlyList<TaskItem> tasks;
+        if (sprintId is { } id)
+        {
+            await RequireSprintOfProjectAsync(id, projectId, ct);
+
+            // GetBySprintAsync trả cả subtask; board chỉ hiển thị task gốc, subtask nằm
+            // trong chi tiết task cha.
+            tasks = (await _uow.Tasks.GetBySprintAsync(id, ct))
+                    .Where(t => t.ParentTaskId is null)
+                    .ToList();
+        }
+        else
+        {
+            tasks = await _uow.Tasks.GetRootTasksByProjectAsync(projectId, ct);
+        }
+
+        // Duyệt theo Enum.GetValues chứ không theo GroupBy dữ liệu: board phải luôn có đủ
+        // 4 cột kể cả cột rỗng, nếu không frontend Kanban lại phải tự dựng cột thiếu.
+        var columns = Enum.GetValues<Status>()
+            .Select(status => new BoardColumn(
+                status,
+                tasks.Where(t => t.Status == status).Select(_mapper.ToSummary).ToList()))
+            .ToList();
+
+        return new BoardResponse(projectId, sprintId, columns);
+    }
+
     /// <summary>
     /// Sprint phải tồn tại và thuộc đúng project của task — nếu không sẽ tạo ra task nằm
     /// trong sprint của project khác, thứ mà FK không chặn được (Task giữ cả ProjectId
