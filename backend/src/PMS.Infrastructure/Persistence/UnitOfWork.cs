@@ -13,7 +13,7 @@ public class UnitOfWork : IUnitOfWork
     private ITaskRepository? _tasks;
     private IEmployeeRepository? _employees;
     private IRefreshTokenRepository ? _refreshTokens;
-    private IRepository<Sprint>? _sprints;
+    private ISprintRepository? _sprints;
     private IProjectMemberRepository? _projectMembers;
     private IRepository<ActivityLog>? _activityLogs;
     private IRepository<Notification>? _notifications;
@@ -24,7 +24,7 @@ public class UnitOfWork : IUnitOfWork
     public ITaskRepository Tasks        => _tasks     ??= new TaskRepository(_context);
     public IEmployeeRepository Employees => _employees ??= new EmployeeRepository(_context);
     public IRefreshTokenRepository RefreshTokens => _refreshTokens ??= new RefreshTokenRepository(_context);
-    public IRepository<Sprint> Sprints => _sprints ??= new Repository<Sprint>(_context);
+    public ISprintRepository Sprints => _sprints ??= new SprintRepository(_context);
     public IProjectMemberRepository ProjectMembers => _projectMembers ??= new ProjectMemberRepository(_context);
     public IRepository<ActivityLog> ActivityLogs => _activityLogs ??= new Repository<ActivityLog>(_context);
     public IRepository<Notification> Notifications => _notifications ??= new Repository<Notification>(_context);
