@@ -1,0 +1,158 @@
+@startuml
+' =========================================================
+'  Use Case Diagram (v5 - BẢN CHỐT, đồng bộ ARCHITECTURE.md cuối)
+'  Hệ thống Quản lý Dự án & Task (Project Management System)
+'
+'  Thay đổi so với v4: Subtask được đặc tả chính thức là 1 Task đầy đủ
+'  (dùng chung class Task, self-reference ParentTaskId, tối đa 1 cấp).
+'  => KHÔNG nhân đôi use case cho subtask. Chỉ thêm "Tạo subtask"
+'     (extend của "Tạo task"). Mọi use case Task khác reuse cho subtask.
+' =========================================================
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam actorStyle awesome
+
+actor "Khách\n(chưa đăng nhập)" as Guest
+actor "Người dùng\n(đã đăng nhập)" as User
+actor "Viewer" as Viewer
+actor "Member" as Member
+actor "ProjectManager" as PM
+actor "SystemAdmin" as SysAdmin
+
+' ----- Generalization (kế thừa). Guest ĐỨNG NGOÀI, không kế thừa -----
+Viewer   --|> User
+Member   --|> Viewer
+PM       --|> Member
+SysAdmin --|> User
+
+rectangle "Hệ thống Quản lý Dự án & Task" {
+
+  package "Xác thực (Khách)" {
+    usecase "Đăng nhập" as UC_Login
+    usecase "Đăng ký tài khoản\n(self-register)" as UC_Register
+    usecase "Quên mật khẩu / Reset" as UC_Reset
+  }
+
+  package "Nền chung (User đã đăng nhập)" {
+    usecase "Xem & đánh dấu\nthông báo" as UC_Notif
+    usecase "Tạo dự án" as UC_PCreate
+    usecase "Chấp nhận / Từ chối\nlời mời dự án" as UC_InviteRespond
+  }
+
+  package "Xem & Theo dõi (Viewer)" {
+    usecase "Xem dự án\n(list & chi tiết)" as UC_ViewProject
+    usecase "Xem Board & Backlog" as UC_ViewBoard
+    usecase "Xem chi tiết task\n(+ subtask, progress bar)" as UC_ViewTask
+    usecase "Xem Comment & Activity Log" as UC_ViewLog
+    usecase "Tìm kiếm & lọc task" as UC_Search
+    usecase "Xem Dashboard thống kê" as UC_Dashboard
+  }
+
+  package "Thực thi công việc (Member)" {
+    usecase "Cập nhật trạng thái task" as UC_Status
+    usecase "Tự nhận task (self-assign)" as UC_SelfAssign
+    usecase "Tự rút khỏi task" as UC_SelfUnassign
+    usecase "Viết comment" as UC_Comment
+    usecase "Theo dõi / Bỏ theo dõi task" as UC_Watch
+  }
+
+  package "Quản lý Dự án, Sprint & Task (PM)" {
+    usecase "Sửa dự án" as UC_PEdit
+    usecase "Xóa dự án" as UC_PDelete
+    usecase "Hoàn thành dự án" as UC_PDone
+    usecase "Quản lý Sprint" as UC_Sprint
+    usecase "Sắp xếp Backlog <-> Sprint" as UC_Backlog
+    usecase "Tạo task" as UC_TCreate
+    usecase "Tạo subtask (task con)" as UC_SubCreate
+    usecase "Sửa task" as UC_TEdit
+    usecase "Xóa task" as UC_TDelete
+    usecase "Gán / Gỡ người khác vào task" as UC_AssignOther
+    usecase "Liên kết task (TaskLink)" as UC_Link
+    usecase "Mời & quản lý\nthành viên dự án" as UC_Members
+  }
+
+  package "Quản trị hệ thống (SystemAdmin)" {
+    usecase "Khóa / Mở tài khoản" as UC_Lock
+    usecase "Cấp / thu hồi quyền\nSystemAdmin" as UC_GrantAdmin
+    usecase "Cấu hình hệ thống" as UC_Config
+    usecase "Xem read-only toàn bộ\ndự án (audit)" as UC_Audit
+  }
+}
+
+' ===== Association: nối vào role THẤP NHẤT; role cao hơn tự có nhờ kế thừa =====
+Guest -- UC_Login
+Guest -- UC_Register
+Guest -- UC_Reset
+
+User -- UC_Notif
+User -- UC_PCreate
+User -- UC_InviteRespond
+
+Viewer -- UC_ViewProject
+Viewer -- UC_ViewBoard
+Viewer -- UC_ViewTask
+Viewer -- UC_ViewLog
+Viewer -- UC_Search
+Viewer -- UC_Dashboard
+
+Member -- UC_Status
+Member -- UC_SelfAssign
+Member -- UC_SelfUnassign
+Member -- UC_Comment
+Member -- UC_Watch
+
+PM -- UC_PEdit
+PM -- UC_PDelete
+PM -- UC_PDone
+PM -- UC_Sprint
+PM -- UC_Backlog
+PM -- UC_TCreate
+PM -- UC_SubCreate
+PM -- UC_TEdit
+PM -- UC_TDelete
+PM -- UC_AssignOther
+PM -- UC_Link
+PM -- UC_Members
+
+SysAdmin -- UC_Lock
+SysAdmin -- UC_GrantAdmin
+SysAdmin -- UC_Config
+SysAdmin -- UC_Audit
+
+' ===== Quan hệ use case =====
+' Subtask là 1 Task tạo dưới 1 task cha -> extend của "Tạo task"
+UC_SubCreate ..> UC_TCreate : <<extend>>
+
+' ----- Ghi chú để bảo vệ -----
+note right of UC_SubCreate
+  Subtask dùng CHUNG class Task (ParentTaskId), tối đa 1 cấp.
+  => Sửa/Xóa/Gán/Comment/Watch/Link/Cập-nhật-status của Task
+     ÁP DỤNG NGUYÊN VẸN cho subtask (tái sử dụng, không nhân đôi UC).
+end note
+
+note right of UC_PCreate
+  Người tạo tự động thành ProjectManager
+  (insert ProjectMember). Gated bởi CanCreateProject.
+end note
+
+note right of UC_SelfAssign
+  Chỉ khi task đang ToDo và người dùng là ProjectMember.
+  Gán/gỡ NGƯỜI KHÁC vẫn chỉ PM.
+end note
+
+note bottom of UC_Status
+  Workflow Rules: ToDo -> InProgress -> Review -> Done (không nhảy bước;
+  chặn nếu bị IsBlockedBy chưa Done). Task cha KHÔNG tự động Done
+  khi mọi subtask Done -> chỉ hiển thị progress bar %.
+  Quyền (ADR-017): Assignee của chính task đó HOẶC ProjectManager của
+  project (override được cả task không do mình gán). Member không phải
+  assignee, và Viewer, đều bị từ chối 403.
+end note
+
+note bottom of UC_Members
+  Mời qua email -> InvitationStatus = Pending.
+  Người được mời Chấp nhận/Từ chối (UC_InviteRespond).
+end note
+
+@enduml

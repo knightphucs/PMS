@@ -1,0 +1,33 @@
+$kind: http-request
+name: Assign task
+url: "{{api_url}}/tasks/:id/assignees"
+method: POST
+pathVariables:
+  - key: id
+    value: 8dd5602c-eb76-4e72-bff4-707011b0e6af
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: |-
+    {
+        "employeeId": "EFA6F8EC-83DF-453F-91C3-0088CF05EFE2",
+        "role": 0
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4503595956495584

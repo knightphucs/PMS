@@ -1,0 +1,26 @@
+$kind: http-request
+name: Get Backlog
+url: "{{api_url}}/projects/:project_id/backlog"
+method: GET
+pathVariables:
+  - key: project_id
+    value: 1C28D4B9-25E4-4DA4-93AD-33314637CD9D
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4503273294125117

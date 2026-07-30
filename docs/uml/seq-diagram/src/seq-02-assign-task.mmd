@@ -1,0 +1,41 @@
+%% Sequence Diagram - Gán nhân sự vào task (+ sinh Notification)
+%% Entity method (Task.AddAssignee) vs Service orchestration (ActivityLog + Notification).
+%% Assignment + Log + Notification commit trong CÙNG 1 transaction.
+sequenceDiagram
+autonumber
+actor PM as ProjectManager
+participant API as TasksController
+participant Service as TaskAssignmentService
+participant Repo as Repositories
+participant Task as Task (entity)
+participant Logger as ActivityLogService
+participant Notifier as NotificationService
+participant UoW as UnitOfWork
+participant DB as Database
+PM->>API: POST /api/v1/tasks/{id}/assignees (employeeId, role)
+API->>Service: AssignAsync(taskId, employeeId, role, userId)
+Service->>Repo: GetTaskById(taskId)
+Repo->>DB: SELECT Task
+DB-->>Repo: Task
+Repo-->>Service: Task
+alt task not found
+  Service-->>API: NotFoundException
+  API-->>PM: 404 Not Found
+else task exists
+  Service->>Repo: IsProjectMember(projectId, employeeId)
+  Repo-->>Service: bool
+  alt caller not PM or target not member
+    Service-->>API: ForbiddenException
+    API-->>PM: 403 Forbidden
+  else valid
+    Service->>Task: AddAssignee(employee, role)
+    Note over Task: entity kiem tra trung,<br/>tao TaskAssignment
+    Service->>Logger: Write(Assigned, task, userId)
+    Service->>Notifier: Notify(employee, TaskAssigned, task)
+    Service->>UoW: SaveChangesAsync()
+    UoW->>DB: INSERT TaskAssignment + ActivityLog + Notification<br/>(single transaction)
+    DB-->>UoW: ok
+    Service-->>API: AssignmentDto
+    API-->>PM: 200 OK
+  end
+end

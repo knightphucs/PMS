@@ -6,6 +6,8 @@ using PMS.Application.Common.Services;
 using PMS.Application.Features.Admin;
 using PMS.Application.Features.Auth;
 using PMS.Application.Features.Projects;
+using PMS.Application.Features.Sprints;
+using PMS.Application.Features.Tasks;
 
 namespace PMS.Application;
 
@@ -20,6 +22,12 @@ public static class DependencyInjection
         services.AddScoped<IProjectAuthorizationService, ProjectAuthorizationService>();
         services.AddScoped<IProjectService, ProjectService>();
         services.AddScoped<IProjectMemberService, ProjectMemberService>();
+        services.AddScoped<ISprintService, SprintService>();
+        services.AddSingleton<SprintMapper>();
+        services.AddScoped<ITaskService, TaskService>();
+        services.AddScoped<ITaskStatusTransitionService, TaskStatusTransitionService>();
+        services.AddScoped<ITaskAssignmentService, TaskAssignmentService>();
+        services.AddSingleton<TaskMapper>();
         services.AddScoped<IActivityLogger, ActivityLogger>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddSingleton<ProjectMapper>();

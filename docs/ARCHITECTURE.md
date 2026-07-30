@@ -5,21 +5,27 @@
 > Mục đích: đảm bảo tính nhất quán xuyên suốt quá trình phát triển, và làm tài liệu
 > tham chiếu cho báo cáo thực tập tốt nghiệp.
 >
-> Cập nhật lần cuối: 2026-07-29
+> Cập nhật lần cuối: 2026-07-30
 
 > ## 🧭 Bắt đầu phiên mới ở đây
-> **Trạng thái:** Auth + Project (kể cả quản lý thành viên) đã xong, có test, đã review
-> kỹ (build sạch, 93 test pass). Employee management (khóa/mở tài khoản) cũng đã xong.
-> **Việc tiếp theo: module Task** (kể cả Subtask, Sprint, Workflow Transition Rules).
-> **Trước khi viết code Task, đọc theo thứ tự:**
-> 1. §5 (Domain Model) — đặc biệt phần Task/Subtask/Sprint/Workflow Transition Rules
-> 2. §15, mục con **"Task module — quyết định trước khi code"** (đầu §15, trước log
->    ADR) — 5 câu hỏi thiết kế đã được chốt (2 câu vừa quyết ở phiên này, 3 câu hóa ra
->    đã có sẵn trong UML nhưng chưa ai đối chiếu) + danh sách "diagram debt" cần sửa
->    trước khi tin tưởng 100% vào UML hiện có (đặc biệt `seq-03-change-status`)
-> 3. `docs/uml/diagram_png/seq-01/02/03` — đã vẽ sẵn luồng create/assign/change-status,
->    tái dùng chứ không cần vẽ lại từ đầu (trừ seq-03 cần sửa theo ADR-017)
-> 4. §12 để biết diagram nào cần cập nhật trước khi code, diagram nào dùng được ngay
+> **Trạng thái:** Auth + Project (kể cả quản lý thành viên) + Employee management đã
+> xong từ trước. **Task + Sprint/Backlog/Board vừa hoàn thành ở phiên 2026-07-30** —
+> build sạch, **247 test pass** (153 unit + 94 integration).
+> **Việc tiếp theo: Notification API rồi Comment API** — xem bảng "Lộ trình các phiên
+> tiếp theo" ngay dưới bảng tiến độ ở §1. Notification xếp trước vì hiện tại nó đang
+> được **sinh ra ở mọi luồng nhưng không có đường nào đọc**; Comment/Watcher/Label/
+> TaskLink đều đã có entity + EF configuration + migration sẵn từ `InitialCreate`, chỉ
+> thiếu tầng Application/API — đúng tình trạng mà Task/Sprint vừa ở trước phiên này.
+> **Trước khi viết code, đọc theo thứ tự:**
+> 1. §15, ADR-019 (phân quyền tái dùng `ProjectAction`), ADR-020, ADR-021 — ba quyết
+>    định mới của phiên Task, áp dụng nguyên cho các module còn lại
+> 2. `PMS.Application/Features/Tasks/` — khuôn mẫu gần nhất để sao chép: DTO,
+>    validator, Mapperly mapper, service, `TaskAuthorizationExtensions.AuthorizeTaskAsync`
+>    (chuẩn hóa 404 theo ADR-019)
+> 3. ⚠️ **`Watcher` không kế thừa `BaseEntity`** (khóa kép `TaskId + EmployeeId`) nên
+>    `ApplyAuditFields()` không đóng dấu `CreatedAt`, và `IRepository<T> where T :
+>    BaseEntity` không phục vụ được nó — phải xử lý riêng, đừng mất thời gian phát hiện lại
+> 4. §12 — toàn bộ diagram debt đã dọn xong, 9/9 sequence diagram khớp code hiện tại
 
 ---
 
@@ -48,13 +54,38 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | Auth (Register/Login/Refresh/Logout/Me) | ✅ | Chi tiết xem bảng ở §10 — chỉ còn Reset Password ⬜, khóa/mở tài khoản đã xong |
 | Project (CRUD + phân quyền 2 tầng + soft delete + optimistic concurrency) | ✅ | Có Unit + Integration Test. `RowVersion` đã wire đầy đủ qua DTO (không chỉ có ở schema) — xem ADR-016 |
 | Project — quản lý thành viên (mời/accept/decline/đổi role/gỡ) | ✅ | `ProjectMemberService`/`ProjectMembersController`, có Integration Test (seq-04/05) — *bảng này từng ghi ⬜ dù đã code xong từ commit `ca8ff0b`, đã sửa lại 2026-07-29* |
-| Sprint | ⬜ | Chỉ có entity + migration, chưa có `SprintService`/Controller |
-| Task (kể cả Subtask, Workflow Transition Rules) | ⬜ | Chưa có `TaskService`/Controller — chưa bắt đầu |
-| Comment / Activity Log / Notification | ⬜ | ActivityLog đã ghi qua `IActivityLogger` (ADR-013); Comment/Notification-API vẫn chưa có Service/Controller |
+| Sprint (CRUD + Backlog ↔ Sprint) | ✅ | `SprintService`/`SprintsController`, có Unit + Integration Test. Xóa sprint đẩy task về Backlog — ADR-020 |
+| Task (CRUD + Subtask + optimistic concurrency) | ✅ | `TaskService`/`TasksController`. `RowVersion` wire đầy đủ qua DTO, đóng lại "giới hạn đã biết" của ADR-016 |
+| Task — Workflow Transition Rules | ✅ | `TaskStatusTransitionService`, quyền theo ADR-017 (Assignee HOẶC PM), chặn task đang bị `Blocks`/`IsBlockedBy` |
+| Task — giao việc (gán/tự nhận/gỡ) | ✅ | `TaskAssignmentService`, đúng bảng "Quy tắc gán việc" ở §5 và seq-02 |
+| Board (Kanban) + Backlog | ✅ | `GET /projects/{id}/board?sprintId=` và `/backlog`; board luôn trả đủ 4 cột kể cả cột rỗng |
+| Comment / Watcher / Label / TaskLink — API | ⬜ | Entity + configuration + migration đã có; `TaskLink` đang được dùng gián tiếp qua blocker check nhưng chưa có API tạo/xóa link |
+| Activity Log / Notification | ⬜ | ActivityLog đã ghi qua `IActivityLogger` (ADR-013) và Notification đã được sinh ra ở mọi luồng, nhưng chưa có API để đọc/đánh dấu đã đọc |
 | Employee management (ngoài Auth) | ✅ | `AdminEmployeesController` — khóa/mở tài khoản, cấp `SystemAdmin` — *bảng này từng ghi ⬜ dù đã code xong, đã sửa lại 2026-07-29* |
 | Thống kê / Dashboard | ⬜ | Chưa bắt đầu |
 | Frontend (toàn bộ) | ⬜ | Thư mục `frontend/` chưa tồn tại trong repo |
 | Real-time (SignalR) | ⬜ | Có chủ đích — chỉ làm sau khi core CRUD ổn định (xem §6) |
+
+### Lộ trình các phiên tiếp theo
+
+> Sắp theo thứ tự phụ thuộc và giá trị, không phải theo độ khó. Cập nhật 2026-07-30.
+
+| # | Hạng mục | Vì sao xếp ở đây | Quy mô ước tính |
+|---|---|---|---|
+| 1 | **Notification API** (đọc danh sách, đánh dấu đã đọc, đếm chưa đọc) | Mắt xích thiếu rõ nhất hiện tại: Notification **đang được sinh ra ở mọi luồng** Project/Task nhưng không có đường nào đọc — dữ liệu chỉ ghi vào rồi nằm đó. Không có nó thì mọi công sức `NotifyMany` ở các phiên trước là vô hình | Nhỏ — 1 service, 3 endpoint, không có nhánh quyền phức tạp (chỉ đọc thông báo của chính mình) |
+| 2 | **Comment API** | Hoàn tất nhóm "cộng tác" trên task. Entity + configuration đã sẵn, quyền đơn giản (mọi thành viên viết được, sửa/xóa chỉ tác giả hoặc PM) | Nhỏ — sao chép khuôn `Features/Tasks` |
+| 3 | **Watcher + Label + TaskLink API** | Ba cái nhỏ, gom một đợt. ⚠️ `Watcher` **không** kế thừa `BaseEntity` nên `IRepository<T>` không phục vụ được, phải xử lý riêng. `TaskLink` cần thêm guard chống link vòng (A blocks B và B blocks A cùng lúc sẽ khóa chết cả hai ở blocker check) | Vừa |
+| 4 | **Frontend — bắt đầu** (Next.js scaffold → Auth → Project list → Board/Backlog) | API của Project + Task + Sprint đã đủ ổn định để dựng 4 màn hình chính. §13 bước 6 đã nói không đợi backend xong hết. **Đây là rủi ro tiến độ lớn nhất** — thư mục `frontend/` vẫn chưa tồn tại, mà đây là phần chiếm nhiều thời gian nhất và là thứ hội đồng nhìn thấy đầu tiên | Lớn — nhiều phiên |
+| 5 | **Dashboard thống kê** | `ProjectAction.ViewStatistics` đã có sẵn trong ma trận quyền nhưng chưa ai dùng. Cần cả API lẫn màn hình Recharts | Vừa |
+| 6 | **Background job task quá hạn** → Notification `DueSoon` | `ITaskRepository.GetOverdueAsync` **đã tồn tại nhưng chưa có caller nào** — đúng loại code chờ sẵn mà nếu để lâu sẽ lệch khỏi nghiệp vụ. Phụ thuộc hạng mục 1 (phải đọc được thông báo thì job mới có ý nghĩa) | Nhỏ |
+| 7 | **Reset password** | Mục ⬜ cuối cùng của Auth. Còn phụ thuộc email service nên để sau | Nhỏ–vừa |
+| 8 | **Real-time (SignalR)** | Theo §6, chỉ làm sau khi core CRUD **và** frontend đã ổn định | Vừa |
+
+**Rủi ro tiến độ cần nói thẳng:** backend core giờ đã khá đầy đủ (Auth, Project, Member,
+Task, Sprint, Board), nhưng frontend vẫn ở con số không. Nếu tiếp tục làm hết backend rồi
+mới quay sang frontend thì sẽ dồn toàn bộ phần nặng nhất vào cuối. Đề xuất: sau khi xong
+hạng mục 1–2 (đều nhỏ) thì **chuyển sang frontend**, và làm nốt 3, 5, 6 xen kẽ khi frontend
+cần tới chúng.
 
 ---
 
@@ -149,7 +180,7 @@ ProjectManagementSystem/
 
 ### Entity cốt lõi
 - **Project** ✅ *(CRUD + phân quyền + soft delete đã chạy được qua API)*: Tên, Mô tả tổng quan, Thời gian dự kiến hoàn thành, Status, `IsDeleted`, `DeletedAt` *(Soft Delete)*
-- **Task** ⬜ *(entity đã có, chưa có `TaskService`/Controller)* (kể cả Subtask qua self-reference): Tên, thuộc Project nào, **thuộc Sprint
+- **Task** ✅ *(CRUD + Subtask + Workflow + giao việc đã chạy được qua API)* (kể cả Subtask qua self-reference): Tên, thuộc Project nào, **thuộc Sprint
   nào (nullable — null = Backlog)**, Due Date, Status, `Priority` (`Highest`/`High`/
   `Medium`/`Low`/`Lowest`), `ReporterId` (người tạo/báo cáo task — khác với người được
   assign làm), **cờ IsOverdue (tính toán, không lưu cứng)**, `IsDeleted`, `DeletedAt`
@@ -182,7 +213,7 @@ ProjectManagementSystem/
     người này cần đăng ký trước" — **không tự tạo tài khoản hộ** (tránh phát sinh tài
     khoản rác không ai sở hữu)
 
-### Entity giao việc ⬜ *(entity đã có, chưa có `TaskService`/API)*
+### Entity giao việc ✅ *(`TaskAssignmentService` đã hoạt động, có test)*
 - **`TaskAssignment`** *(bảng trung gian Employee–Task, cho phép nhiều người/1 task)*:
   `TaskId`, `EmployeeId`, `AssignedDate`, `RoleInTask` (`Owner` / `Contributor`)
 
@@ -203,13 +234,13 @@ ProjectManagementSystem/
   > Accepted` của đúng project chứa task đó — chặn ở `TaskAssignmentService`, không
   > phải ở domain (`Task` không có nav property tới `ProjectMember`).
 
-### Entity Sprint/Board (nay là core, không còn là "tương lai") ⬜ *(entity + migration đã có, chưa có `SprintService`/Controller)*
+### Entity Sprint/Board (nay là core, không còn là "tương lai") ✅ *(`SprintService` + endpoint Board/Backlog đã hoạt động)*
 - **`Sprint`**: Tên, `ProjectId`, `StartDate`, `EndDate`, `Goal` (mục tiêu sprint ngắn)
   - 1 Project có nhiều Sprint
   - 1 Sprint có nhiều Task (qua `Task.SprintId`)
   - Task chưa gán Sprint (`SprintId = null`) = nằm ở **Backlog**
 
-### Entity phân loại & liên kết (theo mô hình Jira thật) ⬜ *(field/entity đã có, chưa có API dùng được)*
+### Entity phân loại & liên kết (theo mô hình Jira thật) ⬜ *(entity đã có; `TaskLink` đang được dùng gián tiếp qua blocker check của `TaskStatusTransitionService`, nhưng cả ba chưa có API riêng)*
 - **`Label`**: Tên tag tự do (ví dụ: `bug`, `frontend`, `urgent`) — Task N—N Label,
   giúp lọc/tìm kiếm linh hoạt hơn Status/Priority cố định
 - **`Watcher`** *(bảng trung gian Employee–Task)*: `TaskId`, `EmployeeId` — người
@@ -218,7 +249,7 @@ ProjectManagementSystem/
   `LinkType` (`Blocks` / `IsBlockedBy` / `RelatesTo` / `Duplicates`) — quản lý phụ
   thuộc giữa các task, ví dụ Task B không thể `Done` nếu Task A (blocking) chưa xong
 
-### Workflow Transition Rules (Status không đổi tự do) ⬜ *(`TaskStatusTransitionService` chưa tồn tại)*
+### Workflow Transition Rules (Status không đổi tự do) ✅ *(`TaskStatusTransitionService`, có test)*
 Thay vì cho phép đổi `Status` tự do giữa 4 giá trị enum, áp dụng quy tắc chuyển trạng
 thái tường minh (state machine), phản ánh đúng cách Jira dùng Workflow:
 ```
@@ -235,7 +266,7 @@ ToDo → InProgress → Review → Done
   project (override được cả task không do mình assign) — xem ADR-017 (§15). `Viewer`
   và `Member` không phải assignee thì không được.
 
-### Subtask — là 1 Task đầy đủ, không phải checklist item đơn giản ⬜ *(`ParentTaskId` đã có trong domain, chưa có `TaskService`/API)*
+### Subtask — là 1 Task đầy đủ, không phải checklist item đơn giản ✅ *(dùng chung endpoint tạo task, chỉ khác ở `ParentTaskId`)*
 Vì `Task` tự tham chiếu chính nó (`ParentTaskId`, self-referencing), **Subtask thừa
 hưởng toàn bộ khả năng của Task**, không phải một checkbox rút gọn kiểu "Trello
 checklist". Cụ thể, mỗi Subtask có đầy đủ:
@@ -259,7 +290,7 @@ không đệ quy vô hạn) — tránh phức tạp hóa UI/logic không cần t
 **domain method** `Task.AddSubtask()` (từ chối nếu `this.ParentTaskId != null`), nhất
 quán với cách invariant của `Project` đặt trong aggregate root thay vì Service (ADR-012).
 
-### Subtask — Progress Bar, không tự động đóng Task cha ⬜ *(chưa code)*
+### Subtask — Progress Bar, không tự động đóng Task cha ✅ *(`TaskItem.SubtaskProgress`, trả trong `TaskDetailResponse`)*
 Theo đúng hành vi mặc định của Jira (đã xác nhận): Subtask có Status/Assignee độc
 lập với Task cha, nhưng **Task cha không tự động chuyển sang `Done` dù mọi subtask
 đã `Done`** — Reporter/PM/người phụ trách Task cha vẫn phải tự tay đóng Task cha.
@@ -270,7 +301,7 @@ tổng hợp kết quả...).
 - Không cần thêm logic tự động trong `TaskStatusTransitionService` cho việc này —
   chỉ cần 1 hàm tính `SubtaskProgress` ở tầng Application để hiển thị lên UI
 
-### Entity cộng tác (Nhóm A — core) ⬜ *(chỉ mới entity, chưa có Service/Controller)*
+### Entity cộng tác (Nhóm A — core) ⬜ *(ActivityLog/Notification đã được SINH RA ở mọi luồng Project/Task, nhưng chưa có API đọc; Comment mới chỉ có entity)*
 - **`Comment`**: `TaskId`, `EmployeeId` (người viết), `Content`, `CreatedAt`
 - **`ActivityLog`**: `EntityType` (Project/Task), `EntityId`, `EmployeeId` (người thực hiện),
   `Action` (Created/Updated/StatusChanged/Assigned...), `Detail`, `Timestamp`
@@ -501,7 +532,42 @@ project khác nhau):
   mock Repository — xem ADR-009 (§15) về lý do chọn NSubstitute thay Moq
 - **Integration Test** (xUnit + Shouldly): test API endpoint end-to-end trên SQL Server
   thật, database riêng `PmsTestDb` — xem ADR-010 (§15) về lý do không dùng EF InMemory/SQLite
-- Mục tiêu coverage: [điền mục tiêu, ví dụ 70% cho Service layer]
+
+### Hiện trạng (2026-07-30)
+
+**247 test pass** — 153 unit + 94 integration, build 0 warning.
+
+| Nhóm | Unit | Integration |
+|---|---|---|
+| Domain (invariant, state machine) | `ProjectTests`, `ProjectMemberTests`, `TaskItemTests`, `SoftDeletableContractTests` | — |
+| Auth / Admin | `EmployeeAdminServiceTests` | `AccountLockingTests` |
+| Project | `ProjectServiceTests`, `ProjectMemberServiceTests`, `ProjectPermissionsTests` | `ProjectsCrudTests`, `ProjectsAuthorizationTests`, `ProjectsDeleteTests`, `ProjectMembersTests` |
+| Task / Sprint | `TaskServiceTests`, `TaskStatusTransitionServiceTests`, `TaskAssignmentServiceTests`, `SprintServiceTests` | `TasksCrudTests`, `TasksAuthorizationTests`, `TaskStatusTransitionTests`, `TaskAssignmentTests`, `SubtaskTests`, `SprintsCrudTests`, `BacklogAndBoardTests` |
+
+**Không đặt mục tiêu % coverage.** Lý do: chỉ số đó thưởng cho test chạm nhiều dòng, trong
+khi thứ dự án này cần bảo vệ là **các quyết định kiến trúc** — và ba lần lỗi thật đã lộ ra
+đều là lỗi mà coverage cao vẫn bỏ sót (Sprint thiếu `ISoftDeletable` ở ADR-008, `RowVersion`
+chỉ có ở schema ở ADR-016, `AddAssignee` không sinh `Id` ở phiên 2026-07-30). Thay vào đó
+áp dụng **quy tắc: mỗi ADR phải có ít nhất một test giữ nó**, và test đặt tên nêu rõ quyết
+định đang bảo vệ. Hai test kiểu "hợp đồng kiến trúc" đang làm đúng việc này:
+`SoftDeletableContractTests` (mọi entity khai soft delete phải implement `ISoftDeletable`) và
+`ProjectPermissionsTests.Moi_gia_tri_ProjectAction_phai_duoc_khai_bao_tuong_minh` (thêm
+`ProjectAction` mới mà quên khai báo quyền thì đỏ ngay).
+
+### Kiểm thử thủ công (Postman)
+
+Collection ở `backend/postman/collections/PMS Endpoints v1/`, đã có **18 request cho
+Task + Sprint** khớp 1-1 với 18 endpoint. Ba điểm dễ vấp khi chạy tay:
+
+1. **Enum truyền bằng SỐ**, không phải chuỗi — `Program.cs` chưa cấu hình
+   `JsonStringEnumConverter`. `Status`: `0`=ToDo, `1`=InProgress, `2`=Review, `3`=Done.
+   `Priority`: `0`=Highest … `4`=Lowest. `RoleInTask`: `0`=Owner, `1`=Contributor.
+   Gửi `{"target": 0}` cho đổi status nghĩa là "chuyển sang ToDo" → task đang ToDo sẽ nhận
+   **409** vì đứng yên không phải chuyển đổi hợp lệ.
+2. **`rowVersion` là chuỗi base64**, copy nguyên từ response `GET /tasks/{id}` gần nhất.
+   Gửi rỗng → 400 (validator), gửi giá trị cũ sau khi đã sửa một lần → 409 (ADR-021).
+3. **Trường nullable phải gửi `null`**, không gửi chuỗi `"string"` — `sprintId`,
+   `parentTaskId`, `dueDate` mà để `"string"` sẽ lỗi parse 400.
 
 ---
 
@@ -509,10 +575,10 @@ project khác nhau):
 
 | Diagram | Mục đích | Trạng thái |
 |---|---|---|
-| Use Case Diagram | Tổng quan chức năng theo actor (SystemAdmin, ProjectManager, Member, Viewer) | Done — nhưng theo ADR-017, box PM cần thêm 1 bubble "Cập nhật trạng thái task" (hiện chỉ có ở box Member) |
-| Class Diagram | Chi tiết entity, thuộc tính, quan hệ, OOP | Done — nhưng `Task` đang có method `SoftDelete()` liệt kê, mâu thuẫn với ADR-008 (soft delete là persistence concern, không phải domain method). Sửa trước khi dùng làm tài liệu chấm điểm |
+| Use Case Diagram | Tổng quan chức năng theo actor (SystemAdmin, ProjectManager, Member, Viewer) | ✅ Done — đã đồng bộ ADR-017 (2026-07-30). **Đính chính:** §12 trước đây ghi "box PM cần thêm bubble Cập nhật trạng thái task". Soát lại thì đó là chẩn đoán sai — diagram dùng generalization `PM --\|> Member --\|> Viewer --\|> User`, nên PM **đã** có use case đó qua kế thừa; thêm bubble trùng vào box PM mới là lỗi mô hình hóa. Cái thực sự thiếu là **điều kiện quyền**, nay đã ghi vào note của `UC_Status` (giống cách `UC_SelfAssign` ghi điều kiện "chỉ khi task đang ToDo") |
+| Class Diagram | Chi tiết entity, thuộc tính, quan hệ, OOP | ✅ Done — đã đồng bộ code (2026-07-30): bỏ `SoftDelete()` khỏi **cả `Task` lẫn `Project`** (ADR-008 — không chỉ `Task` như §12 từng ghi), `IsOverdue`/`SubtaskProgress`/`Sprint.IsActive` chuyển thành property, thêm `Task.RemoveAssignee(Guid)`, sửa `Project.AddMember` → `Invite`/`ChangeMemberRole` và `GetRoleOf(Employee)` → `GetRoleOf(Guid)` cho khớp chữ ký thật |
 | ERD | Thiết kế database quan hệ | Done — chưa phản ánh `RowVersion` (ADR-016) và `Notifications.Type` đã đổi sang `nvarchar` (ADR-016); không chặn code, chỉ lệch hình ảnh |
-| Sequence Diagram | Tạo task, Gán nhân sự, Đổi status, Mời thành viên, Phản hồi lời mời | 5/5 tồn tại (`seq-01/02/03` + `seq-04/05`), nhưng **`seq-03-change-status` cần vẽ lại** theo ADR-017: hiện chỉ vẽ actor "Assignee", thiếu nhánh 403 cho người không phải assignee/PM, và thiếu nhánh cho PM gọi. Luồng self-assign (Member tự nhận task) cũng chưa có sequence diagram riêng — chỉ có trong prose (§5) và UC annotation |
+| Sequence Diagram | 9 luồng nghiệp vụ có nhánh (xem bảng đầy đủ ở `docs/uml/README.md`) | ✅ **9/9** (2026-07-30). `seq-01/02` (tạo task, gán người) và `seq-04/05` (mời, phản hồi lời mời) giữ nguyên — vẫn khớp code. `seq-03` vẽ lại theo ADR-017/019. Bốn diagram mới: `seq-06-self-assign-task`, `seq-07-delete-task` (ADR-018), `seq-08-move-task-sprint`, `seq-09-delete-sprint` (ADR-020). **Nguyên tắc chọn luồng để vẽ:** chỉ vẽ luồng có nhánh nghiệp vụ (guard, 403/404/409, cascade) — CRUD phẳng không vẽ lại vì `seq-01` đã là đại diện cho khuôn "authz → validate → Add → log → 1 lần SaveChanges" |
 
 ---
 
@@ -567,6 +633,10 @@ còn đủ thời gian trước deadline báo cáo.
 
 ### Task module — quyết định trước khi code
 
+> ✅ **Đã hiện thực xong 2026-07-30.** Giữ nguyên mục này làm hồ sơ thiết kế: nó cho thấy
+> quyết định nào có sẵn từ UML và quyết định nào phải chốt mới, hữu ích cho chương "Phân
+> tích thiết kế" của báo cáo. Cả 5 câu đều đã có test giữ — xem §15 các ADR-017 → 021.
+>
 > Mục này gom lại đúng 5 câu hỏi thiết kế mà phiên trước (Auth/Project review) đã liệt
 > kê là "cần quyết trước khi vào Task". Khi soát lại UML hiện có (2026-07-29), hóa ra
 > 3/5 câu đã có câu trả lời sẵn — chỉ là chưa ai đối chiếu qua các diagram để viết
@@ -587,13 +657,21 @@ còn đủ thời gian trước deadline báo cáo.
 | 4 | Ai được đổi status của task? | `Assignee` HOẶC `ProjectManager` của project (ADR-017) |
 | 5 | Xóa task còn subtask chưa `Done` thì sao? | Chặn **409 Conflict**, không cascade (ADR-018) |
 
-### Diagram debt cần dọn trước/trong khi code Task (xem chi tiết ở §12)
-1. `seq-03-change-status.drawio` — vẽ lại theo ADR-017 (thêm nhánh PM + nhánh 403 cho
-   người không liên quan).
-2. `class-diagram.drawio` — xóa method `SoftDelete()` khỏi `Task` (mâu thuẫn ADR-008).
-3. `use-case-diagram.drawio` — thêm bubble "Cập nhật trạng thái task" vào box PM.
-4. (Tùy chọn, không chặn) — vẽ thêm seq riêng cho luồng self-assign, hiện chỉ có ở
-   dạng prose.
+### Diagram debt — ✅ đã dọn xong 2026-07-30 (xem chi tiết ở §12)
+1. ~~`seq-03-change-status.drawio` — vẽ lại theo ADR-017~~ → đã vẽ lại, có đủ nhánh
+   404 (người ngoài project), 403 (không phải Assignee/PM), 409 (blocker và nhảy bước).
+2. ~~`class-diagram.drawio` — xóa `SoftDelete()` khỏi `Task`~~ → đã xóa khỏi **cả
+   `Task` lẫn `Project`**, kèm 5 sửa chữ ký khác cho khớp code.
+3. ~~`use-case-diagram.drawio` — thêm bubble "Cập nhật trạng thái task" vào box PM~~ →
+   **chẩn đoán ban đầu sai**: PM đã có use case đó qua generalization, thêm bubble trùng
+   mới là lỗi. Thay bằng ghi điều kiện quyền ADR-017 vào note của `UC_Status` — xem §12.
+4. ~~(Tùy chọn) vẽ seq riêng cho luồng self-assign~~ → đã vẽ, nay là `seq-06-self-assign-task`.
+
+**Quy trình sinh diagram (từ 2026-07-30):** nguồn thật của mỗi diagram nằm ở
+`docs/uml/seq-diagram/src/*.mmd` (Mermaid) và `docs/uml/src/*.puml` (PlantUML) — text
+thuần, diff được trên GitHub. File `.drawio` và `.png` đều **sinh ra** từ đó bằng draw.io
+CLI, xem `docs/uml/README.md`. Trước đây nguồn chỉ nằm trong thuộc tính `mermaidData`/
+`plantUmlData` nhúng trong XML nên không ai review được thay đổi thật sự là gì.
 
 ### Log đầy đủ
 
@@ -602,9 +680,9 @@ còn đủ thời gian trước deadline báo cáo.
 | 2026-07-20 | Chọn .NET thay vì Python | Đề bài yêu cầu OOP rõ ràng, đã có nền tảng C# |
 | 2026-07-21 | Áp dụng Layered Architecture + Repository Pattern | Cân bằng giữa tính chuyên nghiệp và độ phức tạp phù hợp fresher |
 | 2026-07-22 | Dùng FluentValidation + Mapperly; không dùng AutoMapper | AutoMapper từ v15 (7/2025) chuyển dual-license copyleft RPL-1.5 + thương mại (vẫn free cho giáo dục/<$5M nhưng thêm ràng buộc phải chú thích); Mapperly free MIT, compile-time, minh bạch code sinh ra — hợp báo cáo hơn |
-| [điền ngày khi code] | Cho phép nhiều người/1 Task (Employee N–N Task qua `TaskAssignment`) | Phản ánh thực tế: task lớn thường cần nhiều người phối hợp — *entity đã có, chưa có `TaskService`/API dùng được* |
+| 2026-07-30 | Cho phép nhiều người/1 Task (Employee N–N Task qua `TaskAssignment`) | Phản ánh thực tế: task lớn thường cần nhiều người phối hợp — đã hoạt động thật, có integration test gán 2 người vào 1 task |
 | 2026-07-22 | Áp dụng phân quyền 2 tầng: SystemRole + RoleInProject (`ProjectMember`) | Sát với mô hình doanh nghiệp thật, 1 người có thể khác role ở project khác nhau — đã hoạt động thật cho Project (`ProjectAuthorizationService`) |
-| [điền ngày khi code] | Nâng Sprint/Backlog/Board từ "tương lai" thành tính năng core | Mục tiêu làm sản phẩm dùng được thật, không chỉ CRUD đơn thuần — *entity + migration đã có, chưa có `SprintService`/Controller* |
+| 2026-07-30 | Nâng Sprint/Backlog/Board từ "tương lai" thành tính năng core | Mục tiêu làm sản phẩm dùng được thật, không chỉ CRUD đơn thuần — `SprintService` + endpoint `/backlog` và `/board` đã hoạt động, có test |
 | 2026-07-22 | Thêm Comment, Activity Log, Notification vào core | Đây là tính năng tối thiểu để 1 team thật sự dùng được hệ thống hàng ngày — *chỉ mới entity, chưa có Service/Controller nào* |
 | 2026-07-22 | Áp dụng Soft Delete cho Project/Task | Bảo toàn ActivityLog/Comment liên quan, cho phép khôi phục — đã hoạt động thật, có test |
 | 2026-07-22 | Chuẩn hóa Pagination, Global Exception Handling, API Versioning | Đạt chuẩn API production-grade, không phải sửa lại kiến trúc giữa chừng |
@@ -613,8 +691,8 @@ còn đủ thời gian trước deadline báo cáo.
 | 2026-07-22 | Mọi `User` được tạo Project, tự động thành `ProjectManager` của project đó | Tránh bottleneck xin duyệt qua SystemAdmin, khớp cách Jira/Trello vận hành thật |
 | 2026-07-29 | `SystemAdmin` tách bạch khỏi Project Role: chỉ read-only toàn hệ thống, muốn thao tác phải là `ProjectMember` như bình thường | Tránh "God Mode" — giữ đúng nguyên tắc Least Privilege, dễ audit trách nhiệm — *chưa có code nào cho SystemAdmin bypass đọc toàn hệ thống* |
 | 2026-07-22 | Giữ `Viewer` như 1 actor riêng trong Use Case Diagram | Phản ánh nhu cầu thực tế: stakeholder/khách hàng/auditor cần xem mà không cần sửa — đã có trong `RoleInProject` + `ProjectPermissions`, có test |
-| [điền ngày khi code] | Cho phép `Member` tự self-assign task đang `ToDo` (không cần PM gán); gán người khác/gỡ người khác vẫn chỉ PM | Khớp mô hình Kanban thực tế (tự "pick up" task), giảm bottleneck qua PM, vẫn tránh xung đột nhờ điều kiện task phải đang `ToDo` — *chưa có `TaskService`* |
-| [điền ngày khi code] | Thêm Reporter, Priority, Label, Watcher, TaskLink, Workflow Transition Rules vào core | Đối chiếu trực tiếp mô hình Jira thật — đây là các khái niệm cơ bản mà thiếu sẽ khiến hệ thống thiếu tính thực tế — *field/entity đã có, `TaskStatusTransitionService` chưa tồn tại* |
+| 2026-07-30 | Cho phép `Member` tự self-assign task đang `ToDo` (không cần PM gán); gán người khác/gỡ người khác vẫn chỉ PM | Khớp mô hình Kanban thực tế (tự "pick up" task), giảm bottleneck qua PM, vẫn tránh xung đột nhờ điều kiện task phải đang `ToDo` — hiện thực bằng `ProjectAction.SelfAssign` (PM/Member, chặn Viewer) |
+| 2026-07-30 | Thêm Reporter, Priority, Label, Watcher, TaskLink, Workflow Transition Rules vào core | Đối chiếu trực tiếp mô hình Jira thật — đây là các khái niệm cơ bản mà thiếu sẽ khiến hệ thống thiếu tính thực tế — Reporter/Priority/Workflow đã xong; Label/Watcher/TaskLink còn thiếu API riêng |
 | 2026-07-22 | Đưa Epic, Issue Security Level, Advanced Search (JQL-like) vào Nhóm B (làm sau) | Đây là tính năng nâng cao/hiếm dùng ở quy mô nhỏ, tránh phình to quá mức trước khi core ổn định — quyết định hoãn, luôn đúng bất kể tiến độ code |
 | 2026-07-22 | Employee self-register tài khoản, không cần SystemAdmin tạo hộ | Giảm bottleneck, khớp cách hầu hết SaaS thật vận hành — đã hoạt động thật (`AuthController.Register`) |
 | 2026-07-22 | Thêm `InvitationStatus` (Pending/Accepted/Declined) cho `ProjectMember` | Phản ánh đúng luồng mời thành viên thực tế, không tự tạo tài khoản hộ người chưa đăng ký — enum đã dùng thật trong filter membership |
@@ -622,8 +700,8 @@ còn đủ thời gian trước deadline báo cáo.
 | 2026-07-22 | Bắt buộc HTTPS toàn hệ thống | Bảo vệ JWT token khỏi bị nghe lén qua kênh không mã hóa — đã có `app.UseHttpsRedirection()` |
 | 2026-07-29 | Thêm Health Check endpoint (`/health`) | Cần thiết khi có Docker/CI-CD để biết trạng thái API — đã có `AddHealthChecks`/`MapHealthChecks` trong `Program.cs` |
 | [điền ngày khi code] | Định nghĩa 3 môi trường Dev/Staging/Production qua `ASPNETCORE_ENVIRONMENT` | Tách cấu hình rõ ràng, tránh lẫn lộn dữ liệu test và thật — *mới chỉ có nhánh rẽ Dev/không-Dev trong `Program.cs`, chưa có `appsettings.Staging.json` hay cấu hình riêng cho Staging* |
-| [điền ngày khi code] | Subtask không tự động đóng Task cha khi tất cả subtask `Done`; chỉ hiển thị progress bar (%) | Giữ đúng hành vi mặc định của Jira thật — Task cha có thể còn việc ngoài các subtask đã liệt kê — *chưa có `TaskService` để áp dụng quy tắc này* |
-| [điền ngày khi code] | Subtask là 1 Task đầy đủ (Status, Assignee, Comment, Watcher, TaskLink riêng), không phải checklist item; giới hạn chỉ 1 cấp cha–con | Task/Subtask dùng chung class, đúng nguyên lý OOP tái sử dụng; tránh phức tạp hóa với đệ quy vô hạn — *`ParentTaskId` đã có trong domain, chưa có logic giới hạn 1 cấp hay API thao tác* |
+| 2026-07-30 | Subtask không tự động đóng Task cha khi tất cả subtask `Done`; chỉ hiển thị progress bar (%) | Giữ đúng hành vi mặc định của Jira thật — Task cha có thể còn việc ngoài các subtask đã liệt kê — có test khẳng định 100% progress mà task cha vẫn `ToDo` |
+| 2026-07-30 | Subtask là 1 Task đầy đủ (Status, Assignee, Comment, Watcher, TaskLink riêng), không phải checklist item; giới hạn chỉ 1 cấp cha–con | Task/Subtask dùng chung class, đúng nguyên lý OOP tái sử dụng; tránh phức tạp hóa với đệ quy vô hạn — giới hạn 1 cấp enforce ở `TaskItem.AddSubtask()`, trả 409 |
 | 2026-07-25 | Làm Auth trước Project (đổi thứ tự §13) | Mọi service cần `ICurrentUserService`; làm Auth trước tránh viết code với user giả rồi sửa lại |
 | 2026-07-25 | Refresh token lưu DB, hash SHA-256, rotation + reuse detection | Cho phép thu hồi thật (logout/nghi bị lộ) — JWT thuần không làm được. Theo RFC 9700 |
 | 2026-07-25 | `RoleInProject` KHÔNG nhét vào JWT, chỉ `SystemRole` | Quyền theo project đổi liên tục; nhét vào token thì thu hồi không kịp thời |
@@ -641,6 +719,9 @@ còn đủ thời gian trước deadline báo cáo.
 | 2026-07-29 | **(ADR-016)** Optimistic concurrency (`RowVersion`) cho `Project`/`TaskItem`, wire đầy đủ qua DTO cho Project | Cột `RowVersion` không tự nhiên giải quyết lost-update nếu không round-trip qua client — chi tiết bên dưới |
 | 2026-07-29 | **(ADR-017)** Đổi status task: `Assignee` HOẶC `ProjectManager` được phép, không phải "chỉ assignee" hay "mọi Member" | UC diagram và seq-03 mâu thuẫn nhau về phạm vi — chi tiết bên dưới |
 | 2026-07-29 | **(ADR-018)** Xóa task còn subtask chưa `Done`: chặn 409, không cascade | Nhất quán triết lý "không xóa ngầm" đã dùng ở ADR-008 (project) và invite/remove member — chi tiết bên dưới |
+| 2026-07-30 | **(ADR-019)** Task/Sprint tái dùng `IProjectAuthorizationService` + mở rộng `ProjectAction`, không dựng service phân quyền riêng | Quyền trên task/sprint về bản chất là quyền project-scoped, cùng nguồn dữ liệu `ProjectMember` — chi tiết bên dưới |
+| 2026-07-30 | **(ADR-020)** Xóa Sprint: đẩy task về Backlog (`SprintId = null`), không chặn, không cascade | Khác ADR-008/018 vì không mất dữ liệu nào — task vẫn sống — chi tiết bên dưới |
+| 2026-07-30 | **(ADR-021)** `RowVersion` bắt buộc cho `UpdateTaskRequest` nhưng KHÔNG bắt buộc khi đổi status | State machine đã tự là chốt chặn concurrency; bắt thêm token chỉ làm vướng UX kéo-thả Kanban — chi tiết bên dưới |
 
 | | | |
 
@@ -902,6 +983,97 @@ trước là lựa chọn an toàn hơn.
 "nội dung" của Project), còn đây là Task→Subtask. Khi Project bị xóa (đã cascade xuống Task),
 Subtask cũng cascade theo vì `Task` (cha) đã bị soft-delete — không cần rule riêng cho
 trường hợp đó, chỉ cần rule này áp dụng cho `DeleteAsync` gọi trực tiếp trên 1 Task cụ thể.
+
+#### ADR-019 (2026-07-30) — Task/Sprint tái dùng cơ chế phân quyền của Project
+
+**Bối cảnh:** Khi dựng Task, câu hỏi là có nên tạo `ITaskAuthorizationService` song song
+với `IProjectAuthorizationService` hay không. ADR-017 đã nói phần "Assignee HOẶC PM" phải
+nằm ở Service layer, nhưng chưa nói phần còn lại (tạo/sửa/xóa task, quản lý sprint) đặt ở đâu.
+
+**Quyết định:** **Không** tạo service riêng. Mở rộng `ProjectAction` thêm 6 giá trị —
+`CreateTask`, `UpdateTask`, `DeleteTask`, `ManageAssignees`, `ManageSprint`, `SelfAssign` —
+và dùng lại `IProjectAuthorizationService.AuthorizeAsync(projectId, action)`.
+
+**Lý do:** Quyền trên task/sprint về bản chất là quyền project-scoped: nó đọc `RoleInProject`
+từ đúng bảng `ProjectMember` mà `IProjectAuthorizationService` đã đọc. Dựng service thứ hai
+chỉ nhân đôi cùng một query và tạo ra hai nơi phải nhớ cập nhật khi ma trận quyền đổi. Đúng
+tinh thần ADR-006: tách theo *cơ chế* (tĩnh vs. phụ thuộc dữ liệu), không tách theo *entity*.
+`ProjectPermissions.IsAllowed` vẫn là bảng quyền duy nhất, và
+`ProjectPermissionsTests.Moi_gia_tri_ProjectAction_phai_duoc_khai_bao_tuong_minh` tự động
+bắt lỗi nếu thêm action mới mà quên khai báo.
+
+**Hệ quả — chuẩn hóa 404:** Mọi service Task phải load task trước để lấy `ProjectId`, nên
+có hai nguồn 404 khác nhau: task không tồn tại, và task thuộc project mà người gọi không
+phải thành viên (`AuthorizeAsync` ném `NotFoundException(nameof(Project), ...)`). Nếu để
+nguyên, hai trường hợp phân biệt được nhau qua nội dung lỗi — đủ để người ngoài dò xem một
+`taskId` có tồn tại hay không. `TaskAuthorizationExtensions.AuthorizeTaskAsync` bắt lại và
+ném `NotFoundException(nameof(TaskItem), taskId)`, `SprintService.LoadAndAuthorizeAsync`
+làm điều tương tự cho Sprint. Cùng lý do ADR-006 chọn 404 thay 403 (OWASP API1:2023).
+
+**Ranh giới còn lại:** Luật cần dữ liệu per-task vẫn nằm trong service của Task, không nhét
+vào `ProjectPermissions` được vì nó chỉ nhận `(action, role)`: "Assignee HOẶC PM" (ADR-017),
+"chỉ tự nhận được task đang `ToDo`", "assignee phải là `ProjectMember` đã `Accepted`".
+
+#### ADR-020 (2026-07-30) — Xóa Sprint: đẩy task về Backlog
+
+**Bối cảnh:** Ba lựa chọn: chặn 409 nếu sprint còn task (giống ADR-008/018), cascade xóa
+task theo sprint, hoặc đẩy task về Backlog rồi xóa sprint.
+
+**Quyết định:** Đẩy toàn bộ task về Backlog (`SprintId = null`) trong cùng
+`SaveChangesAsync`, rồi xóa mềm sprint. Không chặn, không cascade.
+
+**Lý do:** Triết lý "không xóa ngầm" của ADR-008/018 sinh ra để **tránh mất dữ liệu có ý
+nghĩa**. Ở đây không có gì bị mất — task vẫn sống nguyên vẹn, chỉ đổi chỗ. Chặn 409 sẽ bắt
+PM phải kéo tay từng task ra khỏi sprint trước khi xóa, tức là bắt họ làm thủ công đúng cái
+việc mà hệ thống làm được trong một câu lệnh. Đây cũng là hành vi của Jira thật.
+
+**Bắt buộc phải null hóa, không được để dangling:** `Sprint` là `ISoftDeletable` và có query
+filter riêng, nên task trỏ tới sprint đã xóa mềm sẽ khiến `Include(t => t.Sprint)` trả `null`
+một cách khó hiểu. FK `Sprint → Tasks` cũng là `DeleteBehavior.Restrict` (comment trong
+`SprintConfiguration` đã ghi sẵn "nghiệp vụ: phải chuyển Task về Backlog trước khi xóa
+Sprint") nên xóa cứng sẽ nổ ở tầng DB.
+
+#### ADR-021 (2026-07-30) — Phạm vi áp dụng `RowVersion` cho Task
+
+**Bối cảnh:** ADR-016 để lại "giới hạn đã biết": `TaskItem.RowVersion` có ở schema nhưng
+chưa wire qua DTO. Khi wire, câu hỏi là có bắt buộc cho **mọi** thao tác ghi lên task không.
+
+**Quyết định:** Bắt buộc cho `UpdateTaskRequest` (sửa tên/hạn/độ ưu tiên).
+**Không** bắt buộc cho `PATCH /tasks/{id}/status` và `PUT /tasks/{id}/sprint`.
+
+**Lý do:** Với đổi trạng thái, **chính state machine đã là chốt chặn concurrency**. Bảng
+chuyển đổi từ chối cả trường hợp "đứng yên" (`InProgress → InProgress` = `false`), nên hai
+người cùng kéo một thẻ tới cùng một cột thì người thứ hai load lại thấy trạng thái đã đổi và
+nhận 409. Bắt round-trip thêm `RowVersion` không thêm bảo đảm nào, nhưng buộc UI Kanban phải
+mang theo token mới nhất trong mỗi thao tác kéo-thả. `Update` thì khác: hai người cùng sửa
+tên task là mất dữ liệu thật kiểu lost-update, không có cơ chế nào khác chặn.
+
+**Kiểm chứng:** `TasksCrudTests.Sua_task_voi_RowVersion_cu_thi_bi_chan_409` và
+`TaskStatusTransitionTests.Doi_status_khong_can_RowVersion_nhung_lan_hai_cung_dich_bi_chan_409`.
+
+#### Bài học 2026-07-30 — "chỉ có ở domain nhưng chưa ai gọi nên chưa lộ"
+
+Cùng mạch với bài học của ADR-008 (`Sprint` thiếu `ISoftDeletable`) và ADR-016 (`RowVersion`
+chỉ có ở schema). Trước khi dựng `TaskService`, đối chiếu `TaskItem` với các ADR đã chốt
+phát hiện **năm lỗi thật** trong code đã build sạch và không test nào bắt được:
+
+1. `AddAssignee`/`LinkTo` tạo entity con mà không sinh `Id`. `ApplyIdNeverGenerated()` tắt
+   sinh Id ở DB nên bản ghi thứ hai vi phạm khóa chính. `DbSeeder` gọi `AddAssignee` 10 lần
+   — seeder trên DB trắng sẽ chết. Không ai thấy vì seeder có guard "đã có data thì bỏ qua",
+   còn `PmsTestDb` chạy môi trường `Testing` nên không seed. Kiểm chứng bằng cách chạy seeder
+   trên database tạm: 10 bản ghi, 10 Id phân biệt.
+2. `AddSubtask` ném `InvalidOperationException` → middleware trả **500** thay vì 409. Đúng
+   loại lỗi mà ADR-011 sinh ra để chặn, nhưng chưa có caller nên chưa lộ.
+3. `TaskItem.SoftDelete()` vẫn tồn tại dù ADR-008 đã tuyên bố xóa — lặp lại đúng tình huống
+   "tài liệu đi trước code" mà ADR-008 đã phải đính chính một lần cho `Project`.
+4. `PmsDbContext.SaveChanges(bool)` đồng bộ thiếu `ApplyAuditFields()` mà bản async có.
+5. `AddAssignee` không gán navigation `Employee`, nên map bản ghi vừa tạo sang DTO là NRE —
+   lỗi này chỉ lộ khi `TaskAssignmentServiceTests` được viết.
+
+**Rút ra:** entity viết trước service thì không có gì kiểm chứng nó, và "build sạch" không
+nói lên điều gì về ràng buộc runtime (`ValueGeneratedNever`, mapping middleware, EF fixup).
+Từ nay khi một entity nằm chờ nhiều phiên trước lúc có service dùng tới, phải đối chiếu lại
+với ADR **trước** khi xây tầng trên, coi như một bước bắt buộc chứ không phải tùy hứng.
 
 > 📌 Cập nhật bảng này mỗi khi có quyết định kiến trúc mới hoặc thay đổi — đây sẽ là
 > phần rất hữu ích khi viết chương "Phân tích thiết kế" trong báo cáo tốt nghiệp.

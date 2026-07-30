@@ -1,0 +1,26 @@
+$kind: http-request
+name: Get assignees
+url: "{{api_url}}/tasks/:id/assignees"
+method: GET
+pathVariables:
+  - key: id
+    value: ""
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4503595753442737

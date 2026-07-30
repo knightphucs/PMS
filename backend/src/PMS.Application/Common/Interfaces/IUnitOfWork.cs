@@ -8,8 +8,9 @@ public interface IUnitOfWork
     ITaskRepository Tasks { get; }
     IEmployeeRepository Employees { get; }
     IRefreshTokenRepository RefreshTokens { get; }
-    IRepository<Sprint> Sprints { get; }
+    ISprintRepository Sprints { get; }
     IProjectMemberRepository ProjectMembers { get; }
+    IRepository<TaskAssignment> TaskAssignments { get; }
     IRepository<ActivityLog> ActivityLogs { get; }
     IRepository<Notification> Notifications { get; }
 

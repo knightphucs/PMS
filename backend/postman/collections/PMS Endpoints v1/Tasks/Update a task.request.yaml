@@ -1,0 +1,35 @@
+$kind: http-request
+name: Update a task
+url: "{{api_url}}/tasks/:id"
+method: PUT
+pathVariables:
+  - key: id
+    value: 8dd5602c-eb76-4e72-bff4-707011b0e6af
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: |-
+    {
+        "name": "Thiết REST API và test postman",
+        "dueDate": "2026-07-30T04:04:34.266Z",
+        "priority": 2,
+        "rowVersion": "AAAAAAAApBM="
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4494225906739490
