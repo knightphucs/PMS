@@ -26,6 +26,12 @@ public class PmsWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
     private const string TestJwtIssuer = "PMS.Test";
     private const string TestJwtAudience = "PMS.Test";
 
+    /// <summary>
+    /// Origin dùng cho CorsPolicyTests. Không có key này thì "Cors:AllowedOrigins" trả về
+    /// rỗng, WithOrigins() không có origin nào khớp, và test CORS sẽ pass/fail vì lý do sai.
+    /// </summary>
+    public const string TestFrontendOrigin = "http://localhost:3000";
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -38,7 +44,8 @@ public class PmsWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
                 ["Jwt:Issuer"]         = TestJwtIssuer,
                 ["Jwt:Audience"]       = TestJwtAudience,
                 ["Jwt:AccessTokenMinutes"]  = "15",
-                ["Jwt:RefreshTokenDays"]    = "7"
+                ["Jwt:RefreshTokenDays"]    = "7",
+                ["Cors:AllowedOrigins:0"]   = TestFrontendOrigin
             }));
 
         builder.ConfigureServices(services =>

@@ -3,6 +3,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -31,14 +32,18 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()!;
 const string CorsPolicy = "PmsFrontend";
 
-var allowedOrigins = builder.Configuration
-    .GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
-
-builder.Services.AddCors(options =>
-    options.AddPolicy(CorsPolicy, policy => policy
-        .WithOrigins(allowedOrigins)
-        .AllowAnyHeader()
-        .AllowAnyMethod()));
+// Đọc origin qua options system (Configure<IConfiguration>) thay vì đọc thẳng
+// builder.Configuration ở đây: bản đọc sớm chỉ thấy các nguồn cấu hình đã đăng ký tại
+// đúng thời điểm dòng này chạy, nên nguồn thêm sau (vd AddInMemoryCollection của
+// PmsWebApplicationFactory) bị bỏ qua — policy nhận mảng rỗng và không phát header nào.
+// Hoãn tới lúc DI resolve thì luôn đọc được cấu hình cuối cùng của môi trường đang chạy.
+builder.Services.AddCors();
+builder.Services.AddOptions<CorsOptions>()
+    .Configure<IConfiguration>((options, configuration) =>
+        options.AddPolicy(CorsPolicy, policy => policy
+            .WithOrigins(configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [])
+            .AllowAnyHeader()
+            .AllowAnyMethod()));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -156,7 +161,10 @@ app.MapHealthChecks("/health", new HealthCheckOptions
     }
 }).AllowAnonymous();
 app.UseHttpsRedirection();
-app.UseCors();
+// Phải truyền tên policy: UseCors() không tham số đi tìm DEFAULT policy, mà ở đây chỉ có
+// policy đặt tên (không gọi AddDefaultPolicy). Không tìm thấy thì CorsMiddleware chỉ log
+// rồi đi tiếp — không header CORS nào được phát, build vẫn sạch, không test nào đỏ.
+app.UseCors(CorsPolicy);
 if (!app.Environment.IsEnvironment("Testing"))
     app.UseRateLimiter();
 app.UseAuthentication();
