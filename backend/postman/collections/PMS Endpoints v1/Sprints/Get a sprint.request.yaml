@@ -1,0 +1,26 @@
+$kind: http-request
+name: Get a sprint
+url: "{{api_url}}/sprints/:id"
+method: GET
+pathVariables:
+  - key: id
+    value: c42eb789-111a-4b97-b77c-b62587f058e6
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4405714705895660

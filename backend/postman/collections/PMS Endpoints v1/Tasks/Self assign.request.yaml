@@ -1,0 +1,26 @@
+$kind: http-request
+name: Self assign
+url: "{{api_url}}/tasks/:id/assignees/me"
+method: POST
+pathVariables:
+  - key: id
+    value: bd72782f-41d8-420d-971d-58518c0a7c6d
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4503596723689145

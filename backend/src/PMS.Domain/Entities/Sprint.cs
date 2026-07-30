@@ -16,10 +16,15 @@ public class Sprint : BaseEntity, ISoftDeletable
 
     public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
 
-    public bool IsActive()
+    // Property computed (không lưu cứng), cùng lý do với TaskItem.IsOverdue:
+    // Mapperly chỉ map được property, không map method.
+    public bool IsActive
     {
-        var today = DateTime.UtcNow.Date;
-        return today >= StartDate.Date && today <= EndDate.Date;
+        get
+        {
+            var today = DateTime.UtcNow.Date;
+            return today >= StartDate.Date && today <= EndDate.Date;
+        }
     }
 
     public void AddTask(TaskItem task)

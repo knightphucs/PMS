@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PMS.Application.Features.Auth;
 using PMS.Application.Features.Projects;
+using PMS.Application.Features.Sprints;
+using PMS.Application.Features.Tasks;
 using PMS.Domain.Entities;
 using PMS.Domain.Enums;
 using PMS.Infrastructure.Persistence;
@@ -169,4 +171,58 @@ public abstract class IntegrationTestBase
         var body = await res.Content.ReadFromJsonAsync<ProjectSummaryResponse>();
         return body!.Id;
     }
+
+    /// <summary>
+    /// Tạo task qua API thật. Khác SeedTaskAsync (chèn thẳng DB): đi qua đúng luồng
+    /// nghiệp vụ nên cũng gián tiếp bảo vệ endpoint tạo task.
+    /// </summary>
+    protected static async Task<Guid> CreateTaskAsync(
+        HttpClient client, Guid projectId, string name = "Task",
+        Guid? sprintId = null, Guid? parentTaskId = null,
+        Priority priority = Priority.Medium, DateTime? dueDate = null)
+    {
+        var res = await client.PostAsJsonAsync("/api/v1/tasks",
+            new CreateTaskRequest(name, projectId, sprintId, parentTaskId, dueDate, priority));
+        res.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var body = await res.Content.ReadFromJsonAsync<TaskSummaryResponse>();
+        return body!.Id;
+    }
+
+    protected static async Task<Guid> CreateSprintAsync(
+        HttpClient client, Guid projectId, string name = "Sprint 1",
+        int startOffset = 0, int endOffset = 14)
+    {
+        var res = await client.PostAsJsonAsync($"/api/v1/projects/{projectId}/sprints",
+            new CreateSprintRequest(name, "Mục tiêu sprint",
+                DateTime.UtcNow.AddDays(startOffset), DateTime.UtcNow.AddDays(endOffset)));
+        res.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var body = await res.Content.ReadFromJsonAsync<SprintResponse>();
+        return body!.Id;
+    }
+
+    /// <summary>Đưa task tới đúng trạng thái mong muốn qua API, đi từng bước của state machine.</summary>
+    protected static async Task AdvanceStatusAsync(HttpClient client, Guid taskId, Status target)
+    {
+        Status[] path = target switch
+        {
+            Status.ToDo       => [],
+            Status.InProgress => [Status.InProgress],
+            Status.Review     => [Status.InProgress, Status.Review],
+            Status.Done       => [Status.InProgress, Status.Review, Status.Done],
+            _ => throw new ArgumentOutOfRangeException(nameof(target))
+        };
+
+        foreach (var step in path)
+        {
+            var res = await client.PatchAsJsonAsync(
+                $"/api/v1/tasks/{taskId}/status", new ChangeTaskStatusRequest(step));
+            res.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+    }
+
+    protected Task<int> CountActivityLogsAsync(Guid entityId)
+        => WithDbAsync(db => db.ActivityLogs.CountAsync(l => l.EntityId == entityId));
+
+    protected Task<int> CountNotificationsAsync(Guid recipientId)
+        => WithDbAsync(db => db.Notifications.CountAsync(n => n.EmployeeId == recipientId));
 }

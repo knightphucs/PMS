@@ -28,6 +28,7 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IProjectRepository, ProjectRepository>();
         services.AddScoped<ITaskRepository, TaskRepository>();
+        services.AddScoped<ISprintRepository, SprintRepository>();
         services.AddScoped<IEmployeeRepository, EmployeeRepository>();
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         services.AddOptions<JwtOptions>()

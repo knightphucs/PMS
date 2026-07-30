@@ -29,19 +29,43 @@ public class TaskItem : BaseEntity, ISoftDeletable
     public ICollection<TaskLink> OutgoingLinks { get; set; } = new List<TaskLink>();
     public ICollection<TaskLink> IncomingLinks { get; set; } = new List<TaskLink>();
 
+    // Id phải sinh phía application: PmsDbContext.ApplyIdNeverGenerated() đặt
+    // ValueGeneratedNever() cho mọi BaseEntity.Id, nên để mặc định Guid.Empty thì
+    // bản ghi thứ hai sẽ vi phạm khóa chính. Nhất quán với ProjectMember.Invite().
     public void AddAssignee(Employee employee, RoleInTask role)
     {
         if (Assignments.Any(a => a.EmployeeId == employee.Id)) return;
         Assignments.Add(new TaskAssignment
         {
+            Id = Guid.NewGuid(),
             TaskId = Id, EmployeeId = employee.Id,
+            // Gán luôn navigation để đồ thị đối tượng nhất quán ngay trong bộ nhớ: caller
+            // map bản ghi vừa tạo ra DTO (cần Employee.Name) trước khi có lần load lại nào.
+            // Employee truyền vào luôn là entity đã được EF track nên không bị hiểu nhầm
+            // là muốn insert Employee mới.
+            Employee = employee,
             RoleInTask = role, AssignedDate = DateTime.UtcNow
         });
+    }
+
+    /// <summary>
+    /// Gỡ 1 người khỏi task. Trả về false nếu người đó vốn không được gán —
+    /// để Service phân biệt "không có gì để làm" với thao tác thật (chỉ ghi
+    /// ActivityLog/Notification khi thật sự có thay đổi).
+    /// </summary>
+    public bool RemoveAssignee(Guid employeeId)
+    {
+        var assignment = Assignments.FirstOrDefault(a => a.EmployeeId == employeeId);
+        if (assignment is null) return false;
+
+        Assignments.Remove(assignment);
+        return true;
     }
 
     public void LinkTo(TaskItem target, LinkType linkType)
         => OutgoingLinks.Add(new TaskLink
         {
+            Id = Guid.NewGuid(),
             SourceTaskId = Id, TargetTaskId = target.Id, LinkType = linkType
         });
 
@@ -69,31 +93,34 @@ public class TaskItem : BaseEntity, ISoftDeletable
         Status = target;
     }
 
-    public bool IsOverdue()
+    // IsOverdue/SubtaskProgress là property computed (không lưu cứng - xem §5 ARCHITECTURE).
+    // Để là property thay vì method vì Mapperly chỉ map được property; nhờ đó TaskMapper
+    // không cần map thủ công. EF Core bỏ qua property get-only không có backing field —
+    // IsSubtask ở dưới đã chứng minh điều đó chạy được với cấu hình hiện tại.
+    public bool IsOverdue
         => DueDate.HasValue
            && DueDate.Value.Date < DateTime.UtcNow.Date
            && Status != Status.Done;
 
-    public decimal SubtaskProgress()
+    public decimal SubtaskProgress
     {
-        if (Subtasks.Count == 0) return 0m;
-        var done = Subtasks.Count(s => s.Status == Status.Done);
-        return Math.Round((decimal)done / Subtasks.Count * 100, 2);
+        get
+        {
+            if (Subtasks.Count == 0) return 0m;
+            var done = Subtasks.Count(s => s.Status == Status.Done);
+            return Math.Round((decimal)done / Subtasks.Count * 100, 2);
+        }
     }
 
     public void AddSubtask(TaskItem child)
     {
+        // DomainException chứ không phải InvalidOperationException: middleware chỉ map
+        // DomainException thành 409, ngoại lệ khác rơi vào catch-all và trả 500 (ADR-011).
         if (IsSubtask)
-            throw new InvalidOperationException(
+            throw new DomainException(
                 "Subtask không được có subtask con (chỉ 1 cấp cha–con).");
         child.ParentTaskId = Id;
         child.ProjectId = ProjectId;
         Subtasks.Add(child);
-    }
-
-    public void SoftDelete()
-    {
-        IsDeleted = true;
-        DeletedAt = DateTime.UtcNow;
     }
 }

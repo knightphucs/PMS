@@ -1,0 +1,31 @@
+$kind: http-request
+name: Update task's status
+url: "{{api_url}}/tasks/:id/status"
+method: PATCH
+pathVariables:
+  - key: id
+    value: 8DD5602C-EB76-4E72-BFF4-707011B0E6AF
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: |-
+    {
+        "target": 3
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4501160867560696

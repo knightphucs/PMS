@@ -1,0 +1,26 @@
+$kind: http-request
+name: Delete a task
+url: "{{api_url}}/tasks/:id"
+method: DELETE
+pathVariables:
+  - key: id
+    value: 8dd5602c-eb76-4e72-bff4-707011b0e6af
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4499348107721771

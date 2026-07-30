@@ -1,0 +1,27 @@
+$kind: http-request
+name: Delete sprint
+description: Task's sprint move to backlog, not delete permantly
+url: "{{api_url}}/sprints/:id"
+method: DELETE
+pathVariables:
+  - key: id
+    value: c42eb789-111a-4b97-b77c-b62587f058e6
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4489393974330659

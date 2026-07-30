@@ -27,6 +27,19 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
             .Include(t => t.Subtasks)
             .FirstOrDefaultAsync(t => t.Id == id, ct);
 
+    public async Task<TaskItem?> GetWithAssignmentsAsync(Guid id, CancellationToken ct = default)
+        => await DbSet
+            .Include(t => t.Assignments).ThenInclude(a => a.Employee)
+            .FirstOrDefaultAsync(t => t.Id == id, ct);
+
+    public async Task<TaskItem?> GetForStatusChangeAsync(Guid id, CancellationToken ct = default)
+        => await DbSet
+            .Include(t => t.Assignments)
+            .Include(t => t.Watchers)
+            .Include(t => t.Subtasks)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(t => t.Id == id, ct);
+
     public async Task<PagedResult<TaskItem>> GetPagedByProjectAsync(
         Guid projectId, PagedRequest request, CancellationToken ct = default)
     {
@@ -69,6 +82,14 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
         => await DbSet
             .AsNoTracking()
             .Where(t => t.ProjectId == projectId && t.SprintId == null && t.ParentTaskId == null)
+            .OrderBy(t => t.Priority)
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<TaskItem>> GetRootTasksByProjectAsync(
+        Guid projectId, CancellationToken ct = default)
+        => await DbSet
+            .AsNoTracking()
+            .Where(t => t.ProjectId == projectId && t.ParentTaskId == null)
             .OrderBy(t => t.Priority)
             .ToListAsync(ct);
 

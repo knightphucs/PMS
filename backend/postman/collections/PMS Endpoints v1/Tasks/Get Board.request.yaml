@@ -1,0 +1,40 @@
+$kind: http-request
+name: Get Board
+url: "{{api_url}}/projects/:project_id/board?sprintId=c42eb789-111a-4b97-b77c-b62587f058e6"
+method: GET
+queryParams:
+  - key: sprintId
+    value: c42eb789-111a-4b97-b77c-b62587f058e6
+    disabled: false
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+pathVariables:
+  - key: project_id
+    value: 1C28D4B9-25E4-4DA4-93AD-33314637CD9D
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4503586598261389

@@ -1,0 +1,30 @@
+%% Sequence Diagram - Tạo task (luồng CRUD nền qua các layer)
+%% Controller -> Service -> Repository -> DB, gói ghi trong 1 transaction (UnitOfWork).
+sequenceDiagram
+autonumber
+actor PM as ProjectManager
+participant API as TasksController
+participant Service as TaskService
+participant Repo as Repositories
+participant UoW as UnitOfWork
+participant Logger as ActivityLogService
+participant DB as Database
+PM->>API: POST /api/v1/tasks (CreateTaskDto) + JWT
+API->>Service: CreateAsync(dto, userId)
+Service->>Repo: GetProjectRole(projectId, userId)
+Repo->>DB: SELECT ProjectMembers
+DB-->>Repo: RoleInProject
+Repo-->>Service: RoleInProject
+alt userId is not ProjectManager
+  Service-->>API: ForbiddenException
+  API-->>PM: 403 Forbidden
+else is ProjectManager
+  Service->>Service: validate + map dto to Task (Status=ToDo, ReporterId=userId)
+  Service->>Repo: AddAsync(task)
+  Service->>Logger: Write(Created, task, userId)
+  Service->>UoW: SaveChangesAsync()
+  UoW->>DB: INSERT Task + ActivityLog (single transaction)
+  DB-->>UoW: ok
+  Service-->>API: TaskDto
+  API-->>PM: 201 Created (TaskDto)
+end

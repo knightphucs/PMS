@@ -16,7 +16,7 @@ public class ProjectServiceTests
     private readonly IUnitOfWork _uow = Substitute.For<IUnitOfWork>();
     private readonly IProjectRepository _projectRepo = Substitute.For<IProjectRepository>();
     private readonly ITaskRepository _taskRepo = Substitute.For<ITaskRepository>();
-    private readonly IRepository<Sprint> _sprintRepo = Substitute.For<IRepository<Sprint>>();
+    private readonly ISprintRepository _sprintRepo = Substitute.For<ISprintRepository>();
     private readonly IProjectAuthorizationService _authz = Substitute.For<IProjectAuthorizationService>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
 

@@ -1,9 +1,11 @@
 $kind: http-request
+name: Decline invitation to project
 url: "{{api_url}}/projects/:id/members/me/decline"
 method: POST
 pathVariables:
   - key: id
     value: ""
+    description: ""
     $type: |-
       {
         "type": "object",
