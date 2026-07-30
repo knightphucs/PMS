@@ -15,6 +15,7 @@ public class ProjectConfiguration : IEntityTypeConfiguration<Project>
         builder.Property(p => p.Description).HasMaxLength(2000);
         builder.Property(p => p.Status).IsRequired();
         builder.Property(p => p.IsDeleted).HasDefaultValue(false);
+        builder.Property(p => p.RowVersion).IsRowVersion();
 
         builder.HasIndex(p => p.IsDeleted); // Global Query Filter
 

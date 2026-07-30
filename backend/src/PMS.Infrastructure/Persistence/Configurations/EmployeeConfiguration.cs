@@ -15,6 +15,7 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.Property(e => e.Email).IsRequired().HasMaxLength(256);
         builder.Property(e => e.PasswordHash).IsRequired().HasMaxLength(256);
         builder.Property(e => e.SystemRole).IsRequired();
+        builder.Property(e => e.LockReason).HasMaxLength(256);
 
         builder.HasIndex(e => e.Email).IsUnique();
     }

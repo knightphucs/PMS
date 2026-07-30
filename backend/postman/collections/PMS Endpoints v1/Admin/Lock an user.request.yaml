@@ -1,0 +1,32 @@
+$kind: http-request
+name: Lock an user
+url: "{{api_url}}/admin/employees/:id/lock"
+method: POST
+pathVariables:
+  - key: id
+    value: cc7a6f95-251c-4d72-90cd-d397b70aadbc
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: |-
+    {
+        "reason": "test method"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 3565946718452989

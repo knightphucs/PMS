@@ -15,10 +15,14 @@ namespace PMS.IntegrationTests.Infrastructure;
 
 public class PmsWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    private const string TestConnection =
-        "Server=localhost,1433;Database=PmsTestDb;User Id=sa;Password=Pms@Local2026;" +
-        "TrustServerCertificate=True;Encrypt=False";
-    private const string TestJwtSecret = "NGVrjVqNmpdKAoDyYxP4CkKQxptJKlkK";
+    // Credential dùng-rồi-bỏ cho container SQL Server local/CI, không phải secret thật.
+    private static readonly string TestConnection =
+        Environment.GetEnvironmentVariable("PMS_TEST_DB")
+        ?? "Server=localhost,1433;Database=PmsTestDb;User Id=sa;Password=Pms@Local2026;" +
+           "TrustServerCertificate=True;Encrypt=False";
+    private static readonly string TestJwtSecret =
+        Environment.GetEnvironmentVariable("PMS_TEST_JWT_SECRET")
+        ?? "NGVrjVqNmpdKAoDyYxP4CkKQxptJKlkK";
     private const string TestJwtIssuer = "PMS.Test";
     private const string TestJwtAudience = "PMS.Test";
 

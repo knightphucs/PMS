@@ -14,6 +14,9 @@ public class UnitOfWork : IUnitOfWork
     private IEmployeeRepository? _employees;
     private IRefreshTokenRepository ? _refreshTokens;
     private IRepository<Sprint>? _sprints;
+    private IProjectMemberRepository? _projectMembers;
+    private IRepository<ActivityLog>? _activityLogs;
+    private IRepository<Notification>? _notifications;
 
     public UnitOfWork(PmsDbContext context) => _context = context;
 
@@ -22,9 +25,14 @@ public class UnitOfWork : IUnitOfWork
     public IEmployeeRepository Employees => _employees ??= new EmployeeRepository(_context);
     public IRefreshTokenRepository RefreshTokens => _refreshTokens ??= new RefreshTokenRepository(_context);
     public IRepository<Sprint> Sprints => _sprints ??= new Repository<Sprint>(_context);
+    public IProjectMemberRepository ProjectMembers => _projectMembers ??= new ProjectMemberRepository(_context);
+    public IRepository<ActivityLog> ActivityLogs => _activityLogs ??= new Repository<ActivityLog>(_context);
+    public IRepository<Notification> Notifications => _notifications ??= new Repository<Notification>(_context);
 
-    public Task<int> SaveChangesAsync(CancellationToken ct = default)
-        => _context.SaveChangesAsync(ct);
+    public Task<int> SaveChangesAsync(CancellationToken ct = default) => _context.SaveChangesAsync(ct);
+
+    public void SetConcurrencyToken<TEntity>(TEntity entity, byte[] rowVersion) where TEntity : class
+        => _context.Entry(entity).Property("RowVersion").OriginalValue = rowVersion;
 
     public async Task ExecuteInTransactionAsync(
         Func<Task> operation, CancellationToken ct = default)

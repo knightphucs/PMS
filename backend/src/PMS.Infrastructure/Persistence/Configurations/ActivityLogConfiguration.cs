@@ -13,7 +13,7 @@ public class ActivityLogConfiguration : IEntityTypeConfiguration<ActivityLog>
         builder.HasKey(a => a.Id);
 
         builder.Property(a => a.EntityType).IsRequired().HasMaxLength(50);
-        builder.Property(a => a.Action).IsRequired().HasMaxLength(50);
+        builder.Property(a => a.Action).IsRequired().HasMaxLength(50).HasConversion<string>();
         builder.Property(a => a.Detail).HasMaxLength(1000);
 
         builder.HasIndex(a => new { a.EntityType, a.EntityId });

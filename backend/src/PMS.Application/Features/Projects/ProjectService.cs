@@ -29,13 +29,11 @@ public class ProjectService : IProjectService
     public async Task<ProjectSummaryResponse> CreateAsync(
         CreateProjectRequest request, CancellationToken ct = default)
     {
-        // KHÔNG gọi _authz: project chưa tồn tại nên chưa có RoleInProject nào để kiểm tra.
-        // Quyền tạo là tầng 1, đã chặn ở controller bằng [Authorize(Policy = "CanCreateProject")].
         var project = Project.Create(
             request.Name, request.Description, request.ExpectedCompletionDate,
             _currentUser.RequireEmployeeId());
         await _uow.Projects.AddAsync(project, ct);
-        await _uow.SaveChangesAsync(ct);   // 1 lần -> nguyên tử, không cần transaction (ADR-007)
+        await _uow.SaveChangesAsync(ct);
 
         _logger.LogInformation("Tạo project {ProjectId} bởi {EmployeeId}",
             project.Id, _currentUser.EmployeeId);
@@ -47,8 +45,6 @@ public class ProjectService : IProjectService
     {
         await _authz.AuthorizeAsync(id, ProjectAction.View, ct);
 
-        // AuthorizeAsync đã ngầm xác nhận project tồn tại (role != null => project chưa xóa).
-        // Vẫn giữ ?? throw để phòng trường hợp bị xóa giữa hai query.
         var project = await _uow.Projects.GetWithMembersAsync(id, ct)
             ?? throw new NotFoundException(nameof(Project), id);
 
@@ -58,9 +54,6 @@ public class ProjectService : IProjectService
     public async Task<PagedResult<ProjectSummaryResponse>> GetMineAsync(
         PagedRequest request, CancellationToken ct = default)
     {
-        // KHÔNG gọi _authz cho từng project -> sẽ thành N+1 query.
-        // GetPagedForEmployeeAsync đã lọc sẵn theo membership Accepted + query filter soft-delete,
-        // tức là phép lọc chính là phép phân quyền ở đây.
         var paged = await _uow.Projects.GetPagedForEmployeeAsync(
             _currentUser.RequireEmployeeId(), 
             request, ct);
@@ -75,6 +68,8 @@ public class ProjectService : IProjectService
 
         var project = await _uow.Projects.GetWithMembersAsync(id, ct)
             ?? throw new NotFoundException(nameof(Project), id);
+
+        _uow.SetConcurrencyToken(project, request.RowVersion);
 
         project.Name = request.Name.Trim();
         project.Description = request.Description.Trim();

@@ -10,6 +10,8 @@ public class TaskItem : BaseEntity, ISoftDeletable
     public Status Status { get; private set; } = Status.ToDo;
     public Priority Priority { get; set; } = Priority.Medium;
 
+    public byte[] RowVersion { get; set; } = null!;
+
     public Guid ProjectId { get; set; }
     public Guid? SprintId { get; set; }
     public Guid? ParentTaskId { get; set; }
@@ -62,7 +64,7 @@ public class TaskItem : BaseEntity, ISoftDeletable
     public void ChangeStatus(Status target)
     {
         if (!CanTransitionTo(target))
-            throw new InvalidOperationException(
+            throw new DomainException(
                 $"Không thể chuyển trạng thái từ {Status} sang {target}.");
         Status = target;
     }

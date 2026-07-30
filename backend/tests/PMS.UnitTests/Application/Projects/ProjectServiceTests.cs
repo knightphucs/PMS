@@ -130,12 +130,16 @@ public class ProjectServiceTests
               .Returns(RoleInProject.ProjectManager);
         _projectRepo.GetWithMembersAsync(project.Id, Arg.Any<CancellationToken>()).Returns(project);
 
+        byte[] clientRowVersion = [1, 2, 3, 4, 5, 6, 7, 8];
         await _sut.UpdateAsync(project.Id,
-            new UpdateProjectRequest("  Tên mới  ", "Mô tả mới", DateTime.UtcNow.AddDays(60)));
+            new UpdateProjectRequest("  Tên mới  ", "Mô tả mới", DateTime.UtcNow.AddDays(60), clientRowVersion));
 
         project.Name.ShouldBe("Tên mới");
         // Entity đang được track -> không được gọi Update() (sẽ mark toàn bộ cột là modified)
         _projectRepo.DidNotReceive().Update(Arg.Any<Project>());
+        // Optimistic concurrency chỉ hoạt động thật nếu original value bị ghi đè bằng token
+        // client gửi lên, chứ không phải version vừa load trong cùng request.
+        _uow.Received(1).SetConcurrencyToken(project, clientRowVersion);
         await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

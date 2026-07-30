@@ -1,0 +1,25 @@
+$kind: http-request
+url: "{{api_url}}/projects/:id/members"
+method: GET
+pathVariables:
+  - key: id
+    value: ""
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1785224080259

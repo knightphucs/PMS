@@ -15,6 +15,7 @@ public class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
         builder.Property(t => t.Status).IsRequired();
         builder.Property(t => t.Priority).IsRequired();
         builder.Property(t => t.IsDeleted).HasDefaultValue(false);
+        builder.Property(t => t.RowVersion).IsRowVersion();
 
         builder.HasIndex(t => t.ProjectId);
         builder.HasIndex(t => t.SprintId);

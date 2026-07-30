@@ -1,6 +1,6 @@
 $kind: http-request
 name: Logout
-url: "{{api_url}}/Auth/logout"
+url: "{{api_url}}/auth/logout"
 method: POST
 body:
   type: json

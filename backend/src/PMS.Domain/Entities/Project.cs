@@ -12,6 +12,7 @@ public class Project : BaseEntity, ISoftDeletable
 
     public bool IsDeleted { get; set; }
     public DateTime? DeletedAt { get; set; }
+    public byte[] RowVersion { get; set; } = null!;
 
     public ICollection<TaskItem> Tasks { get; set; } = [];
     public ICollection<Sprint> Sprints { get; set; } = [];
@@ -20,29 +21,70 @@ public class Project : BaseEntity, ISoftDeletable
 
     public void Complete() => Status = Status.Done;
 
-    public void SoftDelete()
-    {
-        IsDeleted = true;
-        DeletedAt = DateTime.UtcNow;
-    }
-
     public ICollection<ProjectMember> Members { get; set; } = [];
 
-    public ProjectMember AddMember(Employee employee, RoleInProject role)
+    public ProjectMember Invite(Employee employee, RoleInProject role)
     {
-        var member = new ProjectMember
+        var existing = Members.FirstOrDefault(m => m.EmployeeId == employee.Id);
+
+        if (existing is not null)
         {
-            ProjectId = Id, EmployeeId = employee.Id, RoleInProject = role,
-            JoinedDate = DateTime.UtcNow, InvitationStatus = InvitationStatus.Pending
-        };
+            if (existing.InvitationStatus != InvitationStatus.Declined)
+                throw new DomainException(
+                    "Người này đã là thành viên hoặc đang có lời mời chờ phản hồi.");
+
+            existing.Reinvite(role);
+            return existing;
+        }
+
+        var member = ProjectMember.Invite(Id, employee.Id, role);
         Members.Add(member);
         return member;
     }
 
+    public void ChangeMemberRole(Guid employeeId, RoleInProject newRole)
+    {
+        var member = RequireMember(employeeId);
+
+        if (member.RoleInProject == newRole) return;   // idempotent, không phải lỗi
+
+        // Kiểm TRƯỚC khi đổi: nếu ném exception sau khi đã mutate, entity vẫn nằm trong
+        // ChangeTracker ở trạng thái bẩn — một SaveChanges sau đó trên cùng DbContext sẽ
+        // ghi xuống DB đúng cái state vừa bị từ chối.
+        if (member.RoleInProject == RoleInProject.ProjectManager && member.IsActive())
+            EnsureAnotherManagerExists(employeeId);
+
+        member.ChangeRole(newRole);
+    }
+
+    public void RemoveMember(Guid employeeId)
+    {
+        var member = RequireMember(employeeId);
+
+        if (member.RoleInProject == RoleInProject.ProjectManager && member.IsActive())
+            EnsureAnotherManagerExists(employeeId);
+
+        Members.Remove(member);
+    }
+
     public RoleInProject? GetRoleOf(Guid employeeId)
-        => Members
-            .FirstOrDefault(m => m.EmployeeId == employeeId && m.IsActive())
-            ?.RoleInProject;
+        => Members.FirstOrDefault(m => m.EmployeeId == employeeId && m.IsActive())?.RoleInProject;
+
+    private ProjectMember RequireMember(Guid employeeId)
+        => Members.FirstOrDefault(m => m.EmployeeId == employeeId)
+        ?? throw new DomainException("Người này không có trong danh sách thành viên của project.");
+
+    private void EnsureAnotherManagerExists(Guid excludingEmployeeId)
+    {
+        var hasOther = Members.Any(m =>
+            m.EmployeeId != excludingEmployeeId
+            && m.RoleInProject == RoleInProject.ProjectManager
+            && m.IsActive());
+
+        if (!hasOther)
+            throw new DomainException(
+                "Project phải luôn còn ít nhất một Project Manager đang hoạt động.");
+    }
 
     public static Project Create(string name, string description, DateTime expectedCompletionDate, Guid creatorId)
     {
@@ -54,16 +96,7 @@ public class Project : BaseEntity, ISoftDeletable
             ExpectedCompletionDate = expectedCompletionDate
         };
 
-        project.Members.Add(new ProjectMember
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = project.Id,
-            EmployeeId = creatorId,
-            RoleInProject = RoleInProject.ProjectManager,
-            InvitationStatus = InvitationStatus.Accepted,
-            JoinedDate = DateTime.UtcNow
-        });
-
+        project.Members.Add(ProjectMember.CreateOwner(project.Id, creatorId));
         return project;
     }
 }

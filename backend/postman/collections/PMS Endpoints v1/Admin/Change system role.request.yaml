@@ -1,0 +1,28 @@
+$kind: http-request
+name: Change system role
+url: "{{api_url}}/admin/employees/:id/system-role"
+method: PUT
+pathVariables:
+  - key: id
+    value: ""
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: |-
+    {
+        "role": 0
+    }
+order: 4176008205644637

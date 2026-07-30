@@ -21,16 +21,16 @@ public class ProjectTests
     }
 
     [Fact]
-    public void AddMember_tao_loi_moi_o_trang_thai_Pending()
+    public void Invite_tao_loi_moi_o_trang_thai_Pending()
     {
         var project = Project.Create("PMS", "Mô tả", DateTime.UtcNow.AddDays(30), Guid.NewGuid());
         var invitee = new Employee { Id = Guid.NewGuid(), Name = "B", Email = "b@pms.test" };
 
-        var member = project.AddMember(invitee, RoleInProject.Member);
+        var member = project.Invite(invitee, RoleInProject.Member);
 
-        // AddMember mô hình hóa hành vi "mời", khác với "thêm bản ghi" -> luôn Pending.
         member.InvitationStatus.ShouldBe(InvitationStatus.Pending);
-        project.GetRoleOf(invitee.Id).ShouldBeNull();   // chưa Accepted -> chưa có quyền
+        member.JoinedDate.ShouldBeNull(); 
+        project.GetRoleOf(invitee.Id).ShouldBeNull();
     }
 
     [Fact]
