@@ -28,6 +28,9 @@ public record UpdateTaskRequest(
 /// <summary>SprintId = null nghĩa là đưa task về Backlog.</summary>
 public record MoveTaskToSprintRequest(Guid? SprintId);
 
+/// <summary>Gán người khác vào task — chỉ ProjectManager gọi được (seq-02).</summary>
+public record AssignTaskRequest(Guid EmployeeId, RoleInTask Role);
+
 public record TaskSummaryResponse(
     Guid Id,
     string Name,

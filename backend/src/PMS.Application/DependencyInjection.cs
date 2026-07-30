@@ -26,6 +26,7 @@ public static class DependencyInjection
         services.AddSingleton<SprintMapper>();
         services.AddScoped<ITaskService, TaskService>();
         services.AddScoped<ITaskStatusTransitionService, TaskStatusTransitionService>();
+        services.AddScoped<ITaskAssignmentService, TaskAssignmentService>();
         services.AddSingleton<TaskMapper>();
         services.AddScoped<IActivityLogger, ActivityLogger>();
         services.AddScoped<INotificationService, NotificationService>();

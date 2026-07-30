@@ -12,9 +12,13 @@ public class TasksController : ControllerBase
 {
     private readonly ITaskService _tasks;
     private readonly ITaskStatusTransitionService _transitions;
+    private readonly ITaskAssignmentService _assignments;
 
-    public TasksController(ITaskService tasks, ITaskStatusTransitionService transitions)
-        => (_tasks, _transitions) = (tasks, transitions);
+    public TasksController(
+        ITaskService tasks,
+        ITaskStatusTransitionService transitions,
+        ITaskAssignmentService assignments)
+        => (_tasks, _transitions, _assignments) = (tasks, transitions, assignments);
 
     /// <summary>Tạo task; truyền ParentTaskId để tạo subtask (tối đa 1 cấp cha–con).</summary>
     [HttpPost("tasks")]
@@ -89,4 +93,42 @@ public class TasksController : ControllerBase
     public async Task<ActionResult<TaskSummaryResponse>> MoveToSprint(
         Guid id, MoveTaskToSprintRequest req, CancellationToken ct)
         => Ok(await _tasks.MoveToSprintAsync(id, req, ct));
+
+    [HttpGet("tasks/{id:guid}/assignees")]
+    [ProducesResponseType(typeof(IReadOnlyList<TaskAssigneeResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<TaskAssigneeResponse>>> GetAssignees(
+        Guid id, CancellationToken ct)
+        => Ok(await _assignments.GetAssigneesAsync(id, ct));
+
+    /// <summary>Gán người khác vào task — chỉ ProjectManager; target phải là thành viên đã Accepted.</summary>
+    [HttpPost("tasks/{id:guid}/assignees")]
+    [ProducesResponseType(typeof(TaskAssigneeResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<TaskAssigneeResponse>> Assign(
+        Guid id, AssignTaskRequest req, CancellationToken ct)
+        => Ok(await _assignments.AssignAsync(id, req, ct));
+
+    /// <summary>Tự nhận task — Member/PM, chỉ khi task đang ToDo.</summary>
+    [HttpPost("tasks/{id:guid}/assignees/me")]
+    [ProducesResponseType(typeof(TaskAssigneeResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<TaskAssigneeResponse>> SelfAssign(Guid id, CancellationToken ct)
+        => Ok(await _assignments.SelfAssignAsync(id, ct));
+
+    /// <summary>Tự rút khỏi task (employeeId = chính mình), hoặc ProjectManager gỡ người khác.</summary>
+    [HttpDelete("tasks/{id:guid}/assignees/{employeeId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Unassign(Guid id, Guid employeeId, CancellationToken ct)
+    {
+        await _assignments.UnassignAsync(id, employeeId, ct);
+        return NoContent();
+    }
 }

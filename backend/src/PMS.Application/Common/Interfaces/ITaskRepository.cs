@@ -8,6 +8,9 @@ public interface ITaskRepository : IRepository<TaskItem>
     Task<TaskItem?> GetWithDetailsAsync(Guid id, CancellationToken ct = default);
     Task<TaskItem?> GetWithSubtasksAsync(Guid id, CancellationToken ct = default);
 
+    /// <summary>Nạp kèm Assignments + Employee — dùng cho mọi thao tác gán/gỡ người.</summary>
+    Task<TaskItem?> GetWithAssignmentsAsync(Guid id, CancellationToken ct = default);
+
     /// <summary>
     /// Nạp đúng những gì việc đổi trạng thái cần: Assignments (kiểm quyền theo ADR-017),
     /// Watchers (gửi thông báo) và Subtasks (để SubtaskProgress trong response không bị

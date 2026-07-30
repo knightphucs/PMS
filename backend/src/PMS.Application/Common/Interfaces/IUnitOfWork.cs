@@ -10,6 +10,7 @@ public interface IUnitOfWork
     IRefreshTokenRepository RefreshTokens { get; }
     ISprintRepository Sprints { get; }
     IProjectMemberRepository ProjectMembers { get; }
+    IRepository<TaskAssignment> TaskAssignments { get; }
     IRepository<ActivityLog> ActivityLogs { get; }
     IRepository<Notification> Notifications { get; }
 

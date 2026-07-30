@@ -15,6 +15,15 @@ public class CreateTaskRequestValidator : AbstractValidator<CreateTaskRequest>
     }
 }
 
+public class AssignTaskRequestValidator : AbstractValidator<AssignTaskRequest>
+{
+    public AssignTaskRequestValidator()
+    {
+        RuleFor(x => x.EmployeeId).NotEmpty();
+        RuleFor(x => x.Role).IsInEnum();
+    }
+}
+
 public class UpdateTaskRequestValidator : AbstractValidator<UpdateTaskRequest>
 {
     public UpdateTaskRequestValidator()

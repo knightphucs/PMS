@@ -27,6 +27,11 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
             .Include(t => t.Subtasks)
             .FirstOrDefaultAsync(t => t.Id == id, ct);
 
+    public async Task<TaskItem?> GetWithAssignmentsAsync(Guid id, CancellationToken ct = default)
+        => await DbSet
+            .Include(t => t.Assignments).ThenInclude(a => a.Employee)
+            .FirstOrDefaultAsync(t => t.Id == id, ct);
+
     public async Task<TaskItem?> GetForStatusChangeAsync(Guid id, CancellationToken ct = default)
         => await DbSet
             .Include(t => t.Assignments)
