@@ -1,0 +1,62 @@
+%% Sequence Diagram - Member tự nhận task (self-assign)
+%% Quyền: ProjectAction.SelfAssign (PM hoặc Member; Viewer bị chặn).
+%% Điều kiện nghiệp vụ: chỉ tự nhận được task đang ToDo (§5 ARCHITECTURE).
+%% Thông báo gửi cho PM chứ không gửi cho chính người tự nhận.
+sequenceDiagram
+autonumber
+actor Mem as Member
+participant API as TasksController
+participant Service as TaskAssignmentService
+participant Authz as ProjectAuthorizationService
+participant Repo as TaskRepository
+participant Task as Task (entity)
+participant Logger as ActivityLogService
+participant Notifier as NotificationService
+participant UoW as UnitOfWork
+participant DB as Database
+Mem->>API: POST /api/v1/tasks/{id}/assignees/me
+API->>Service: SelfAssignAsync(taskId, userId)
+Service->>Repo: GetWithAssignmentsAsync(taskId)
+Repo->>DB: SELECT Task + Assignments + Employee
+DB-->>Repo: Task
+Repo-->>Service: Task or null
+alt task khong ton tai
+  Service-->>API: NotFoundException(TaskItem, id)
+  API-->>Mem: 404 Not Found
+else task ton tai
+  Service->>Authz: AuthorizeTaskAsync(task, SelfAssign)
+  Authz->>DB: SELECT ProjectMembers
+  DB-->>Authz: RoleInProject or null
+  alt khong phai thanh vien project
+    Note over Authz,Service: ADR-019: doi thanh 404 cua TaskItem
+    Service-->>API: NotFoundException(TaskItem, id)
+    API-->>Mem: 404 Not Found
+  else la Viewer
+    Note over Authz: ProjectPermissions.IsAllowed(SelfAssign, Viewer) == false
+    Service-->>API: ForbiddenException
+    API-->>Mem: 403 Forbidden
+  else la Member hoac ProjectManager
+    alt task khong o trang thai ToDo
+      Note over Service: Dieu kien "task dang ToDo" thay cho buoc PM duyet,<br/>de tranh xung dot khi bo qua PM
+      Service-->>API: ConflictException
+      API-->>Mem: 409 Conflict
+    else task dang ToDo
+      opt da tu nhan truoc do
+        Service-->>API: ConflictException
+        API-->>Mem: 409 Conflict
+      end
+      Service->>Repo: GetWithMembersAsync(projectId)
+      Repo-->>Service: Project + Members
+      Service->>Task: AddAssignee(self, Owner)
+      Note over Task: sinh Id phia app + gan luon navigation Employee<br/>de map DTO duoc ngay
+      Service->>Logger: Log(Assigned, task, userId)
+      Service->>Notifier: NotifyMany(cac ProjectManager dang Accepted)
+      Note over Notifier: §5: PM luon nam duoc ai dang lam gi<br/>du khong tu tay gan. NotifyMany tu loai nguoi thuc hien.
+      Service->>UoW: SaveChangesAsync()
+      UoW->>DB: INSERT TaskAssignment + ActivityLog + Notifications
+      DB-->>UoW: ok
+      Service-->>API: TaskAssigneeResponse
+      API-->>Mem: 200 OK
+    end
+  end
+end

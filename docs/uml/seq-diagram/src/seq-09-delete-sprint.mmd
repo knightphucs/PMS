@@ -1,0 +1,47 @@
+%% Sequence Diagram - PM xóa Sprint (ADR-020)
+%% Đẩy toàn bộ task về Backlog rồi mới xóa mềm sprint. Task KHÔNG bị xóa.
+%% Khác ADR-008/018 vì ở đây không mất dữ liệu nào — task chỉ đổi chỗ.
+sequenceDiagram
+autonumber
+actor PM as ProjectManager
+participant API as SprintsController
+participant Service as SprintService
+participant Authz as ProjectAuthorizationService
+participant Repo as SprintRepository
+participant Logger as ActivityLogService
+participant UoW as UnitOfWork
+participant DB as Database
+PM->>API: DELETE /api/v1/sprints/{id}
+API->>Service: DeleteAsync(sprintId)
+Service->>Repo: GetWithTasksAsync(sprintId)
+Repo->>DB: SELECT Sprint + Tasks
+DB-->>Repo: Sprint
+Repo-->>Service: Sprint or null
+alt sprint khong ton tai
+  Service-->>API: NotFoundException(Sprint, id)
+  API-->>PM: 404 Not Found
+else sprint ton tai
+  Service->>Authz: AuthorizeAsync(sprint.ProjectId, ManageSprint)
+  Authz->>DB: SELECT ProjectMembers
+  DB-->>Authz: RoleInProject or null
+  alt khong phai thanh vien project
+    Note over Service: ADR-019: doi thanh 404 cua Sprint,<br/>khong lo project nao chua sprint nay
+    Service-->>API: NotFoundException(Sprint, id)
+    API-->>PM: 404 Not Found
+  else la thanh vien nhung khong phai ProjectManager
+    Service-->>API: ForbiddenException
+    API-->>PM: 403 Forbidden
+  else la ProjectManager
+    loop moi task cua sprint
+      Service->>Service: task.SprintId = null
+    end
+    Note over Service: ADR-020: task VE BACKLOG, KHONG bi xoa.<br/>Bat buoc null hoa: Sprint la ISoftDeletable nen task tro toi<br/>sprint da xoa mem se co Include(t.Sprint) tra null kho hieu;<br/>FK Sprint->Tasks cung la Restrict nen xoa cung se no o DB.
+    Service->>UoW: Sprints.Remove(sprint)
+    Service->>Logger: Log(Deleted, project, "xoa sprint, chuyen N task ve Backlog")
+    Service->>UoW: SaveChangesAsync()
+    UoW->>DB: UPDATE Tasks SET SprintId=NULL<br/>+ UPDATE Sprint SET IsDeleted=1<br/>+ INSERT ActivityLog
+    DB-->>UoW: ok
+    Service-->>API: void
+    API-->>PM: 204 No Content
+  end
+end

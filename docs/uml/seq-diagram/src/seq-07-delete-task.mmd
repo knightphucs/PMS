@@ -1,0 +1,52 @@
+%% Sequence Diagram - PM xóa task (ADR-018)
+%% Chặn 409 nếu còn subtask chưa Done; KHÔNG cascade xuống subtask đang dở.
+%% Subtask đã Done thì phải xóa mềm TƯỜNG MINH, cascade của EF không kích hoạt.
+sequenceDiagram
+autonumber
+actor PM as ProjectManager
+participant API as TasksController
+participant Service as TaskService
+participant Authz as ProjectAuthorizationService
+participant Repo as TaskRepository
+participant Logger as ActivityLogService
+participant UoW as UnitOfWork
+participant DB as Database
+PM->>API: DELETE /api/v1/tasks/{id}
+API->>Service: DeleteAsync(taskId)
+Service->>Repo: GetWithSubtasksAsync(taskId)
+Repo->>DB: SELECT Task + Subtasks
+DB-->>Repo: Task
+Repo-->>Service: Task or null
+alt task khong ton tai
+  Service-->>API: NotFoundException(TaskItem, id)
+  API-->>PM: 404 Not Found
+else task ton tai
+  Service->>Authz: AuthorizeTaskAsync(task, DeleteTask)
+  Authz->>DB: SELECT ProjectMembers
+  DB-->>Authz: RoleInProject or null
+  alt khong phai thanh vien project
+    Service-->>API: NotFoundException(TaskItem, id)
+    API-->>PM: 404 Not Found
+  else la thanh vien nhung khong phai ProjectManager
+    Service-->>API: ForbiddenException
+    API-->>PM: 403 Forbidden
+  else la ProjectManager
+    alt con subtask chua Done
+      Note over Service: ADR-018: chan, KHONG cascade.<br/>Subtask la cong viec con cung cap chi tiet voi task cha<br/>nen rui ro mat du lieu co y nghia cao hon ADR-008.
+      Service-->>API: ConflictException (kem so subtask dang chan)
+      API-->>PM: 409 Conflict
+    else moi subtask deu Done
+      loop moi subtask da Done
+        Service->>UoW: Tasks.Remove(subtask)
+      end
+      Service->>UoW: Tasks.Remove(task)
+      Note over UoW: Phai xoa tuong minh tung subtask:<br/>ApplySoftDelete() doi state Deleted -> Modified TRUOC khi<br/>SaveChanges chay, nen cascade cua EF Core khong kich hoat (ADR-008)
+      Service->>Logger: Log(Deleted, task, userId)
+      Service->>UoW: SaveChangesAsync()
+      UoW->>DB: UPDATE Tasks SET IsDeleted=1, DeletedAt=... + INSERT ActivityLog
+      DB-->>UoW: ok
+      Service-->>API: void
+      API-->>PM: 204 No Content
+    end
+  end
+end

@@ -1,0 +1,61 @@
+%% Sequence Diagram - Kéo task giữa Backlog và Sprint
+%% Quyền ProjectAction.ManageSprint (chỉ PM). SprintId = null nghĩa là về Backlog.
+%% Sprint phải cùng project với task: FK không chặn được vì Task giữ ProjectId
+%% và SprintId độc lập nhau.
+sequenceDiagram
+autonumber
+actor PM as ProjectManager
+participant API as TasksController
+participant Service as TaskService
+participant Authz as ProjectAuthorizationService
+participant TRepo as TaskRepository
+participant SRepo as SprintRepository
+participant Task as Task (entity)
+participant Logger as ActivityLogService
+participant UoW as UnitOfWork
+participant DB as Database
+PM->>API: PUT /api/v1/tasks/{id}/sprint (sprintId or null)
+API->>Service: MoveToSprintAsync(taskId, sprintId)
+Service->>TRepo: GetWithSubtasksAsync(taskId)
+TRepo->>DB: SELECT Task + Subtasks
+DB-->>TRepo: Task
+TRepo-->>Service: Task or null
+Note over Service,TRepo: Nap ca Subtasks vi response tra SubtaskProgress;<br/>collection chua nap se bao nham 0%
+alt task khong ton tai
+  Service-->>API: NotFoundException(TaskItem, id)
+  API-->>PM: 404 Not Found
+else task ton tai
+  Service->>Authz: AuthorizeTaskAsync(task, ManageSprint)
+  Authz->>DB: SELECT ProjectMembers
+  DB-->>Authz: RoleInProject or null
+  alt khong phai ProjectManager
+    Service-->>API: ForbiddenException (hoac 404 neu ngoai project)
+    API-->>PM: 403 Forbidden / 404 Not Found
+  else la ProjectManager
+    alt sprintId == null
+      Service->>Task: SprintId = null
+      Note over Task: Dua task ve Backlog
+    else sprintId co gia tri
+      Service->>SRepo: GetByIdAsync(sprintId)
+      SRepo->>DB: SELECT Sprint
+      DB-->>SRepo: Sprint or null
+      SRepo-->>Service: Sprint or null
+      alt sprint khong ton tai
+        Service-->>API: NotFoundException(Sprint, sprintId)
+        API-->>PM: 404 Not Found
+      else sprint thuoc project khac
+        Note over Service: FK khong chan duoc: Task giu ProjectId va SprintId doc lap
+        Service-->>API: BusinessRuleException
+        API-->>PM: 400 Bad Request
+      else sprint hop le
+        Service->>Task: SprintId = sprintId
+      end
+    end
+    Service->>Logger: Log(Updated, task, userId)
+    Service->>UoW: SaveChangesAsync()
+    UoW->>DB: UPDATE Task + INSERT ActivityLog
+    DB-->>UoW: ok
+    Service-->>API: TaskSummaryResponse
+    API-->>PM: 200 OK
+  end
+end
