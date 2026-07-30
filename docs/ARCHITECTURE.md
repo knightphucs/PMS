@@ -11,10 +11,11 @@
 > **Trạng thái:** Auth + Project (kể cả quản lý thành viên) + Employee management đã
 > xong từ trước. **Task + Sprint/Backlog/Board vừa hoàn thành ở phiên 2026-07-30** —
 > build sạch, **247 test pass** (153 unit + 94 integration).
-> **Việc tiếp theo: nhóm cộng tác trên Task** — Comment API, Watcher API, Label API,
-> TaskLink API. Cả bốn đều đã có entity + EF configuration + migration sẵn từ
-> `InitialCreate`, chỉ thiếu tầng Application/API — đúng tình trạng mà Task/Sprint vừa
-> ở trước phiên này.
+> **Việc tiếp theo: Notification API rồi Comment API** — xem bảng "Lộ trình các phiên
+> tiếp theo" ngay dưới bảng tiến độ ở §1. Notification xếp trước vì hiện tại nó đang
+> được **sinh ra ở mọi luồng nhưng không có đường nào đọc**; Comment/Watcher/Label/
+> TaskLink đều đã có entity + EF configuration + migration sẵn từ `InitialCreate`, chỉ
+> thiếu tầng Application/API — đúng tình trạng mà Task/Sprint vừa ở trước phiên này.
 > **Trước khi viết code, đọc theo thứ tự:**
 > 1. §15, ADR-019 (phân quyền tái dùng `ProjectAction`), ADR-020, ADR-021 — ba quyết
 >    định mới của phiên Task, áp dụng nguyên cho các module còn lại
@@ -64,6 +65,27 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | Thống kê / Dashboard | ⬜ | Chưa bắt đầu |
 | Frontend (toàn bộ) | ⬜ | Thư mục `frontend/` chưa tồn tại trong repo |
 | Real-time (SignalR) | ⬜ | Có chủ đích — chỉ làm sau khi core CRUD ổn định (xem §6) |
+
+### Lộ trình các phiên tiếp theo
+
+> Sắp theo thứ tự phụ thuộc và giá trị, không phải theo độ khó. Cập nhật 2026-07-30.
+
+| # | Hạng mục | Vì sao xếp ở đây | Quy mô ước tính |
+|---|---|---|---|
+| 1 | **Notification API** (đọc danh sách, đánh dấu đã đọc, đếm chưa đọc) | Mắt xích thiếu rõ nhất hiện tại: Notification **đang được sinh ra ở mọi luồng** Project/Task nhưng không có đường nào đọc — dữ liệu chỉ ghi vào rồi nằm đó. Không có nó thì mọi công sức `NotifyMany` ở các phiên trước là vô hình | Nhỏ — 1 service, 3 endpoint, không có nhánh quyền phức tạp (chỉ đọc thông báo của chính mình) |
+| 2 | **Comment API** | Hoàn tất nhóm "cộng tác" trên task. Entity + configuration đã sẵn, quyền đơn giản (mọi thành viên viết được, sửa/xóa chỉ tác giả hoặc PM) | Nhỏ — sao chép khuôn `Features/Tasks` |
+| 3 | **Watcher + Label + TaskLink API** | Ba cái nhỏ, gom một đợt. ⚠️ `Watcher` **không** kế thừa `BaseEntity` nên `IRepository<T>` không phục vụ được, phải xử lý riêng. `TaskLink` cần thêm guard chống link vòng (A blocks B và B blocks A cùng lúc sẽ khóa chết cả hai ở blocker check) | Vừa |
+| 4 | **Frontend — bắt đầu** (Next.js scaffold → Auth → Project list → Board/Backlog) | API của Project + Task + Sprint đã đủ ổn định để dựng 4 màn hình chính. §13 bước 6 đã nói không đợi backend xong hết. **Đây là rủi ro tiến độ lớn nhất** — thư mục `frontend/` vẫn chưa tồn tại, mà đây là phần chiếm nhiều thời gian nhất và là thứ hội đồng nhìn thấy đầu tiên | Lớn — nhiều phiên |
+| 5 | **Dashboard thống kê** | `ProjectAction.ViewStatistics` đã có sẵn trong ma trận quyền nhưng chưa ai dùng. Cần cả API lẫn màn hình Recharts | Vừa |
+| 6 | **Background job task quá hạn** → Notification `DueSoon` | `ITaskRepository.GetOverdueAsync` **đã tồn tại nhưng chưa có caller nào** — đúng loại code chờ sẵn mà nếu để lâu sẽ lệch khỏi nghiệp vụ. Phụ thuộc hạng mục 1 (phải đọc được thông báo thì job mới có ý nghĩa) | Nhỏ |
+| 7 | **Reset password** | Mục ⬜ cuối cùng của Auth. Còn phụ thuộc email service nên để sau | Nhỏ–vừa |
+| 8 | **Real-time (SignalR)** | Theo §6, chỉ làm sau khi core CRUD **và** frontend đã ổn định | Vừa |
+
+**Rủi ro tiến độ cần nói thẳng:** backend core giờ đã khá đầy đủ (Auth, Project, Member,
+Task, Sprint, Board), nhưng frontend vẫn ở con số không. Nếu tiếp tục làm hết backend rồi
+mới quay sang frontend thì sẽ dồn toàn bộ phần nặng nhất vào cuối. Đề xuất: sau khi xong
+hạng mục 1–2 (đều nhỏ) thì **chuyển sang frontend**, và làm nốt 3, 5, 6 xen kẽ khi frontend
+cần tới chúng.
 
 ---
 
@@ -510,7 +532,42 @@ project khác nhau):
   mock Repository — xem ADR-009 (§15) về lý do chọn NSubstitute thay Moq
 - **Integration Test** (xUnit + Shouldly): test API endpoint end-to-end trên SQL Server
   thật, database riêng `PmsTestDb` — xem ADR-010 (§15) về lý do không dùng EF InMemory/SQLite
-- Mục tiêu coverage: [điền mục tiêu, ví dụ 70% cho Service layer]
+
+### Hiện trạng (2026-07-30)
+
+**247 test pass** — 153 unit + 94 integration, build 0 warning.
+
+| Nhóm | Unit | Integration |
+|---|---|---|
+| Domain (invariant, state machine) | `ProjectTests`, `ProjectMemberTests`, `TaskItemTests`, `SoftDeletableContractTests` | — |
+| Auth / Admin | `EmployeeAdminServiceTests` | `AccountLockingTests` |
+| Project | `ProjectServiceTests`, `ProjectMemberServiceTests`, `ProjectPermissionsTests` | `ProjectsCrudTests`, `ProjectsAuthorizationTests`, `ProjectsDeleteTests`, `ProjectMembersTests` |
+| Task / Sprint | `TaskServiceTests`, `TaskStatusTransitionServiceTests`, `TaskAssignmentServiceTests`, `SprintServiceTests` | `TasksCrudTests`, `TasksAuthorizationTests`, `TaskStatusTransitionTests`, `TaskAssignmentTests`, `SubtaskTests`, `SprintsCrudTests`, `BacklogAndBoardTests` |
+
+**Không đặt mục tiêu % coverage.** Lý do: chỉ số đó thưởng cho test chạm nhiều dòng, trong
+khi thứ dự án này cần bảo vệ là **các quyết định kiến trúc** — và ba lần lỗi thật đã lộ ra
+đều là lỗi mà coverage cao vẫn bỏ sót (Sprint thiếu `ISoftDeletable` ở ADR-008, `RowVersion`
+chỉ có ở schema ở ADR-016, `AddAssignee` không sinh `Id` ở phiên 2026-07-30). Thay vào đó
+áp dụng **quy tắc: mỗi ADR phải có ít nhất một test giữ nó**, và test đặt tên nêu rõ quyết
+định đang bảo vệ. Hai test kiểu "hợp đồng kiến trúc" đang làm đúng việc này:
+`SoftDeletableContractTests` (mọi entity khai soft delete phải implement `ISoftDeletable`) và
+`ProjectPermissionsTests.Moi_gia_tri_ProjectAction_phai_duoc_khai_bao_tuong_minh` (thêm
+`ProjectAction` mới mà quên khai báo quyền thì đỏ ngay).
+
+### Kiểm thử thủ công (Postman)
+
+Collection ở `backend/postman/collections/PMS Endpoints v1/`, đã có **18 request cho
+Task + Sprint** khớp 1-1 với 18 endpoint. Ba điểm dễ vấp khi chạy tay:
+
+1. **Enum truyền bằng SỐ**, không phải chuỗi — `Program.cs` chưa cấu hình
+   `JsonStringEnumConverter`. `Status`: `0`=ToDo, `1`=InProgress, `2`=Review, `3`=Done.
+   `Priority`: `0`=Highest … `4`=Lowest. `RoleInTask`: `0`=Owner, `1`=Contributor.
+   Gửi `{"target": 0}` cho đổi status nghĩa là "chuyển sang ToDo" → task đang ToDo sẽ nhận
+   **409** vì đứng yên không phải chuyển đổi hợp lệ.
+2. **`rowVersion` là chuỗi base64**, copy nguyên từ response `GET /tasks/{id}` gần nhất.
+   Gửi rỗng → 400 (validator), gửi giá trị cũ sau khi đã sửa một lần → 409 (ADR-021).
+3. **Trường nullable phải gửi `null`**, không gửi chuỗi `"string"` — `sprintId`,
+   `parentTaskId`, `dueDate` mà để `"string"` sẽ lỗi parse 400.
 
 ---
 
