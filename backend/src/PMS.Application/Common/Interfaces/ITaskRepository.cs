@@ -7,6 +7,13 @@ public interface ITaskRepository : IRepository<TaskItem>
 {
     Task<TaskItem?> GetWithDetailsAsync(Guid id, CancellationToken ct = default);
     Task<TaskItem?> GetWithSubtasksAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Nạp đúng những gì việc đổi trạng thái cần: Assignments (kiểm quyền theo ADR-017),
+    /// Watchers (gửi thông báo) và Subtasks (để SubtaskProgress trong response không bị
+    /// báo nhầm 0%). Nhẹ hơn GetWithDetailsAsync vốn kéo cả Comment/Label/Link.
+    /// </summary>
+    Task<TaskItem?> GetForStatusChangeAsync(Guid id, CancellationToken ct = default);
     Task<PagedResult<TaskItem>> GetPagedByProjectAsync(
         Guid projectId, PagedRequest request, CancellationToken ct = default);
     Task<IReadOnlyList<TaskItem>> GetBacklogAsync(Guid projectId, CancellationToken ct = default);

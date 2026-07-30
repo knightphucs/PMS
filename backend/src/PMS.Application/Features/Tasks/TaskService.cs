@@ -157,7 +157,9 @@ public class TaskService : ITaskService
     public async Task<TaskSummaryResponse> MoveToSprintAsync(
         Guid id, MoveTaskToSprintRequest request, CancellationToken ct = default)
     {
-        var task = await _uow.Tasks.GetByIdAsync(id, ct)
+        // GetWithSubtasksAsync chứ không phải GetByIdAsync: ToSummary trả SubtaskProgress,
+        // mà collection chưa nạp sẽ rỗng nên task cha có subtask bị báo nhầm 0%.
+        var task = await _uow.Tasks.GetWithSubtasksAsync(id, ct)
             ?? throw new NotFoundException(nameof(TaskItem), id);
 
         await _authz.AuthorizeTaskAsync(task, ProjectAction.ManageSprint, ct);

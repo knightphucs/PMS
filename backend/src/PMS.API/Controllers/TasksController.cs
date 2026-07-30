@@ -11,7 +11,10 @@ namespace PMS.API.Controllers;
 public class TasksController : ControllerBase
 {
     private readonly ITaskService _tasks;
-    public TasksController(ITaskService tasks) => _tasks = tasks;
+    private readonly ITaskStatusTransitionService _transitions;
+
+    public TasksController(ITaskService tasks, ITaskStatusTransitionService transitions)
+        => (_tasks, _transitions) = (tasks, transitions);
 
     /// <summary>Tạo task; truyền ParentTaskId để tạo subtask (tối đa 1 cấp cha–con).</summary>
     [HttpPost("tasks")]
@@ -61,6 +64,21 @@ public class TasksController : ControllerBase
         await _tasks.DeleteAsync(id, ct);
         return NoContent();
     }
+
+    /// <summary>
+    /// Đổi trạng thái theo Workflow Transition Rules. Được phép gọi: Assignee của task
+    /// hoặc ProjectManager của project (ADR-017). Không cần RowVersion — chính state
+    /// machine đã chặn hai người cùng chuyển tới một đích (ADR-021).
+    /// </summary>
+    [HttpPatch("tasks/{id:guid}/status")]
+    [ProducesResponseType(typeof(TaskSummaryResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<TaskSummaryResponse>> ChangeStatus(
+        Guid id, ChangeTaskStatusRequest req, CancellationToken ct)
+        => Ok(await _transitions.ChangeStatusAsync(id, req, ct));
 
     /// <summary>Kéo task giữa Sprint và Backlog; SprintId = null nghĩa là về Backlog.</summary>
     [HttpPut("tasks/{id:guid}/sprint")]
