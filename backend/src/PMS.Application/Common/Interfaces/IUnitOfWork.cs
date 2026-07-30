@@ -11,6 +11,7 @@ public interface IUnitOfWork
     ISprintRepository Sprints { get; }
     IProjectMemberRepository ProjectMembers { get; }
     INotificationRepository Notifications { get; }
+    ICommentRepository Comments { get; }
     IRepository<TaskAssignment> TaskAssignments { get; }
     IRepository<ActivityLog> ActivityLogs { get; }
 

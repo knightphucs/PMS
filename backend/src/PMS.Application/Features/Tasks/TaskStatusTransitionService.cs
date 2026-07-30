@@ -59,7 +59,7 @@ public class TaskStatusTransitionService : ITaskStatusTransitionService
         _activityLog.Log(nameof(TaskItem), taskId, ActivityAction.StatusChanged,
             $"Đổi trạng thái task '{task.Name}': {previous} -> {request.Target}");
 
-        _notifications.NotifyMany(InterestedEmployeeIds(task), NotificationType.StatusChanged,
+        _notifications.NotifyMany(task.InterestedEmployeeIds(), NotificationType.StatusChanged,
             $"Task '{task.Name}' đã chuyển từ {previous} sang {request.Target}", taskId);
 
         await _uow.SaveChangesAsync(ct);
@@ -97,13 +97,4 @@ public class TaskStatusTransitionService : ITaskStatusTransitionService
         throw new ConflictException(
             $"Không thể bắt đầu task khi còn bị chặn bởi {blockers.Count} task chưa hoàn thành: {names}.");
     }
-
-    /// <summary>
-    /// Người cần biết task đổi trạng thái: đang làm (assignee), đang theo dõi (watcher),
-    /// và người đã tạo task (reporter). NotifyMany tự loại người thực hiện và tự distinct.
-    /// </summary>
-    private static IEnumerable<Guid> InterestedEmployeeIds(TaskItem task)
-        => task.Assignments.Select(a => a.EmployeeId)
-               .Concat(task.Watchers.Select(w => w.EmployeeId))
-               .Append(task.ReporterId);
 }

@@ -5,6 +5,7 @@ using PMS.Application.Common.Interfaces;
 using PMS.Application.Common.Services;
 using PMS.Application.Features.Admin;
 using PMS.Application.Features.Auth;
+using PMS.Application.Features.Comments;
 using PMS.Application.Features.Notifications;
 using PMS.Application.Features.Projects;
 using PMS.Application.Features.Sprints;
@@ -33,6 +34,8 @@ public static class DependencyInjection
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<INotificationFeedService, NotificationFeedService>();
         services.AddSingleton<NotificationMapper>();
+        services.AddScoped<ICommentService, CommentService>();
+        services.AddSingleton<CommentMapper>();
         services.AddSingleton<ProjectMapper>();
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
         return services;

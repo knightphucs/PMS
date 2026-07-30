@@ -21,5 +21,12 @@ public enum ProjectAction
     ManageSprint,
 
     /// <summary>Tự nhận / tự rút khỏi task — Member cũng làm được, Viewer thì không.</summary>
-    SelfAssign
+    SelfAssign,
+
+    /// <summary>
+    /// Viết comment trên task — §10 cho Member quyền này, Viewer chỉ đọc. Sửa/xóa KHÔNG có
+    /// action riêng: chúng phụ thuộc dữ liệu per-row (ai là tác giả) nên nằm trong
+    /// CommentService, đúng "ranh giới còn lại" của ADR-019.
+    /// </summary>
+    CreateComment
 }
