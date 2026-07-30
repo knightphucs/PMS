@@ -1,10 +1,10 @@
 $kind: http-request
-name: Accept invitation to project
-url: "{{api_url}}/projects/:id/members/me/accept"
-method: POST
+name: Update sprint
+url: "{{api_url}}/sprints/:id"
+method: PUT
 pathVariables:
   - key: id
-    value: 1c28d4b9-25e4-4da4-93ad-33314637cd9d
+    value: ""
     description: ""
     $type: |-
       {
@@ -19,8 +19,17 @@ pathVariables:
           "value"
         ]
       }
+body:
+  type: json
+  content: |-
+    {
+        "name": "string",
+        "goal": "string",
+        "startDate": "2026-07-30T04:22:28.676Z",
+        "endDate": "2026-07-30T04:22:28.676Z"
+    }
 auth:
   type: bearer
   credentials:
     token: "{{access_token}}"
-order: 4408954809777594
+order: 4484213175080558

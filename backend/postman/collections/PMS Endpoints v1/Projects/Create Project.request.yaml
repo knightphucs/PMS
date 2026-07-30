@@ -6,9 +6,9 @@ body:
   type: json
   content: |-
     {
-        "name": "Dự án build tool LOLRMM",
-        "description": "Giám sát công cụ Remote từ xa",
-        "expectedCompletionDate": "2026-07-31"
+        "name": "HDBank",
+        "description": "Ngân hàng TMCP Phát triển TPHCM",
+        "expectedCompletionDate": "2026-08-02"
     }
 auth:
   type: bearer

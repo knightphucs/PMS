@@ -1,0 +1,62 @@
+$kind: http-request
+name: Get tasks by Project
+url: "{{api_url}}/projects/:project_id/tasks?Page=1&PageSize=20&SortBy=&SortDirection=&Search=&IsDescending=&Skip="
+method: GET
+queryParams:
+  - key: Page
+    value: "1"
+    disabled: false
+    description: ""
+    $type: integer
+  - key: PageSize
+    value: "20"
+    disabled: false
+    description: ""
+    $type: integer
+  - key: SortBy
+    value: ""
+    disabled: false
+    description: ""
+    $type: string
+  - key: SortDirection
+    value: ""
+    disabled: false
+    description: ""
+    $type: string
+  - key: Search
+    value: ""
+    disabled: false
+    description: ""
+    $type: string
+  - key: IsDescending
+    value: ""
+    disabled: false
+    description: ""
+    $type: boolean
+  - key: Skip
+    value: ""
+    disabled: false
+    description: ""
+    $type: integer
+pathVariables:
+  - key: project_id
+    value: 1C28D4B9-25E4-4DA4-93AD-33314637CD9D
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4478108084630509

@@ -4,7 +4,8 @@ url: "{{api_url}}/projects/:id"
 method: PUT
 pathVariables:
   - key: id
-    value: 1ee624ad-06da-4311-8973-31771d09d9a2
+    value: 1c28d4b9-25e4-4da4-93ad-33314637cd9d
+    description: ""
     $type: |-
       {
         "type": "object",
@@ -22,9 +23,10 @@ body:
   type: json
   content: |-
     {
-        "name": "Tools giám sát LOLRMM",
-        "description": "Giám sát công cụ Remote từ xa",
-        "expectedCompletionDate": "2026-07-31"
+        "name": "Hệ thống quản lý dự án",
+        "description": "Xây dưng hệ thống quản lý các dự án và task dành cho nhân viên nội bộ",
+        "expectedCompletionDate": "2026-08-02",
+        "rowVersion": "AAAAAAAApBE="
     }
 auth:
   type: bearer

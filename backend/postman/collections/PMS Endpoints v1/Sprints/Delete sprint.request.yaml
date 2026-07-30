@@ -1,10 +1,11 @@
 $kind: http-request
-name: Accept invitation to project
-url: "{{api_url}}/projects/:id/members/me/accept"
-method: POST
+name: Delete sprint
+description: Task's sprint move to backlog, not delete permantly
+url: "{{api_url}}/sprints/:id"
+method: DELETE
 pathVariables:
   - key: id
-    value: 1c28d4b9-25e4-4da4-93ad-33314637cd9d
+    value: c42eb789-111a-4b97-b77c-b62587f058e6
     description: ""
     $type: |-
       {
@@ -23,4 +24,4 @@ auth:
   type: bearer
   credentials:
     token: "{{access_token}}"
-order: 4408954809777594
+order: 4489393974330659

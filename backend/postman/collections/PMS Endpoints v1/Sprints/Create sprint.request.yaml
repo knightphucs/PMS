@@ -1,9 +1,9 @@
 $kind: http-request
-name: Accept invitation to project
-url: "{{api_url}}/projects/:id/members/me/accept"
+name: Create sprint
+url: "{{api_url}}/projects/:project_Id/sprints"
 method: POST
 pathVariables:
-  - key: id
+  - key: project_Id
     value: 1c28d4b9-25e4-4da4-93ad-33314637cd9d
     description: ""
     $type: |-
@@ -19,8 +19,17 @@ pathVariables:
           "value"
         ]
       }
+body:
+  type: json
+  content: |-
+    {
+        "name": "Phát triển Backend",
+        "goal": "Thiết kế REST API",
+        "startDate": "2026-07-30",
+        "endDate": "2026-08-31"
+    }
 auth:
   type: bearer
   credentials:
     token: "{{access_token}}"
-order: 4408954809777594
+order: 1785385148563
