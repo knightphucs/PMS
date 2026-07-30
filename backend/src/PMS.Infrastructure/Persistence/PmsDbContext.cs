@@ -94,7 +94,10 @@ public class PmsDbContext : DbContext
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
+        // Phải gọi đủ cả hai và đúng thứ tự như bản async, nếu không bản ghi lưu qua
+        // đường đồng bộ sẽ thiếu CreatedAt/UpdatedAt (ADR-014).
         ApplySoftDelete();
+        ApplyAuditFields();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
