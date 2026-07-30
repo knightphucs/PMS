@@ -28,6 +28,28 @@ public class ProjectPermissionsTests
     [InlineData(ProjectAction.ViewStatistics, RoleInProject.ProjectManager, true)]
     [InlineData(ProjectAction.ViewStatistics, RoleInProject.Member,         false)]
     [InlineData(ProjectAction.ViewStatistics, RoleInProject.Viewer,         true)]
+    // CreateTask / UpdateTask / DeleteTask — chỉ PM (seq-01)
+    [InlineData(ProjectAction.CreateTask,      RoleInProject.ProjectManager, true)]
+    [InlineData(ProjectAction.CreateTask,      RoleInProject.Member,         false)]
+    [InlineData(ProjectAction.CreateTask,      RoleInProject.Viewer,         false)]
+    [InlineData(ProjectAction.UpdateTask,      RoleInProject.ProjectManager, true)]
+    [InlineData(ProjectAction.UpdateTask,      RoleInProject.Member,         false)]
+    [InlineData(ProjectAction.UpdateTask,      RoleInProject.Viewer,         false)]
+    [InlineData(ProjectAction.DeleteTask,      RoleInProject.ProjectManager, true)]
+    [InlineData(ProjectAction.DeleteTask,      RoleInProject.Member,         false)]
+    [InlineData(ProjectAction.DeleteTask,      RoleInProject.Viewer,         false)]
+    // ManageAssignees — gán/gỡ NGƯỜI KHÁC, chỉ PM (§5)
+    [InlineData(ProjectAction.ManageAssignees, RoleInProject.ProjectManager, true)]
+    [InlineData(ProjectAction.ManageAssignees, RoleInProject.Member,         false)]
+    [InlineData(ProjectAction.ManageAssignees, RoleInProject.Viewer,         false)]
+    // ManageSprint — chỉ PM
+    [InlineData(ProjectAction.ManageSprint,    RoleInProject.ProjectManager, true)]
+    [InlineData(ProjectAction.ManageSprint,    RoleInProject.Member,         false)]
+    [InlineData(ProjectAction.ManageSprint,    RoleInProject.Viewer,         false)]
+    // SelfAssign — Member cũng được (mô hình Kanban "tự pick up"), Viewer thì không
+    [InlineData(ProjectAction.SelfAssign,      RoleInProject.ProjectManager, true)]
+    [InlineData(ProjectAction.SelfAssign,      RoleInProject.Member,         true)]
+    [InlineData(ProjectAction.SelfAssign,      RoleInProject.Viewer,         false)]
     public void IsAllowed_khop_voi_ma_tran_trong_tai_lieu(
         ProjectAction action, RoleInProject role, bool expected)
         => ProjectPermissions.IsAllowed(action, role).ShouldBe(expected);

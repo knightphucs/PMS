@@ -39,6 +39,11 @@ public class TaskItem : BaseEntity, ISoftDeletable
         {
             Id = Guid.NewGuid(),
             TaskId = Id, EmployeeId = employee.Id,
+            // Gán luôn navigation để đồ thị đối tượng nhất quán ngay trong bộ nhớ: caller
+            // map bản ghi vừa tạo ra DTO (cần Employee.Name) trước khi có lần load lại nào.
+            // Employee truyền vào luôn là entity đã được EF track nên không bị hiểu nhầm
+            // là muốn insert Employee mới.
+            Employee = employee,
             RoleInTask = role, AssignedDate = DateTime.UtcNow
         });
     }

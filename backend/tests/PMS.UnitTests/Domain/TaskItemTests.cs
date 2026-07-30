@@ -124,6 +124,10 @@ public class TaskItemTests
         task.Assignments.Count.ShouldBe(2);
         task.Assignments.ShouldAllBe(a => a.Id != Guid.Empty);
         task.Assignments.Select(a => a.Id).Distinct().Count().ShouldBe(2);
+
+        // Navigation phải sẵn sàng ngay: caller map bản ghi vừa tạo ra DTO (cần
+        // Employee.Name) trước khi có lần load lại nào.
+        task.Assignments.ShouldAllBe(a => a.Employee != null);
     }
 
     [Fact]
