@@ -10,9 +10,9 @@ public interface IUnitOfWork
     IRefreshTokenRepository RefreshTokens { get; }
     ISprintRepository Sprints { get; }
     IProjectMemberRepository ProjectMembers { get; }
+    INotificationRepository Notifications { get; }
     IRepository<TaskAssignment> TaskAssignments { get; }
     IRepository<ActivityLog> ActivityLogs { get; }
-    IRepository<Notification> Notifications { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 

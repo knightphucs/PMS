@@ -8,7 +8,6 @@ public enum NotificationType
     CommentAdded,
     StatusChanged,
     InvitedToProject,
-    InvitationResponsed,
     InvitationAccepted,
     InvitationDeclined,
     RoleChanged,
