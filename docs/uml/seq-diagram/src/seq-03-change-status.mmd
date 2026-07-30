@@ -1,0 +1,67 @@
+%% Sequence Diagram - Cập nhật trạng thái task
+%% Quyền theo ADR-017: Assignee của task HOẶC ProjectManager của project.
+%% Chuẩn hóa 404 theo ADR-019. State machine guard + blocker check (TaskLink).
+%% Task cha KHÔNG tự động Done khi mọi subtask Done.
+sequenceDiagram
+autonumber
+actor Caller as Assignee / ProjectManager
+participant API as TasksController
+participant Service as TaskStatusTransitionService
+participant Authz as ProjectAuthorizationService
+participant Repo as TaskRepository
+participant Task as Task (entity)
+participant Logger as ActivityLogService
+participant Notifier as NotificationService
+participant UoW as UnitOfWork
+participant DB as Database
+Caller->>API: PATCH /api/v1/tasks/{id}/status (target)
+API->>Service: ChangeStatusAsync(taskId, target, userId)
+Service->>Repo: GetForStatusChangeAsync(taskId)
+Repo->>DB: SELECT Task + Assignments + Watchers + Subtasks
+DB-->>Repo: Task
+Repo-->>Service: Task or null
+alt task khong ton tai
+  Service-->>API: NotFoundException(TaskItem, id)
+  API-->>Caller: 404 Not Found
+else task ton tai
+  Service->>Authz: AuthorizeTaskAsync(task, View)
+  Authz->>DB: SELECT ProjectMembers
+  DB-->>Authz: RoleInProject or null
+  alt khong phai thanh vien project
+    Note over Authz,Service: ADR-019: doi thanh 404 cua TaskItem,<br/>khong lo su ton tai cua task cho nguoi ngoai
+    Service-->>API: NotFoundException(TaskItem, id)
+    API-->>Caller: 404 Not Found
+  else la thanh vien
+    Authz-->>Service: RoleInProject
+    Note over Service: ADR-017: cho phep neu la Assignee<br/>cua chinh task HOAC ProjectManager
+    alt khong phai Assignee va khong phai ProjectManager
+      Service-->>API: ForbiddenException
+      API-->>Caller: 403 Forbidden
+    else duoc phep
+      opt target == InProgress
+        Service->>Repo: GetUnfinishedBlockersAsync(taskId)
+        Repo-->>Service: danh sach task dang chan
+        alt con task chan chua Done
+          Service-->>API: ConflictException (kem ten task chan)
+          API-->>Caller: 409 Conflict
+        end
+      end
+      Service->>Task: ChangeStatus(target)
+      alt nhay buoc hoac dung yen
+        Note over Task: CanTransitionTo == false<br/>-> DomainException
+        Service-->>API: DomainException
+        API-->>Caller: 409 Conflict
+      else hop le
+        Note over Task: chi doi Status cua task nay;<br/>task cha KHONG tu dong Done
+        Service->>Logger: Log(StatusChanged, task, userId)
+        Service->>Notifier: NotifyMany(assignees + watchers + reporter)
+        Note over Notifier: NotifyMany tu loai nguoi thuc hien<br/>va tu distinct
+        Service->>UoW: SaveChangesAsync()
+        UoW->>DB: UPDATE Task + INSERT ActivityLog + Notifications
+        DB-->>UoW: ok
+        Service-->>API: TaskSummaryResponse
+        API-->>Caller: 200 OK
+      end
+    end
+  end
+end

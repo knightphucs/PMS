@@ -518,8 +518,8 @@ project khác nhau):
 
 | Diagram | Mục đích | Trạng thái |
 |---|---|---|
-| Use Case Diagram | Tổng quan chức năng theo actor (SystemAdmin, ProjectManager, Member, Viewer) | Done — nhưng theo ADR-017, box PM cần thêm 1 bubble "Cập nhật trạng thái task" (hiện chỉ có ở box Member) |
-| Class Diagram | Chi tiết entity, thuộc tính, quan hệ, OOP | Done — nhưng `Task` đang có method `SoftDelete()` liệt kê, mâu thuẫn với ADR-008 (soft delete là persistence concern, không phải domain method). Sửa trước khi dùng làm tài liệu chấm điểm |
+| Use Case Diagram | Tổng quan chức năng theo actor (SystemAdmin, ProjectManager, Member, Viewer) | ✅ Done — đã đồng bộ ADR-017 (2026-07-30). **Đính chính:** §12 trước đây ghi "box PM cần thêm bubble Cập nhật trạng thái task". Soát lại thì đó là chẩn đoán sai — diagram dùng generalization `PM --\|> Member --\|> Viewer --\|> User`, nên PM **đã** có use case đó qua kế thừa; thêm bubble trùng vào box PM mới là lỗi mô hình hóa. Cái thực sự thiếu là **điều kiện quyền**, nay đã ghi vào note của `UC_Status` (giống cách `UC_SelfAssign` ghi điều kiện "chỉ khi task đang ToDo") |
+| Class Diagram | Chi tiết entity, thuộc tính, quan hệ, OOP | ✅ Done — đã đồng bộ code (2026-07-30): bỏ `SoftDelete()` khỏi **cả `Task` lẫn `Project`** (ADR-008 — không chỉ `Task` như §12 từng ghi), `IsOverdue`/`SubtaskProgress`/`Sprint.IsActive` chuyển thành property, thêm `Task.RemoveAssignee(Guid)`, sửa `Project.AddMember` → `Invite`/`ChangeMemberRole` và `GetRoleOf(Employee)` → `GetRoleOf(Guid)` cho khớp chữ ký thật |
 | ERD | Thiết kế database quan hệ | Done — chưa phản ánh `RowVersion` (ADR-016) và `Notifications.Type` đã đổi sang `nvarchar` (ADR-016); không chặn code, chỉ lệch hình ảnh |
 | Sequence Diagram | Tạo task, Gán nhân sự, Đổi status, Mời thành viên, Phản hồi lời mời | 5/5 tồn tại (`seq-01/02/03` + `seq-04/05`), nhưng **`seq-03-change-status` cần vẽ lại** theo ADR-017: hiện chỉ vẽ actor "Assignee", thiếu nhánh 403 cho người không phải assignee/PM, và thiếu nhánh cho PM gọi. Luồng self-assign (Member tự nhận task) cũng chưa có sequence diagram riêng — chỉ có trong prose (§5) và UC annotation |
 
@@ -600,13 +600,21 @@ còn đủ thời gian trước deadline báo cáo.
 | 4 | Ai được đổi status của task? | `Assignee` HOẶC `ProjectManager` của project (ADR-017) |
 | 5 | Xóa task còn subtask chưa `Done` thì sao? | Chặn **409 Conflict**, không cascade (ADR-018) |
 
-### Diagram debt cần dọn trước/trong khi code Task (xem chi tiết ở §12)
-1. `seq-03-change-status.drawio` — vẽ lại theo ADR-017 (thêm nhánh PM + nhánh 403 cho
-   người không liên quan).
-2. `class-diagram.drawio` — xóa method `SoftDelete()` khỏi `Task` (mâu thuẫn ADR-008).
-3. `use-case-diagram.drawio` — thêm bubble "Cập nhật trạng thái task" vào box PM.
-4. (Tùy chọn, không chặn) — vẽ thêm seq riêng cho luồng self-assign, hiện chỉ có ở
-   dạng prose.
+### Diagram debt — ✅ đã dọn xong 2026-07-30 (xem chi tiết ở §12)
+1. ~~`seq-03-change-status.drawio` — vẽ lại theo ADR-017~~ → đã vẽ lại, có đủ nhánh
+   404 (người ngoài project), 403 (không phải Assignee/PM), 409 (blocker và nhảy bước).
+2. ~~`class-diagram.drawio` — xóa `SoftDelete()` khỏi `Task`~~ → đã xóa khỏi **cả
+   `Task` lẫn `Project`**, kèm 5 sửa chữ ký khác cho khớp code.
+3. ~~`use-case-diagram.drawio` — thêm bubble "Cập nhật trạng thái task" vào box PM~~ →
+   **chẩn đoán ban đầu sai**: PM đã có use case đó qua generalization, thêm bubble trùng
+   mới là lỗi. Thay bằng ghi điều kiện quyền ADR-017 vào note của `UC_Status` — xem §12.
+4. ~~(Tùy chọn) vẽ seq riêng cho luồng self-assign~~ → đã vẽ, nay là `seq-06-self-assign-task`.
+
+**Quy trình sinh diagram (từ 2026-07-30):** nguồn thật của mỗi diagram nằm ở
+`docs/uml/seq-diagram/src/*.mmd` (Mermaid) và `docs/uml/src/*.puml` (PlantUML) — text
+thuần, diff được trên GitHub. File `.drawio` và `.png` đều **sinh ra** từ đó bằng draw.io
+CLI, xem `docs/uml/README.md`. Trước đây nguồn chỉ nằm trong thuộc tính `mermaidData`/
+`plantUmlData` nhúng trong XML nên không ai review được thay đổi thật sự là gì.
 
 ### Log đầy đủ
 
