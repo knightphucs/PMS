@@ -1,0 +1,106 @@
+%% Sequence Diagram - Co che refresh token phia client (ADR-027/030)
+%% Luong nay co nhanh nghiep vu that: single-flight, hang doi request, va nhanh
+%% reuse detection dan toi dang xuat sach. Refresh token di bang cookie httpOnly nen
+%% JavaScript KHONG cham vao no o bat ky buoc nao — trinh duyet tu dinh kem.
+%% Diem mau chot: neu bo bien inFlight thi 3 request cung goi /refresh, request dau
+%% doi token thanh cong con hai request sau gui lai token da bi thu hoi -> backend
+%% ket luan token bi danh cap -> RevokeAllAsync -> nguoi dung bi da khoi moi thiet bi.
+sequenceDiagram
+autonumber
+participant R1 as Request A
+participant R2 as Request B
+participant R3 as Request C
+participant Http as apiFetch (http.ts)
+participant SF as refreshAccessToken (single-flight)
+participant Store as authStore (bo nho)
+participant API as AuthController
+participant Svc as AuthService
+participant DB as Database
+
+rect rgb(240, 248, 255)
+Note over R1,DB: 1) Ba request cung gui khi access token da het han
+R1->>Http: GET /projects
+R2->>Http: GET /projects/{id}
+R3->>Http: GET /notifications
+Http->>Store: doc accessToken
+Store-->>Http: token da het han
+Note over Http,API: Cookie pms_refresh_token co Path=/api/v1/auth nen<br/>KHONG duoc dinh vao ba request nghiep vu nay.<br/>Chung xac thuc bang header Authorization -> mien nhiem CSRF
+Http->>API: 3 request kem Bearer token cu
+API-->>Http: 401 x3 (body RONG, khong phai ProblemDetails)
+end
+
+rect rgb(255, 248, 240)
+Note over R1,DB: 2) SINGLE-FLIGHT — chi MOT loi goi /refresh
+Http->>SF: refreshAccessToken() lan 1 (cho A)
+SF->>SF: inFlight == null -> tao promise moi
+Http->>SF: refreshAccessToken() lan 2 (cho B)
+SF-->>Http: tra lai DUNG promise dang chay
+Http->>SF: refreshAccessToken() lan 3 (cho C)
+SF-->>Http: tra lai DUNG promise dang chay
+Note over SF: B va C KHONG tao request moi — chung xep hang.<br/>Day la toan bo chot chan chong reuse detection
+SF->>API: POST /api/v1/auth/refresh (khong body)
+Note over SF,API: credentials:'include' -> trinh duyet dinh cookie.<br/>Duong dan viet THUONG: Path cua cookie phan biet hoa thuong<br/>trong khi route ASP.NET thi khong (ADR-027)
+API->>API: doc Request.Cookies["pms_refresh_token"]
+end
+
+alt khong co cookie
+  API-->>SF: 401 UnauthorizedException
+  SF->>Store: clearSession() -> status = anonymous
+  Note over Store: Tang API KHONG tu dieu huong.<br/>AuthGuard doc status roi moi replace('/login')
+else co cookie
+  API->>Svc: RefreshAsync(token tu cookie)
+  Svc->>DB: SELECT RefreshTokens WHERE Hash = SHA256(token)
+  DB-->>Svc: ban ghi hoac null
+
+  alt token khong ton tai
+    Svc-->>API: 401 "Refresh token khong hop le."
+    API-->>SF: 401
+    SF->>Store: clearSession()
+  else token DA BI THU HOI (reuse detection)
+    Note over Svc,DB: Day la kich ban ma single-flight sinh ra de tranh.<br/>Backend coi day la token bi danh cap
+    Svc->>DB: RevokeAllAsync(employeeId) — thu hoi TOAN BO phien
+    DB-->>Svc: ok
+    Svc-->>API: 401 "Phien dang nhap khong hop le..."
+    API-->>SF: 401
+    SF->>Store: clearSession() -> anonymous
+    Note over Store: Nguoi dung bi da ra khoi MOI thiet bi.<br/>Trieu chung ngoai doi: "thinh thoang tu dang xuat"
+  else token het han HOAC tai khoan bi khoa (ADR-015)
+    Svc->>DB: RevokeAllAsync neu tai khoan bi khoa
+    Svc-->>API: 401
+    API-->>SF: 401
+    SF->>Store: clearSession()
+  else token hop le
+    Note over Svc,DB: ROTATION: cap cap token moi roi thu hoi token cu,<br/>chain qua ReplacedByTokenId. MOT lan SaveChanges (ADR-007)
+    Svc->>DB: INSERT token moi + UPDATE token cu (RevokedAt)
+    DB-->>Svc: ok
+    Svc-->>API: AuthResponse (co refresh token)
+    Note over API: Luoc refresh token khoi than phan hoi va dat vao<br/>Set-Cookie: HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth
+    API-->>SF: 200 AuthenticatedResponse (KHONG co refreshToken)
+    SF->>Store: setSession(accessToken, expiresAt, employee)
+  end
+end
+
+rect rgb(245, 255, 245)
+Note over R1,DB: 3) Giai phong hang doi
+SF->>SF: inFlight = null (trong finally, ke ca khi that bai)
+SF-->>Http: cung mot access token cho ca A, B, C
+
+alt refresh thanh cong
+  Http->>API: retry A, B, C kem Bearer token MOI
+  Note over Http: Retry DUNG mot lan. Neu van 401 thi phien da chet that,<br/>thu tiep chi tao them loi goi /refresh vo ich
+  API-->>Http: 200 x3
+  Http-->>R1: du lieu
+  Http-->>R2: du lieu
+  Http-->>R3: du lieu
+else refresh that bai
+  Http-->>R1: ApiError 401
+  Http-->>R2: ApiError 401
+  Http-->>R3: ApiError 401
+  Note over Store: status = anonymous -> AuthGuard dieu huong<br/>ve /login?next=... de dang nhap xong quay lai dung cho
+end
+end
+
+rect rgb(250, 245, 255)
+Note over R1,DB: 4) Bien the: refresh CHU DONG (khong doi 401)
+Note over Http,Store: accessTokenExpiresAt con duoi 60s -> goi refreshAccessToken()<br/>TRUOC khi gui. Nguong 60s rong hon ClockSkew 30s cua backend.<br/>Di qua cung mot single-flight nen van chi mot loi goi /refresh
+end
