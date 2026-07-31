@@ -31,7 +31,10 @@ public abstract class IntegrationTestBase
             Password: "Test@1234", ConfirmPassword: "Test@1234"));
 
         res.EnsureSuccessStatusCode();
-        var auth = await res.Content.ReadFromJsonAsync<AuthResponse>(TestJson.Options);
+        // AuthenticatedResponse, không phải AuthResponse: thân phản hồi cố ý không còn
+        // refresh token kể từ ADR-027. Deserialize vào AuthResponse vẫn "chạy" nhưng để
+        // lại RefreshToken = null lặng lẽ — đúng kiểu bẫy mà ADR-022 đã rút kinh nghiệm.
+        var auth = await res.Content.ReadFromJsonAsync<AuthenticatedResponse>(TestJson.Options);
 
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", auth!.AccessToken);
@@ -78,7 +81,7 @@ public abstract class IntegrationTestBase
         // Chính hiện tượng này là lý do phải thu hồi refresh token khi đổi SystemRole.
         var login = await client.PostAsJsonAsync("/api/v1/Auth/login",
             new LoginRequest(email, "Test@1234"));
-        var auth = await login.Content.ReadFromJsonAsync<AuthResponse>(TestJson.Options);
+        var auth = await login.Content.ReadFromJsonAsync<AuthenticatedResponse>(TestJson.Options);
 
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", auth!.AccessToken);

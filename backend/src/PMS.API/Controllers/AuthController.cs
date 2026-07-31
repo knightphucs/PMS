@@ -3,44 +3,74 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
+using PMS.Application.Common.Exceptions;
 using PMS.Application.Features.Auth;
 using PMS.Domain.Enums;
+using PMS.Infrastructure.Security;
 
 namespace PMS.API.Controllers;
 
+/// <summary>
+/// ⚠️ Route viết thường TƯỜNG MINH, không dùng <c>[controller]</c>. Routing của ASP.NET
+/// không phân biệt hoa thường nhưng <c>Path</c> của cookie thì CÓ. Với <c>[controller]</c>
+/// route là <c>/api/v1/Auth</c> (chữ A hoa), nên client gọi <c>/api/v1/auth/refresh</c>
+/// sẽ không được trình duyệt đính cookie <c>Path=/api/v1/auth</c> vào — hỏng im lặng,
+/// không lỗi, không exception. Cùng lớp lỗi với đính chính CORS cuối §15. Xem ADR-027.
+/// </summary>
 [ApiController]
-[Route("api/v1/[controller]")]
+[Route("api/v1/auth")]
 public class AuthController : ControllerBase
 {
+    /// <summary>Tên cookie chứa refresh token. Test và frontend tham chiếu hằng này.</summary>
+    public const string RefreshCookieName = "pms_refresh_token";
+
+    /// <summary>
+    /// Cookie chỉ được gửi tới đúng 4 endpoint auth, không đi kèm mọi request nghiệp vụ.
+    /// Nhờ vậy các endpoint khác xác thực thuần bằng header Authorization và miễn nhiễm CSRF.
+    /// </summary>
+    public const string RefreshCookiePath = "/api/v1/auth";
+
     private readonly IAuthService _auth;
-    public AuthController(IAuthService auth) => _auth = auth;
+    private readonly JwtOptions _jwt;
+
+    public AuthController(IAuthService auth, IOptions<JwtOptions> jwt)
+        => (_auth, _jwt) = (auth, jwt.Value);
 
     [HttpPost("register"), AllowAnonymous, EnableRateLimiting("register")]
-    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AuthenticatedResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<AuthResponse>> Register(RegisterRequest req, CancellationToken ct)
-        => Ok(await _auth.RegisterAsync(req, ct));
+    public async Task<ActionResult<AuthenticatedResponse>> Register(RegisterRequest req, CancellationToken ct)
+        => Ok(IssueSession(await _auth.RegisterAsync(req, ct)));
 
     [HttpPost("login"), AllowAnonymous, EnableRateLimiting("login")]
-    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AuthenticatedResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<AuthResponse>> Login(LoginRequest req, CancellationToken ct)
-        => Ok(await _auth.LoginAsync(req, ct));
+    public async Task<ActionResult<AuthenticatedResponse>> Login(LoginRequest req, CancellationToken ct)
+        => Ok(IssueSession(await _auth.LoginAsync(req, ct)));
 
+    /// <summary>
+    /// Không nhận body: refresh token chỉ đến từ cookie httpOnly. Rotation của
+    /// <c>AuthService.RefreshAsync</c> có reuse detection, nên client BẮT BUỘC phải
+    /// single-flight — gọi song song hai lần với cùng một token sẽ bị coi là token bị
+    /// đánh cắp và thu hồi TOÀN BỘ phiên (ADR-030 mô tả phía client).
+    /// </summary>
     [HttpPost("refresh"), AllowAnonymous, EnableRateLimiting("refresh")]
-    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AuthenticatedResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<AuthResponse>> Refresh(RefreshTokenRequest req, CancellationToken ct)
-        => Ok(await _auth.RefreshAsync(req, ct));
+    public async Task<ActionResult<AuthenticatedResponse>> Refresh(CancellationToken ct)
+        => Ok(IssueSession(await _auth.RefreshAsync(new RefreshTokenRequest(ReadRefreshCookie()), ct)));
 
     [HttpPost("logout"), Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> Logout(RefreshTokenRequest req, CancellationToken ct)
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Logout(CancellationToken ct)
     {
-        await _auth.LogoutAsync(req, ct);
+        await _auth.LogoutAsync(new RefreshTokenRequest(ReadRefreshCookie()), ct);
+        ClearRefreshCookie();
         return NoContent();
     }
 
@@ -55,4 +85,34 @@ public class AuthController : ControllerBase
 
         return Ok(new EmployeeDto(id, name, email, role));
     }
+
+    /// <summary>Đặt cookie refresh mới rồi lược refresh token khỏi thân phản hồi.</summary>
+    private AuthenticatedResponse IssueSession(AuthResponse auth)
+    {
+        Response.Cookies.Append(RefreshCookieName, auth.RefreshToken, BuildCookieOptions(
+            DateTimeOffset.UtcNow.AddDays(_jwt.RefreshTokenDays)));
+
+        return AuthenticatedResponse.From(auth);
+    }
+
+    private void ClearRefreshCookie()
+        => Response.Cookies.Delete(RefreshCookieName, BuildCookieOptions(DateTimeOffset.UnixEpoch));
+
+    /// <summary>
+    /// Bốn thuộc tính phải khớp NGUYÊN VẸN giữa lúc đặt và lúc xóa, nếu không trình duyệt
+    /// coi là hai cookie khác nhau và cookie cũ vẫn sống tiếp sau khi đăng xuất.
+    /// </summary>
+    private static CookieOptions BuildCookieOptions(DateTimeOffset expires) => new()
+    {
+        HttpOnly = true,                    // JavaScript không đọc được -> XSS không lấy được phiên 7 ngày
+        Secure = true,                      // chỉ đi trên HTTPS
+        SameSite = SameSiteMode.Strict,     // chặn CSRF tới chính endpoint refresh
+        Path = RefreshCookiePath,
+        Expires = expires
+    };
+
+    private string ReadRefreshCookie()
+        => Request.Cookies.TryGetValue(RefreshCookieName, out var token) && !string.IsNullOrWhiteSpace(token)
+            ? token
+            : throw new UnauthorizedException("Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại.");
 }

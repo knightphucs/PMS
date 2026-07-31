@@ -44,7 +44,11 @@ builder.Services.AddOptions<CorsOptions>()
         options.AddPolicy(CorsPolicy, policy => policy
             .WithOrigins(configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [])
             .AllowAnyHeader()
-            .AllowAnyMethod()));
+            .AllowAnyMethod()
+            // Bắt buộc cho cookie refresh của ADR-027: thiếu nó thì trình duyệt vứt bỏ
+            // Set-Cookie ở phản hồi cross-origin và không đính cookie vào request sau.
+            // Hợp lệ vì đi kèm WithOrigins — AllowAnyOrigin + AllowCredentials bị cấm.
+            .AllowCredentials()));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
