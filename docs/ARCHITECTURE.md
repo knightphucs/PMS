@@ -26,23 +26,40 @@
 > **hai site khác nhau** — chạy Next trên http thì cookie không bao giờ được gửi và toàn
 > bộ luồng refresh hỏng **im lặng** (401 mà không có gì chỉ ra nguyên nhân).
 >
-> ### Phiên tiếp theo: Board/Backlog Kanban + chi tiết Task
-> Thứ tự §13 bước 6 còn lại: **Task/Board (Kanban + Backlog) → Dashboard**. Kéo-thả là
-> phần nặng riêng nên để dành nguyên một phiên.
+> ### ➡️ Phiên tiếp theo: đọc `docs/frontend-next-session.md` TRƯỚC
+> Tài liệu đó là bản chuẩn bị đầy đủ cho phiên sau, gồm **7 quyết định phải chốt trước khi
+> gõ dòng code nào**, bản đồ màn hình → API, và kế hoạch cụ thể để giao diện đạt mức
+> Jira/Trello. Khối này chỉ tóm tắt.
+>
+> **Nhìn thẳng vào vấn đề:** sau đăng nhập hiện chỉ có **một màn hình**. Task, Sprint,
+> Board, Backlog, Comment, Notification, Dashboard đều chưa có màn nào — dù API của phần
+> lớn trong số đó **đã sẵn sàng từ lâu**. Phiên sau phải trả bằng màn hình.
+>
+> **Ba quyết định đắt nhất, đều cần sửa backend nên phải chốt sớm:**
+> - `TaskItem` **không có mã ngắn** kiểu `PMS-12`, chỉ có `Guid` → đây là thứ đơn lẻ ảnh
+>   hưởng lớn nhất tới cảm giác "giống Jira". Làm sớm khi bảng còn ít dữ liệu.
+> - `TaskItem` **không có `Description`** → màn chi tiết task chưa dùng được thật.
+> - Dark mode: `globals.css` đã có sẵn đủ biến CSS, chi phí thấp hơn nhiều so với giả định
+>   khi §14 xếp nó vào Nhóm C. Làm sớm trước khi có nhiều màn phải rà lại.
+>
+> **Thứ tự đề xuất:** Project detail (khung tab) → Board Kanban → Backlog + Sprint →
+> *(một đợt backend ngắn: Description + mã task + Label + Watcher + ActivityLog)* →
+> Task detail → Notification → Dashboard.
 >
 > **Ba cái bẫy của Kanban, đọc trước khi code:**
 > - Kéo thẻ về **đúng cột nó đang đứng** nhận **409** (state machine từ chối "đứng yên"),
->   và **nhảy bước** `ToDo → Done` cũng 409. UI phải chặn trước hoặc nuốt êm — đừng hiện
->   toast đỏ khi người dùng thả nhầm chỗ cũ.
+>   và **nhảy bước** `ToDo → Done` cũng 409. UI phải chặn trước — đừng bắn request rồi
+>   hiện toast đỏ khi người dùng thả nhầm chỗ cũ.
 > - `PATCH /tasks/{id}/status` và `PUT /tasks/{id}/sprint` **KHÔNG** cần `RowVersion`
 >   (ADR-021), nhưng `PUT /tasks/{id}` thì **bắt buộc**.
 > - Board luôn trả **đủ 4 cột** kể cả cột rỗng — không phải tự dựng cột thiếu.
 >
 > **Đọc theo thứ tự:**
-> 1. §6 (Kiến trúc Frontend) — đã viết lại, nay là hiện trạng chứ không còn là dự kiến
-> 2. §15 **ADR-027 → ADR-032** — sáu quyết định của phiên 2026-07-31
-> 3. `frontend/lib/api/` — tầng API client; đọc `refresh.ts` trước tiên
-> 4. `docs/uml/seq-diagram/src/seq-12-refresh-token.mmd` — cơ chế refresh có nhánh
+> 1. `docs/frontend-next-session.md` — bản chuẩn bị, đọc trước tiên
+> 2. §6 (Kiến trúc Frontend) — đã viết lại, nay là hiện trạng chứ không còn là dự kiến
+> 3. §15 **ADR-027 → ADR-032** — sáu quyết định của phiên 2026-07-31
+> 4. `frontend/lib/api/` — tầng API client; đọc `refresh.ts` trước tiên
+> 5. `docs/uml/seq-diagram/src/seq-12-refresh-token.mmd` — cơ chế refresh có nhánh
 >
 > **Khuôn mẫu để copy khi làm màn hình mới:** `app/(app)/projects/page.tsx` +
 > `lib/hooks/use-projects.ts` + `components/projects/` — đủ cả bốn trạng thái
@@ -108,7 +125,8 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 
 | # | Hạng mục | Vì sao xếp ở đây | Quy mô ước tính |
 |---|---|---|---|
-| 1 | **Frontend — Board/Backlog Kanban** (kéo-thả) + chi tiết Task | Nền đã xong ở phiên 2026-07-31 (scaffold, API client, Auth, Project list) nên mọi màn hình sau chỉ còn là hook + component. Board là màn hình *bán được* nhất của đồ án và API đã sẵn từ lâu. ⚠️ Ba cái bẫy đã ghi ở khối "Bắt đầu phiên mới": thả về đúng cột cũ → 409, nhảy bước → 409, và `PATCH status` **không** cần `RowVersion` | Lớn — 1–2 phiên |
+| 1 | **Frontend — Project detail + Board/Backlog Kanban + Sprint** | Nền đã xong ở phiên 2026-07-31 nên mọi màn hình sau chỉ còn là hook + component. Board là màn hình *bán được* nhất và API đã sẵn từ lâu. Chi tiết ở `docs/frontend-next-session.md` | Lớn — 1–2 phiên |
+| 1b | **Đợt backend ngắn chèn giữa**: `Description` + mã task `PMS-12`, Label, Watcher, ActivityLog đọc | Bốn thứ này cùng chặn màn **chi tiết Task**, gom một đợt rẻ hơn làm rời. Mã task còn là chi tiết ảnh hưởng thị giác lớn nhất tới cảm giác "giống Jira" | Vừa — 1 migration |
 | 2 | **Watcher + Label + TaskLink API** | Ba cái nhỏ, gom một đợt. ⚠️ `Watcher` **không** kế thừa `BaseEntity` nên `IRepository<T>` không phục vụ được, phải xử lý riêng. `TaskLink` cần thêm guard chống link vòng (A blocks B và B blocks A cùng lúc sẽ khóa chết cả hai ở blocker check). `Watcher` giờ có thêm lý do rõ ràng để làm: nó đã nằm trong `InterestedEmployeeIds` của cả luồng đổi status lẫn comment, nhưng chưa có API nào để đăng ký theo dõi | Vừa |
 | 3 | **Background job task quá hạn** → Notification `DueSoon` | `ITaskRepository.GetOverdueAsync` **đã tồn tại nhưng chưa có caller nào** — đúng loại code chờ sẵn mà nếu để lâu sẽ lệch khỏi nghiệp vụ. Phụ thuộc cũ đã được giải: giờ đã đọc được thông báo nên job có ý nghĩa thật | Nhỏ |
 | 4 | **Activity Log API đọc** | Khoảng trống cùng loại với Notification trước phiên này: `IActivityLogger` ghi ở mọi luồng (nay có cả 3 action của Comment) nhưng chưa endpoint nào đọc ra. Cần cho tab "Activity" ở màn hình chi tiết task (§6) | Nhỏ — 1 service, 1–2 endpoint |
