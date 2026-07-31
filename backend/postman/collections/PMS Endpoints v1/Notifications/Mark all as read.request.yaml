@@ -1,9 +1,0 @@
-$kind: http-request
-name: Mark all as read
-url: "{{api_url}}/notifications/read-all"
-method: PATCH
-auth:
-  type: bearer
-  credentials:
-    token: "{{access_token}}"
-order: 4200000000000104

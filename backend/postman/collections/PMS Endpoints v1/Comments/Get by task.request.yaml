@@ -1,15 +1,16 @@
 $kind: http-request
 name: Get by task
+description: "Bình luận của task, mặc định cũ nhất trước (đọc hội thoại theo thứ tự). Mọi thành viên project đọc được, kể cả Viewer."
 url: "{{api_url}}/tasks/:task_id/comments?Page=&PageSize=&SortBy=&SortDirection=&Search=&IsDescending=&Skip="
 method: GET
 queryParams:
   - key: Page
-    value: ""
+    value: "1"
     disabled: false
     description: ""
     $type: integer
   - key: PageSize
-    value: ""
+    value: "20"
     disabled: false
     description: ""
     $type: integer
@@ -40,7 +41,8 @@ queryParams:
     $type: integer
 pathVariables:
   - key: task_id
-    value: ""
+    value: 8DD5602C-EB76-4E72-BFF4-707011B0E6AF
+    description: Task cần xem bình luận
     $type: |-
       {
         "type": "object",

@@ -1,11 +1,12 @@
 $kind: http-request
-name: Update a comment
+name: Edit comment
+description: "Sửa bình luận — CHỈ tác giả (ADR-026). ProjectManager cũng nhận 403: xóa lời người khác là kiểm duyệt hợp lý, viết lại lời người khác thì không vì nội dung vẫn đứng tên tác giả cũ."
 url: "{{api_url}}/comments/:id"
 method: PUT
 pathVariables:
   - key: id
-    value: 00000000-0000-0000-0000-000000000000
-    description: CHỈ tác giả sửa được — ProjectManager cũng nhận 403 (ADR-026)
+    value: ""
+    description: Id bình luận, copy từ response POST hoặc GET comments
     $type: |-
       {
         "type": "object",
@@ -29,4 +30,4 @@ auth:
   type: bearer
   credentials:
     token: "{{access_token}}"
-order: 4200000000000203
+order: 2011707590373862
