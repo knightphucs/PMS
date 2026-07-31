@@ -40,8 +40,7 @@ public class TaskStatusTransitionService : ITaskStatusTransitionService
         var task = await _uow.Tasks.GetForStatusChangeAsync(taskId, ct)
             ?? throw new NotFoundException(nameof(TaskItem), taskId);
 
-        // View là ngưỡng thấp nhất: chỉ để loại người ngoài project (404) và lấy được
-        // RoleInProject. Luật thật nằm ở EnsureCanChangeStatus bên dưới.
+        // View là ngưỡng thấp nhất: chỉ để loại người ngoài project (404)
         var role = await _authz.AuthorizeTaskAsync(task, ProjectAction.View, ct);
 
         EnsureCanChangeStatus(task, role, actorId);
@@ -51,9 +50,7 @@ public class TaskStatusTransitionService : ITaskStatusTransitionService
 
         var previous = task.Status;
 
-        // Nhảy bước -> DomainException = 409. Đứng yên cũng không hợp lệ, nhờ đó hai
-        // người cùng chuyển tới một đích thì người sau bị chặn — đó là lý do đổi trạng
-        // thái không cần round-trip RowVersion (ADR-021).
+        // Nhảy bước -> DomainException = 409. Đứng yên cũng không hợp lệ
         task.ChangeStatus(request.Target);
 
         _activityLog.Log(nameof(TaskItem), taskId, ActivityAction.StatusChanged,

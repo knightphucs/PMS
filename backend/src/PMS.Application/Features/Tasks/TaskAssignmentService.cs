@@ -78,11 +78,8 @@ public class TaskAssignmentService : ITaskAssignmentService
 
         var task = await LoadTaskAsync(taskId, ct);
 
-        // SelfAssign cho phép Member, chặn Viewer — khác với ManageAssignees (chỉ PM).
         await _authz.AuthorizeTaskAsync(task, ProjectAction.SelfAssign, ct);
 
-        // §5: chỉ tự nhận được task đang ToDo ("chưa ai làm"). Điều kiện này chính là
-        // thứ tránh xung đột khi bỏ qua bước PM duyệt.
         if (task.Status != Status.ToDo)
             throw new ConflictException(
                 $"Chỉ tự nhận được task đang ở trạng thái ToDo; task này đang {task.Status}. " +
@@ -129,9 +126,6 @@ public class TaskAssignmentService : ITaskAssignmentService
 
         task.RemoveAssignee(employeeId);
 
-        // Xóa tường minh thay vì dựa vào orphan-cascade ngầm của EF (bài học ADR-008).
-        // TaskAssignment không phải ISoftDeletable nên đây là xóa cứng — audit trail do
-        // ActivityLog đảm nhiệm, nhất quán với cách gỡ ProjectMember ở ADR-012.
         _uow.TaskAssignments.Remove(assignment);
 
         _activityLog.Log(nameof(TaskItem), taskId, ActivityAction.Unassigned,
@@ -169,7 +163,6 @@ public class TaskAssignmentService : ITaskAssignmentService
     /// <summary>
     /// Assignee bắt buộc là ProjectMember đã Accepted của đúng project chứa task (seq-02).
     /// Chặn ở đây chứ không ở domain vì TaskItem không có nav property tới ProjectMember.
-    /// Trả 403 theo đúng seq-02, dù chủ thể bị từ chối là target chứ không phải người gọi.
     /// </summary>
     private static Employee RequireActiveMember(Project project, Guid employeeId)
     {

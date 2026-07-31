@@ -29,8 +29,6 @@ public class NotificationRepository : Repository<Notification>, INotificationRep
 
         var totalCount = await query.CountAsync(ct);
 
-        // Mặc định mới nhất trước: hộp thông báo đọc từ trên xuống, khác danh sách task
-        // (sắp theo DueDate tăng dần).
         query = (request.SortBy?.ToLowerInvariant(), request.IsDescending) switch
         {
             ("createdat", false) => query.OrderBy(n => n.CreatedAt),
@@ -56,5 +54,5 @@ public class NotificationRepository : Repository<Notification>, INotificationRep
         Guid employeeId, CancellationToken ct = default)
         => await DbSet
             .Where(n => n.EmployeeId == employeeId && !n.IsRead)
-            .ToListAsync(ct);   // cố ý KHÔNG AsNoTracking: cần ChangeTracker để sửa (ADR-024)
+            .ToListAsync(ct);
 }

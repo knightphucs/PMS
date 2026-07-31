@@ -9,9 +9,7 @@ public interface ITaskAssignmentService
     Task<TaskAssigneeResponse> AssignAsync(
         Guid taskId, AssignTaskRequest request, CancellationToken ct = default);
 
-    /// <summary>Tự nhận task — Member/PM, chỉ khi task đang ToDo (§5).</summary>
     Task<TaskAssigneeResponse> SelfAssignAsync(Guid taskId, CancellationToken ct = default);
 
-    /// <summary>Tự rút khỏi task, hoặc PM gỡ người khác.</summary>
     Task UnassignAsync(Guid taskId, Guid employeeId, CancellationToken ct = default);
 }
