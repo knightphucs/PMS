@@ -1,5 +1,6 @@
 $kind: http-request
 name: Get unread's count
+description: "Số thông báo chưa đọc — endpoint riêng để badge trên chuông không phải tải cả danh sách."
 url: "{{api_url}}/notifications/unread-count"
 method: GET
 auth:

@@ -1,11 +1,12 @@
 $kind: http-request
-name: Add comment
-url: "{{api_url}}/tasks/:task_id/comments"
-method: POST
+name: Delete comment
+description: "Xóa bình luận — tác giả HOẶC ProjectManager (ADR-026). Xóa CỨNG, không phải xóa mềm; audit trail do ActivityLog đảm nhiệm."
+url: "{{api_url}}/comments/:id"
+method: DELETE
 pathVariables:
-  - key: task_id
+  - key: id
     value: ""
-    description: ""
+    description: Id bình luận, copy từ response GET comments
     $type: |-
       {
         "type": "object",
@@ -19,14 +20,8 @@ pathVariables:
           "value"
         ]
       }
-body:
-  type: json
-  content: |-
-    {
-        "content": "string"
-    }
 auth:
   type: bearer
   credentials:
     token: "{{access_token}}"
-order: 1785404050144
+order: 2290543099642350

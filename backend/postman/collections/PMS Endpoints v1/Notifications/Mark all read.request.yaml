@@ -1,0 +1,10 @@
+$kind: http-request
+name: Mark all read
+description: "Đánh dấu tất cả đã đọc; trả về markedCount = số bản ghi THẬT SỰ đổi trạng thái nên gọi lần hai trả 0."
+url: "{{api_url}}/notifications/read-all"
+method: PATCH
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4479543749723855

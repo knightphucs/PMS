@@ -1,11 +1,12 @@
 $kind: http-request
-name: Mark one as read
+name: Mark as read
+description: "Đánh dấu một thông báo đã đọc. Idempotent: gọi lần hai vẫn 200, không phải 409 (ADR-023). Thông báo của người khác trả 404 chứ không 403."
 url: "{{api_url}}/notifications/:id/read"
 method: PATCH
 pathVariables:
   - key: id
-    value: 00000000-0000-0000-0000-000000000000
-    description: Lấy từ response GET /notifications. Thông báo của người khác trả 404 (ADR-023)
+    value: ""
+    description: Id thông báo, copy từ response GET /notifications
     $type: |-
       {
         "type": "object",
@@ -23,4 +24,4 @@ auth:
   type: bearer
   credentials:
     token: "{{access_token}}"
-order: 4200000000000103
+order: 4475439156213327
