@@ -13,6 +13,9 @@ public enum ActivityAction
     MemberRemoved,
     Assigned,
     Unassigned,
+    Commented,
+    CommentUpdated,
+    CommentDeleted,
     AccountLocked,
     AccountUnlocked,
     SystemRoleChanged

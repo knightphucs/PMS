@@ -17,6 +17,14 @@ public interface ITaskRepository : IRepository<TaskItem>
     /// báo nhầm 0%). Nhẹ hơn GetWithDetailsAsync vốn kéo cả Comment/Label/Link.
     /// </summary>
     Task<TaskItem?> GetForStatusChangeAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Nạp đúng những gì <c>TaskNotificationExtensions.InterestedEmployeeIds</c> cần:
+    /// Assignments + Watchers. Không tái dùng <see cref="GetForStatusChangeAsync"/> vì nó
+    /// còn kéo Subtasks chỉ để tính SubtaskProgress — và cái tên sẽ nói sai việc khi
+    /// CommentService gọi tới.
+    /// </summary>
+    Task<TaskItem?> GetWithNotificationTargetsAsync(Guid id, CancellationToken ct = default);
     Task<PagedResult<TaskItem>> GetPagedByProjectAsync(
         Guid projectId, PagedRequest request, CancellationToken ct = default);
     Task<IReadOnlyList<TaskItem>> GetBacklogAsync(Guid projectId, CancellationToken ct = default);

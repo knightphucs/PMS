@@ -24,7 +24,7 @@ body:
   content: |-
     {
         "email": "em@pms.local",
-        "role": 1
+        "role": "Member"
     }
 auth:
   type: bearer

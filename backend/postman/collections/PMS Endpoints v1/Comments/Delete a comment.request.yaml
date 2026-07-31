@@ -1,0 +1,26 @@
+$kind: http-request
+name: Delete a comment
+url: "{{api_url}}/comments/:id"
+method: DELETE
+pathVariables:
+  - key: id
+    value: 00000000-0000-0000-0000-000000000000
+    description: Tác giả HOẶC ProjectManager; xóa cứng, không phải xóa mềm (ADR-026)
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4200000000000204

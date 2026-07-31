@@ -21,10 +21,10 @@ public class SubtaskTests : IntegrationTestBase
         var parentId = await CreateTaskAsync(pm.Client, projectId, "Task cha");
         var subId = await CreateTaskAsync(pm.Client, projectId, "Subtask", parentTaskId: parentId);
 
-        var parent = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{parentId}");
+        var parent = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{parentId}", TestJson.Options);
         parent!.Subtasks.ShouldHaveSingleItem().Id.ShouldBe(subId);
 
-        var sub = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{subId}");
+        var sub = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{subId}", TestJson.Options);
         sub!.ParentTaskId.ShouldBe(parentId);
         sub.ProjectId.ShouldBe(projectId);
     }
@@ -45,11 +45,11 @@ public class SubtaskTests : IntegrationTestBase
             new AssignTaskRequest(member.EmployeeId, RoleInTask.Owner));
         await AdvanceStatusAsync(member.Client, subId, Status.InProgress);
 
-        var sub = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{subId}");
+        var sub = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{subId}", TestJson.Options);
         sub!.Status.ShouldBe(Status.InProgress);
         sub.Assignees.ShouldHaveSingleItem().EmployeeId.ShouldBe(member.EmployeeId);
 
-        var parent = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{parentId}");
+        var parent = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{parentId}", TestJson.Options);
         parent!.Status.ShouldBe(Status.ToDo);          // task cha độc lập
         parent.Assignees.ShouldBeEmpty();
     }
@@ -95,7 +95,7 @@ public class SubtaskTests : IntegrationTestBase
 
         await AdvanceStatusAsync(pm.Client, sub1, Status.Done);
 
-        var parent = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{parentId}");
+        var parent = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{parentId}", TestJson.Options);
         parent!.SubtaskProgress.ShouldBe(50m);
         // Task cha KHÔNG tự động Done — Jira behavior, §5
         parent.Status.ShouldBe(Status.ToDo);

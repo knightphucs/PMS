@@ -40,6 +40,14 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
             .AsSplitQuery()
             .FirstOrDefaultAsync(t => t.Id == id, ct);
 
+    public async Task<TaskItem?> GetWithNotificationTargetsAsync(
+        Guid id, CancellationToken ct = default)
+        => await DbSet
+            .Include(t => t.Assignments)
+            .Include(t => t.Watchers)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(t => t.Id == id, ct);
+
     public async Task<PagedResult<TaskItem>> GetPagedByProjectAsync(
         Guid projectId, PagedRequest request, CancellationToken ct = default)
     {

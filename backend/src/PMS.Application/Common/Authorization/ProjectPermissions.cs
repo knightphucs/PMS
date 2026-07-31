@@ -24,6 +24,12 @@ public static class ProjectPermissions
         // Viewer thì không vì Viewer chỉ đọc.
         ProjectAction.SelfAssign       => role is RoleInProject.ProjectManager
                                                or RoleInProject.Member,
+
+        // §10: Member "viết comment" là quyền được liệt kê tường minh; Viewer chỉ xem
+        // (stakeholder/khách hàng/auditor theo dõi tiến độ, không tham gia thảo luận).
+        // ĐỌC comment thì đi qua ProjectAction.View nên Viewer vẫn đọc được.
+        ProjectAction.CreateComment    => role is RoleInProject.ProjectManager
+                                               or RoleInProject.Member,
         _ => false
     };
 }

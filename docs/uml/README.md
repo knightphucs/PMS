@@ -49,6 +49,15 @@ cd docs/uml
 | 07 | `seq-07-delete-task` | PM xóa task | ADR-018: còn subtask chưa `Done` → 409; cascade tường minh xuống subtask đã `Done` |
 | 08 | `seq-08-move-task-sprint` | Kéo task Backlog ↔ Sprint | Sprint khác project → 400 |
 | 09 | `seq-09-delete-sprint` | PM xóa sprint | ADR-020: task về Backlog, **không** bị xóa |
+| 10 | `seq-10-read-notification` | Đọc / đánh dấu đã đọc thông báo | ADR-023: ngoại lệ hợp lệ của ADR-006/019, thông báo người khác → 404; đánh dấu lần hai vẫn 200 (idempotent); ADR-024: mark-all đi qua ChangeTracker, 1 `SaveChanges` |
+| 11 | `seq-11-delete-comment` | Xóa comment trên task | ADR-026: ngoài project → 404, không phải tác giả và không phải PM → 403, xóa **cứng** + `ActivityLog` |
+
+## Bẫy khi viết `.mmd`
+
+**Không dùng `&lt;` / `&gt;` cho generic.** draw.io escape thêm một lớp nữa khi nhúng vào
+XML (`&amp;lt;`), nên PNG hiện ra nguyên văn `PagedResult&lt;Notification&gt;` thay vì
+`PagedResult<Notification>`. Dùng ngoặc vuông: `PagedResult[Notification]`. Phát hiện
+2026-07-30 khi vẽ `seq-10` — các diagram trước đó tránh được vì không có generic nào.
 
 ## Nợ còn lại
 

@@ -28,7 +28,7 @@ public class TaskAssignmentTests : IntegrationTestBase
             new AssignTaskRequest(member.EmployeeId, RoleInTask.Owner));
 
         res.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var body = await res.Content.ReadFromJsonAsync<TaskAssigneeResponse>();
+        var body = await res.Content.ReadFromJsonAsync<TaskAssigneeResponse>(TestJson.Options);
         body!.EmployeeId.ShouldBe(member.EmployeeId);
         body.EmployeeName.ShouldNotBeNullOrWhiteSpace();   // navigation phải sẵn sàng khi map
     }
@@ -100,7 +100,7 @@ public class TaskAssignmentTests : IntegrationTestBase
         second.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var assignees = await pm.Client.GetFromJsonAsync<List<TaskAssigneeResponse>>(
-            $"/api/v1/tasks/{taskId}/assignees");
+            $"/api/v1/tasks/{taskId}/assignees", TestJson.Options);
         assignees!.Count.ShouldBe(2);
         assignees.Select(x => x.EmployeeId).ShouldBe([a.EmployeeId, b.EmployeeId], ignoreOrder: true);
     }

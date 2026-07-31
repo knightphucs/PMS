@@ -30,7 +30,7 @@ public class TaskStatusTransitionTests : IntegrationTestBase
             new ChangeTaskStatusRequest(Status.InProgress));
 
         res.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var body = await res.Content.ReadFromJsonAsync<TaskSummaryResponse>();
+        var body = await res.Content.ReadFromJsonAsync<TaskSummaryResponse>(TestJson.Options);
         body!.Status.ShouldBe(Status.InProgress);
     }
 
@@ -126,7 +126,7 @@ public class TaskStatusTransitionTests : IntegrationTestBase
 
         await AdvanceStatusAsync(pm.Client, taskId, Status.Done);
 
-        var detail = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{taskId}");
+        var detail = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{taskId}", TestJson.Options);
         detail!.Status.ShouldBe(Status.Done);
     }
 

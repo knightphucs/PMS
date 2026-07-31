@@ -24,9 +24,9 @@ public class ProjectsCrudTests : IntegrationTestBase
         res.StatusCode.ShouldBe(HttpStatusCode.Created);
         res.Headers.Location.ShouldNotBeNull();       // CreatedAtAction phải sinh Location
 
-        var summary = await res.Content.ReadFromJsonAsync<ProjectSummaryResponse>();
+        var summary = await res.Content.ReadFromJsonAsync<ProjectSummaryResponse>(TestJson.Options);
         var detail = await a.Client.GetFromJsonAsync<ProjectDetailResponse>(
-            $"/api/v1/Projects/{summary!.Id}");
+            $"/api/v1/Projects/{summary!.Id}", TestJson.Options);
 
         var member = detail!.Members.ShouldHaveSingleItem();
         member.EmployeeId.ShouldBe(a.EmployeeId);
@@ -42,7 +42,7 @@ public class ProjectsCrudTests : IntegrationTestBase
         await CreateProjectAsync(a.Client);
 
         var paged = await a.Client.GetFromJsonAsync<PagedResult<ProjectSummaryResponse>>(
-            "/api/v1/Projects");
+            "/api/v1/Projects", TestJson.Options);
 
         paged!.Items.Count.ShouldBe(1);
         paged.Page.ShouldBe(1);
@@ -55,13 +55,13 @@ public class ProjectsCrudTests : IntegrationTestBase
     {
         var a = await CreateUserAsync();
         var id = await CreateProjectAsync(a.Client);
-        var before = await a.Client.GetFromJsonAsync<ProjectDetailResponse>($"/api/v1/Projects/{id}");
+        var before = await a.Client.GetFromJsonAsync<ProjectDetailResponse>($"/api/v1/Projects/{id}", TestJson.Options);
 
         var res = await a.Client.PutAsJsonAsync($"/api/v1/Projects/{id}",
             new UpdateProjectRequest("  Tên đã đổi  ", "Mô tả mới", DateTime.UtcNow.AddDays(60), before!.RowVersion));
 
         res.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var detail = await res.Content.ReadFromJsonAsync<ProjectDetailResponse>();
+        var detail = await res.Content.ReadFromJsonAsync<ProjectDetailResponse>(TestJson.Options);
         detail!.Name.ShouldBe("Tên đã đổi");     // service có Trim()
     }
 
@@ -70,7 +70,7 @@ public class ProjectsCrudTests : IntegrationTestBase
     {
         var a = await CreateUserAsync();
         var id = await CreateProjectAsync(a.Client);
-        var before = await a.Client.GetFromJsonAsync<ProjectDetailResponse>($"/api/v1/Projects/{id}");
+        var before = await a.Client.GetFromJsonAsync<ProjectDetailResponse>($"/api/v1/Projects/{id}", TestJson.Options);
 
         // Sửa lần 1 thành công -> RowVersion trên DB đã đổi
         await a.Client.PutAsJsonAsync($"/api/v1/Projects/{id}",
@@ -106,7 +106,7 @@ public class ProjectsCrudTests : IntegrationTestBase
         var a = await CreateUserAsync();
 
         var paged = await a.Client.GetFromJsonAsync<PagedResult<ProjectSummaryResponse>>(
-            "/api/v1/Projects?pageSize=1000");
+            "/api/v1/Projects?pageSize=1000", TestJson.Options);
 
         // Setter của PagedRequest tự kẹp -> chặn client xin trang khổng lồ làm ngợp DB
         // (OWASP API4:2023 Unrestricted Resource Consumption)

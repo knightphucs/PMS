@@ -22,7 +22,7 @@ body:
   type: json
   content: |-
     {
-        "target": 3
+        "target": "Done"
     }
 auth:
   type: bearer

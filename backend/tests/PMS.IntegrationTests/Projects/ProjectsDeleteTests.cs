@@ -28,7 +28,7 @@ public class ProjectsDeleteTests : IntegrationTestBase
             .ShouldBe(HttpStatusCode.NotFound);
 
         var paged = await a.Client.GetFromJsonAsync<PagedResult<ProjectSummaryResponse>>(
-            "/api/v1/Projects");
+            "/api/v1/Projects", TestJson.Options);
         paged!.Items.ShouldBeEmpty();
 
         // Soft delete, KHÔNG xóa cứng -> hàng vẫn còn trong DB

@@ -1,0 +1,93 @@
+%% Sequence Diagram - Doc va danh dau da doc thong bao (ADR-023/024)
+%% Notification la NGOAI LE hop le duy nhat cua ADR-006/019: khong project-scoped nen
+%% khong di qua IProjectAuthorizationService. Pham vi truy cap bao dam bang CAU TRUC:
+%% moi method cua INotificationRepository deu bat buoc nhan employeeId.
+sequenceDiagram
+autonumber
+actor User as Nguoi dung
+participant API as NotificationsController
+participant Service as NotificationFeedService
+participant CurrentUser as ICurrentUserService
+participant Repo as NotificationRepository
+participant UoW as UnitOfWork
+participant DB as Database
+
+rect rgb(240, 248, 255)
+Note over User,DB: 1) Doc danh sach thong bao cua chinh minh
+User->>API: GET /api/v1/notifications?isRead=false
+API->>Service: GetMineAsync(isRead, pagedRequest)
+Service->>CurrentUser: RequireEmployeeId()
+alt chua dang nhap
+  CurrentUser-->>Service: null
+  Service-->>API: UnauthorizedException
+  API-->>User: 401 Unauthorized
+else da dang nhap
+  CurrentUser-->>Service: employeeId (tu JWT)
+  Note over Service,Repo: Khong co overload nao nhan employeeId tu client,<br/>nen khong co duong doc thong bao cua nguoi khac (ADR-023)
+  Service->>Repo: GetPagedForRecipientAsync(employeeId, isRead, request)
+  Repo->>DB: SELECT ... WHERE EmployeeId=@me AND IsRead=@isRead<br/>ORDER BY CreatedAt DESC
+  DB-->>Repo: rows
+  Repo-->>Service: PagedResult[Notification]
+  Note over Service: Mapper suy ra RelatedEntityKind tu Type (ADR-025)<br/>de client biet dieu huong toi Project hay Task
+  Service-->>API: PagedResult[NotificationResponse]
+  API-->>User: 200 OK
+end
+end
+
+rect rgb(255, 248, 240)
+Note over User,DB: 2) Danh dau MOT thong bao da doc
+User->>API: PATCH /api/v1/notifications/{id}/read
+API->>Service: MarkAsReadAsync(id)
+Service->>CurrentUser: RequireEmployeeId()
+CurrentUser-->>Service: employeeId
+Service->>Repo: GetForRecipientAsync(id, employeeId)
+Repo->>DB: SELECT ... WHERE Id=@id AND EmployeeId=@me
+DB-->>Repo: row or null
+Repo-->>Service: Notification or null
+alt khong ton tai HOAC la thong bao cua nguoi khac
+  Note over Service: Hai truong hop co y KHONG phan biet duoc:<br/>403 se xac nhan cho nguoi ngoai rang id do ton tai that<br/>(OWASP API1:2023, cung ly do ADR-006 chon 404)
+  Service-->>API: NotFoundException(Notification, id)
+  API-->>User: 404 Not Found
+else la thong bao cua chinh minh
+  Service->>Service: notification.MarkAsRead()
+  alt da doc tu truoc
+    Note over Service: Idempotent (ADR-023): khac ProjectMember.Accept(),<br/>bam chuong hai lan khong phai vi pham nghiep vu.<br/>MarkAsRead() tra false -> khong phat sinh UPDATE vo nghia
+    Service-->>API: NotificationResponse (IsRead=true)
+    API-->>User: 200 OK
+  else lan dau danh dau
+    Service->>UoW: SaveChangesAsync()
+    UoW->>DB: UPDATE Notifications SET IsRead=1, UpdatedAt=...
+    DB-->>UoW: ok
+    Service-->>API: NotificationResponse (IsRead=true)
+    API-->>User: 200 OK
+  end
+end
+end
+
+rect rgb(245, 255, 245)
+Note over User,DB: 3) Danh dau TAT CA da doc (ADR-024)
+User->>API: PATCH /api/v1/notifications/read-all
+API->>Service: MarkAllAsReadAsync()
+Service->>CurrentUser: RequireEmployeeId()
+CurrentUser-->>Service: employeeId
+Service->>Repo: GetUnreadForRecipientAsync(employeeId)
+Note over Repo: CO tracking (khong AsNoTracking):<br/>bat buoc di qua ChangeTracker
+Repo->>DB: SELECT ... WHERE EmployeeId=@me AND IsRead=0
+DB-->>Repo: rows chua doc
+Repo-->>Service: IReadOnlyList[Notification]
+alt khong co gi chua doc
+  Service-->>API: MarkAllReadResponse(0)
+  API-->>User: 200 OK (khong goi SaveChanges)
+else co N ban ghi chua doc
+  loop moi thong bao chua doc
+    Service->>Service: notification.MarkAsRead()
+  end
+  Note over Service,UoW: ADR-024: KHONG dung ExecuteUpdateAsync.<br/>Bulk update di thang xuong SQL nen bo qua ApplyAuditFields():<br/>IsRead van dung nhung UpdatedAt mat — dung loai loi am tham<br/>ma ADR-008 da tu choi mot lan khi chon Option A
+  Service->>UoW: SaveChangesAsync()
+  Note over UoW: MOT lan SaveChanges du sua N ban ghi (ADR-007)
+  UoW->>DB: UPDATE ... (N dong, kem UpdatedAt)
+  DB-->>UoW: ok
+  Service-->>API: MarkAllReadResponse(N)
+  API-->>User: 200 OK
+end
+end
