@@ -1,0 +1,33 @@
+$kind: http-request
+name: Edit comment
+description: Only author'comment can edit their comments. PM don't have a permission to do that.
+url: "{{api_url}}/comments/:id"
+method: PUT
+pathVariables:
+  - key: id
+    value: ""
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: |-
+    {
+        "content": "string"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 2011707590373862

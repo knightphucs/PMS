@@ -1,0 +1,32 @@
+$kind: http-request
+name: Add comment
+url: "{{api_url}}/tasks/:task_id/comments"
+method: POST
+pathVariables:
+  - key: task_id
+    value: ""
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: |-
+    {
+        "content": "string"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1785404050144
