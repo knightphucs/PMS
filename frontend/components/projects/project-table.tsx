@@ -39,13 +39,13 @@ export function ProjectTable({
   return (
     <div
       className={cn(
-        'overflow-x-auto rounded-lg border transition-opacity',
+        'bg-background overflow-x-auto rounded-lg border transition-opacity',
         dimmed && 'pointer-events-none opacity-60',
       )}
       aria-busy={dimmed}
     >
       <Table>
-        <TableHeader>
+        <TableHeader className="bg-muted/40">
           <TableRow>
             <TableHead>Tên dự án</TableHead>
             <TableHead className="w-40">Trạng thái</TableHead>
@@ -118,7 +118,7 @@ export function ProjectTable({
 
 export function ProjectTableSkeleton({ rows = 5 }: { rows?: number }) {
   return (
-    <div className="rounded-lg border" aria-busy="true">
+    <div className="bg-background rounded-lg border" aria-busy="true">
       <span className="sr-only">Đang tải danh sách dự án…</span>
       <div className="divide-y">
         {Array.from({ length: rows }, (_, i) => (

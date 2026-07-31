@@ -40,9 +40,16 @@ export default function ProjectsPage() {
 
   return (
     <div className="grid gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="grid gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Dự án</h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-semibold tracking-tight">Dự án</h1>
+            {query.data ? (
+              <span className="bg-muted text-muted-foreground rounded-full px-2.5 py-0.5 text-xs font-medium tabular-nums">
+                {query.data.totalCount}
+              </span>
+            ) : null}
+          </div>
           <p className="text-muted-foreground text-sm">
             Các dự án bạn đang tham gia.
           </p>
@@ -50,16 +57,23 @@ export default function ProjectsPage() {
         <CreateProjectDialog />
       </div>
 
-      <div className="relative max-w-sm">
-        <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-        <Input
-          type="search"
-          value={searchInput}
-          onChange={(event) => setSearchInput(event.target.value)}
-          placeholder="Tìm theo tên dự án…"
-          aria-label="Tìm dự án theo tên"
-          className="pl-9"
-        />
+      <div className="bg-background flex flex-wrap items-center gap-3 rounded-lg border p-3">
+        <div className="relative min-w-56 flex-1">
+          <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+          <Input
+            type="search"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            placeholder="Tìm theo tên dự án…"
+            aria-label="Tìm dự án theo tên"
+            className="pl-9"
+          />
+        </div>
+        {search ? (
+          <span className="text-muted-foreground text-sm" aria-live="polite">
+            {query.data?.totalCount ?? 0} kết quả cho “{search}”
+          </span>
+        ) : null}
       </div>
 
       {query.isError ? (
@@ -136,8 +150,10 @@ function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="grid place-items-center gap-3 rounded-lg border border-dashed px-6 py-16 text-center">
-      <div className="text-muted-foreground">{icon}</div>
+    <div className="bg-background grid place-items-center gap-3 rounded-lg border border-dashed px-6 py-16 text-center">
+      <div className="bg-muted text-muted-foreground grid size-14 place-items-center rounded-full">
+        {icon}
+      </div>
       <div className="grid gap-1">
         <p className="font-medium">{title}</p>
         <p className="text-muted-foreground max-w-md text-sm">{description}</p>
