@@ -2,15 +2,15 @@
 
 > `gh` CLI chưa cài trên máy nên PR phải mở tay.
 > **Base:** `dev` ← **Compare:** `module/frontend-foundation`
-> **Tiêu đề:** `Frontend: nền tảng + luồng Auth + danh sách Project (ADR-027 → ADR-031)`
+> **Tiêu đề:** `Frontend: nền tảng + Auth + Project CRUD (ADR-027 → ADR-032)`
 
 ---
 
 ## Tóm tắt
 
 Thư mục `frontend/` lần đầu tồn tại trong repo. Phiên này dựng phần nền mà mọi màn hình
-sau đều đi qua — scaffold, tầng API client, luồng Auth end-to-end, danh sách Project — và
-đổi cơ chế lưu token ở backend cho an toàn trước khi có màn hình nào phụ thuộc vào nó.
+sau đều đi qua — scaffold, tầng API client, luồng Auth end-to-end, Project CRUD đầy đủ —
+và đổi cơ chế lưu token ở backend cho an toàn trước khi có màn hình nào phụ thuộc vào nó.
 
 Board/Backlog Kanban để phiên sau (kéo-thả là phần nặng riêng).
 
@@ -39,7 +39,7 @@ config, 1 test phải sửa. **Không** đụng `AuthService`, **không** migrat
 185 call site register/login trong test — vì cookie là mối quan tâm *transport* nên xử lý
 ở tầng API, đúng tinh thần ADR-006.
 
-## Năm ADR mới
+## Sáu ADR mới
 
 | ADR | Quyết định |
 |---|---|
@@ -48,6 +48,25 @@ config, 1 test phải sửa. **Không** đụng `AuthService`, **không** migrat
 | **029** | TypeScript types viết tay, không dùng OpenAPI codegen |
 | **030** | Interceptor refresh phải **single-flight** |
 | **031** | Next.js 15, không dùng 16 |
+| **032** | `ProjectSummaryResponse` trả kèm `RoleInProject` của người gọi |
+
+## Vì sao lại thêm một trường vào `ProjectSummaryResponse` (ADR-032)
+
+Khi làm nút Sửa/Xóa cho từng dòng, lộ ra là frontend **không có cách nào** biết mình là
+`ProjectManager` hay `Viewer` trong project đó — vai trò chỉ lấy được qua
+`GET /projects/{id}/members`, tức một request cho **mỗi dòng**. §10 đã chốt "đọc
+`RoleInProject` từ API, đừng đoán từ mã lỗi", nên hiện nút rồi để backend trả 403 không
+phải phương án.
+
+Rẻ hơn vẻ ngoài: truy vấn phân trang **vốn đã** lọc theo `Members.Any(m => m.EmployeeId
+== @me && Accepted)`, nên nó buộc phải chạm đúng hàng chứa vai trò rồi — lấy thêm một cột
+không tốn round-trip nào.
+
+🔴 **Chi tiết đáng chú ý nhất:** `ProjectMapper.ToSummary` được viết **tay** thay vì để
+Mapperly sinh, và bắt buộc hai tham số. Lý do: `RoleInProject` có ordinal 0 là
+`ProjectManager`, nên nếu để bản một tham số thì call site nào quên truyền vai trò sẽ
+khiến **UI hiện nút Sửa/Xóa cho cả `Viewer`** — hỏng im lặng theo đúng chiều nguy hiểm
+nhất. Bắt buộc hai tham số thì trình biên dịch chặn ngay, không ai phải nhớ.
 
 ## Ba cái bẫy đã xử lý (đáng đọc nhất trong PR này)
 
@@ -72,12 +91,14 @@ một refresh token đã xoay vòng → 401, và ngay sau đó **phiên hợp l�
 
 ## Kiểm chứng
 
-**Backend** — clean build 0 warning, **321 test pass** (189 unit + 132 integration, +6):
+**Backend** — clean build 0 warning, **322 test pass** (189 unit + 133 integration, +7):
 - `AuthCookieTests` (5 fact mới) đọc **thẳng chuỗi `Set-Cookie`** chứ không qua
   `CookieContainer` — vì `CookieContainer` nuốt mất thuộc tính và không hề enforce
   `SameSite`, nên test đi qua nó vẫn xanh dù ai đó tháo mất `HttpOnly`. Có một fact riêng
   khẳng định thân phản hồi **không** chứa `refreshToken` — đó mới là chốt chặn thật.
 - `CorsPolicyTests` +1 fact cho `Access-Control-Allow-Credentials`.
+- `ProjectsCrudTests` +1 fact: cùng **một** project, PM và Viewer gọi danh sách và nhận
+  về hai vai trò khác nhau. Cũng là chốt chặn hồi quy cho cái bẫy ordinal-0 ở trên.
 
 **Frontend** — `tsc --noEmit` sạch, `eslint` sạch, `npm run build` sinh đủ 8 trang.
 
@@ -97,6 +118,12 @@ một refresh token đã xoay vòng → 401, và ngay sau đó **phiên hợp l�
 | Ngày trong quá khứ | 400 `ValidationProblemDetails`, key **PascalCase** ✅ |
 | 404 project không tồn tại | `ProblemDetails`, tiếng Việt ở `title` ✅ |
 | 401 không kèm token | body **rỗng**, không content-type ✅ |
+| `roleInProject` trong danh sách | PM thấy `ProjectManager`, Viewer thấy `Viewer` — **cùng một project** ✅ |
+| `PUT` với `rowVersion` đúng | 200, và `rowVersion` **đổi** sau khi lưu ✅ |
+| `PUT` lại với `rowVersion` cũ | **409** `"Dữ liệu đã bị người khác thay đổi…"` ✅ |
+| Viewer gọi `PUT` (nút đã ẩn) | **403** — không phải 404, vì đã là thành viên ✅ |
+| `DELETE` project còn task chưa xong | **409** `"…còn 1 task chưa hoàn thành…"`, project vẫn còn trong danh sách ✅ |
+| `DELETE` project rỗng | 204, `totalCount` 1 → 0 ✅ |
 
 Hai dòng cuối xác nhận `lib/api/problem.ts` phải làm đúng hai việc dễ bỏ qua: chuẩn hóa
 key PascalCase → camelCase (nếu không `setError('Name')` trỏ vào field không tồn tại và
@@ -112,8 +139,7 @@ trên body rỗng sẽ ném `SyntaxError` và nuốt mất mã lỗi thật).
 - **Frontend chưa có hạ tầng test** (Vitest/Playwright) — khoảng trống **có ý thức**, cần
   chốt riêng vì nó thêm một bộ công cụ và một vòng CI. Hiện `tsc` + `eslint` + `npm run
   build` đang giữ chỗ.
-- Sửa/xóa project (cần round-trip `RowVersion`), Board Kanban, chi tiết Task, Notification
-  bell, Dashboard.
+- Board Kanban, chi tiết Task, Notification bell, Dashboard, trang quản lý nhân sự.
 
 ## ⚠️ Người review cần chạy trước khi thử
 

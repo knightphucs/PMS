@@ -2,7 +2,7 @@
 
 Next.js 15 (App Router) + TailwindCSS 4 + shadcn/ui + TanStack Query 5 + Zustand 5.
 
-Quyết định kiến trúc ở `docs/ARCHITECTURE.md` §6 và **ADR-027 → ADR-031** (§15).
+Quyết định kiến trúc ở `docs/ARCHITECTURE.md` §6 và **ADR-027 → ADR-032** (§15).
 
 ## Chạy lần đầu
 

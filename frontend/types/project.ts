@@ -2,12 +2,19 @@
 
 import type { InvitationStatus, RoleInProject, Status } from './enums';
 
+
 /** Kiểu phần tử của `GET /projects` (danh sách). */
 export interface ProjectSummaryResponse {
   id: string;
   name: string;
   status: Status;
   expectedCompletionDate: string;
+  /**
+   * Vai trò của **người đang đăng nhập** trong project này, không phải thuộc tính của
+   * project. Dùng để ẩn/hiện nút Sửa/Xóa mà không phải gọi thêm endpoint thành viên cho
+   * từng dòng. Xem §10 — đừng đoán quyền từ mã lỗi.
+   */
+  roleInProject: RoleInProject;
 }
 
 export interface ProjectMemberResponse {

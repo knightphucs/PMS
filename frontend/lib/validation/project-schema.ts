@@ -32,3 +32,22 @@ export const createProjectSchema = z.object({
 });
 
 export type CreateProjectValues = z.infer<typeof createProjectSchema>;
+
+/**
+ * Sửa dùng đúng bộ luật của tạo — soi gương `UpdateProjectRequestValidator.cs`, vốn cũng
+ * kế thừa cùng luật rồi thêm `RowVersion` NotEmpty.
+ *
+ * `rowVersion` KHÔNG nằm trong schema vì nó không phải trường người dùng nhập: nó được
+ * mang theo từ lần `GET` gần nhất. Để nó vào form chỉ tạo ra khả năng ai đó chỉnh tay.
+ */
+export const updateProjectSchema = createProjectSchema;
+
+export type UpdateProjectValues = z.infer<typeof updateProjectSchema>;
+
+/** `<input type="date">` cần `yyyy-MM-dd`; API trả ISO đầy đủ. */
+export function toDateInputValue(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const offsetMinutes = date.getTimezoneOffset();
+  return new Date(date.getTime() - offsetMinutes * 60_000).toISOString().slice(0, 10);
+}

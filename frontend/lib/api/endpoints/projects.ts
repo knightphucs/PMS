@@ -3,6 +3,7 @@ import type {
   CreateProjectRequest,
   ProjectDetailResponse,
   ProjectSummaryResponse,
+  UpdateProjectRequest,
 } from '@/types/project';
 
 import { apiFetch } from '../http';
@@ -30,4 +31,21 @@ export function getProject(id: string, signal?: AbortSignal) {
  */
 export function createProject(body: CreateProjectRequest) {
   return apiFetch<ProjectSummaryResponse>('/projects', { method: 'POST', body });
+}
+
+/**
+ * ⚠️ `body.rowVersion` phải là giá trị lấy từ lần `getProject` GẦN NHẤT (ADR-016).
+ * Gửi token cũ → **409**, nghĩa là người khác đã sửa project trong lúc form đang mở.
+ * Cách xử lý đúng là tải lại rồi để người dùng quyết định, không phải ghi đè.
+ */
+export function updateProject(id: string, body: UpdateProjectRequest) {
+  return apiFetch<ProjectDetailResponse>(`/projects/${id}`, { method: 'PUT', body });
+}
+
+/**
+ * Xóa **mềm**. Trả **409** nếu project còn task chưa `Done` (ADR-008) — cố ý không
+ * cascade, để người dùng không mất dữ liệu vì một cú bấm.
+ */
+export function deleteProject(id: string) {
+  return apiFetch<void>(`/projects/${id}`, { method: 'DELETE' });
 }

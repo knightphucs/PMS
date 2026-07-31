@@ -4,6 +4,8 @@ import { FolderPlusIcon, RefreshCwIcon, SearchIcon, SearchXIcon } from 'lucide-r
 import { useEffect, useState } from 'react';
 
 import { CreateProjectDialog } from '@/components/projects/create-project-dialog';
+import { DeleteProjectDialog } from '@/components/projects/delete-project-dialog';
+import { EditProjectDialog } from '@/components/projects/edit-project-dialog';
 import { ProjectPagination } from '@/components/projects/project-pagination';
 import { ProjectTable, ProjectTableSkeleton } from '@/components/projects/project-table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -13,12 +15,18 @@ import { errorMessage } from '@/lib/api/problem';
 import { useDebounced } from '@/lib/hooks/use-debounced';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { DEFAULT_PAGE_SIZE } from '@/types/common';
+import type { ProjectSummaryResponse } from '@/types/project';
 
 export default function ProjectsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [searchInput, setSearchInput] = useState('');
   const search = useDebounced(searchInput);
+
+  // Giữ cả đối tượng chứ không chỉ id: dialog cần `name` để hiện ngay tiêu đề mà không
+  // phải đợi request chi tiết về.
+  const [editing, setEditing] = useState<ProjectSummaryResponse | null>(null);
+  const [deleting, setDeleting] = useState<ProjectSummaryResponse | null>(null);
 
   // Đổi từ khóa mà giữ nguyên số trang sẽ rơi vào trang trống khi kết quả mới ít hơn.
   useEffect(() => {
@@ -77,7 +85,12 @@ export default function ProjectsPage() {
         <>
           {/* Vẫn hiện dữ liệu trang cũ trong lúc tải trang mới (placeholderData), chỉ
               làm mờ đi — bảng không sập xuống skeleton ở mỗi lần bấm phân trang. */}
-          <ProjectTable projects={query.data!.items} dimmed={query.isFetching} />
+          <ProjectTable
+            projects={query.data!.items}
+            dimmed={query.isFetching}
+            onEdit={setEditing}
+            onDelete={setDeleting}
+          />
           <ProjectPagination
             page={query.data!}
             onPageChange={setPage}
@@ -104,6 +117,9 @@ export default function ProjectsPage() {
           action={<CreateProjectDialog />}
         />
       )}
+
+      <EditProjectDialog project={editing} onClose={() => setEditing(null)} />
+      <DeleteProjectDialog project={deleting} onClose={() => setDeleting(null)} />
     </div>
   );
 }

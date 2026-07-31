@@ -9,9 +9,10 @@
 
 > ## 🧭 Bắt đầu phiên mới ở đây
 > **Trạng thái:** backend core ĐẦY ĐỦ và **`frontend/` đã tồn tại, chạy được**. Phiên
-> 2026-07-31 dựng scaffold Next 15, tầng API client, luồng Auth end-to-end và danh sách
-> Project. Backend **321 test pass** (189 unit + 132 integration), clean build 0 warning;
-> frontend `tsc --noEmit` + `eslint` + `npm run build` đều sạch. **0 migration.**
+> 2026-07-31 dựng scaffold Next 15, tầng API client, luồng Auth end-to-end và **Project
+> CRUD đầy đủ** (kể cả hai luồng 409: `RowVersion` và "còn task chưa xong"). Backend
+> **322 test pass** (189 unit + 133 integration), clean build 0 warning; frontend
+> `tsc --noEmit` + `eslint` + `npm run build` đều sạch. **0 migration.**
 >
 > ### ⚠️ TRƯỚC KHI CHẠY LẦN ĐẦU TRÊN MÁY MỚI — hai lệnh bắt buộc
 > Cả hai đều ghi vào kho chứng chỉ tin cậy của Windows nên **phải tự chạy tay** trong
@@ -39,7 +40,7 @@
 >
 > **Đọc theo thứ tự:**
 > 1. §6 (Kiến trúc Frontend) — đã viết lại, nay là hiện trạng chứ không còn là dự kiến
-> 2. §15 **ADR-027 → ADR-031** — năm quyết định frontend của phiên 2026-07-31
+> 2. §15 **ADR-027 → ADR-032** — sáu quyết định của phiên 2026-07-31
 > 3. `frontend/lib/api/` — tầng API client; đọc `refresh.ts` trước tiên
 > 4. `docs/uml/seq-diagram/src/seq-12-refresh-token.mmd` — cơ chế refresh có nhánh
 >
@@ -95,7 +96,7 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | Activity Log — API đọc | ⬜ | Đã ghi đủ qua `IActivityLogger` (ADR-013) ở mọi luồng Project/Task/Comment, nhưng chưa có endpoint nào đọc lịch sử ra — cùng loại khoảng trống mà Notification vừa đóng |
 | Employee management (ngoài Auth) | ✅ | `AdminEmployeesController` — khóa/mở tài khoản, cấp `SystemAdmin` — *bảng này từng ghi ⬜ dù đã code xong, đã sửa lại 2026-07-29* |
 | Thống kê / Dashboard | ⬜ | Chưa bắt đầu |
-| Frontend — nền tảng (scaffold, API client, Auth, Project list) | ✅ | Next 15 + Tailwind 4 + shadcn/ui + TanStack Query + Zustand. Tầng API client xử lý JWT, single-flight refresh (ADR-030) và cả 4 hình dạng lỗi của backend. Đăng ký/đăng nhập/giữ phiên khi F5/đăng xuất + route guard. Danh sách project có phân trang, tìm kiếm, tạo mới |
+| Frontend — nền tảng (scaffold, API client, Auth, Project CRUD) | ✅ | Next 15 + Tailwind 4 + shadcn/ui + TanStack Query + Zustand. Tầng API client xử lý JWT, single-flight refresh (ADR-030) và cả 4 hình dạng lỗi của backend. Đăng ký/đăng nhập/giữ phiên khi F5/đăng xuất + route guard. Project: danh sách phân trang + tìm kiếm + tạo + sửa (round-trip `RowVersion`, xử lý 409 bằng tải lại) + xóa (xử lý 409 còn task chưa xong) |
 | Frontend — Board/Backlog Kanban | ⬜ | Kéo-thả là phần nặng riêng, để nguyên một phiên. API đã sẵn sàng từ lâu |
 | Frontend — chi tiết Task, Notification bell, Dashboard | ⬜ | Chi tiết Task chờ Watcher/Label/TaskLink + ActivityLog API; Dashboard chờ API thống kê |
 | Real-time (SignalR) | ⬜ | Có chủ đích — chỉ làm sau khi core CRUD ổn định (xem §6) |
@@ -407,7 +408,7 @@ tổng hợp kết quả...).
 + Zustand 5 + react-hook-form + Zod 4 *(+ Recharts khi làm Dashboard)*
 
 > Từ 2026-07-31 mục này mô tả **hiện trạng**, không còn là dự kiến. Năm quyết định nền
-> tảng nằm ở ADR-027 → ADR-031 (§15).
+> tảng nằm ở ADR-027 → ADR-032 (§15).
 
 **Cấu trúc phân lớp Frontend** (đúng như đã vẽ từ đầu, nay đã dựng thật):
 ```
@@ -439,7 +440,8 @@ nên chúng **miễn nhiễm CSRF**; cookie chỉ đi tới 4 endpoint auth nh�
 
 **Các trang chính:**
 - ✅ Trang đăng nhập / đăng ký
-- ✅ Danh sách Project + tạo mới (sửa/xóa còn thiếu — cần round-trip `RowVersion`, ADR-016)
+- ✅ Danh sách Project + tạo / **sửa / xóa** (đủ luồng `RowVersion` 409-tải-lại của ADR-016
+  và luồng 409 "còn task chưa hoàn thành" của ADR-008)
 - ⬜ Chi tiết Project → **Board dạng Kanban** (cột theo Status) + **Backlog** (task chưa gán Sprint)
 - ⬜ Quản lý Sprint: tạo Sprint, kéo task từ Backlog vào Sprint
 - ⬜ Chi tiết Task: thông tin, Priority badge, Labels, danh sách người đảm nhận (Assignee)
@@ -648,8 +650,9 @@ project khác nhau):
 
 ### Hiện trạng (2026-07-31, sau phiên Frontend — nền tảng)
 
-**321 test pass** — 189 unit + 132 integration, clean build 0 warning.
-*(+6 so với phiên trước: `AuthCookieTests` 5 fact + 1 fact `Access-Control-Allow-Credentials`.)*
+**322 test pass** — 189 unit + 133 integration, clean build 0 warning.
+*(+7 so với phiên trước: `AuthCookieTests` 5 fact, 1 fact `Access-Control-Allow-Credentials`,
+1 fact vai trò-theo-người-gọi trong danh sách project.)*
 
 ⚠️ **Chuỗi kết nối test mặc định giả định một tài khoản `sa` không có trên mọi máy.**
 `PmsWebApplicationFactory` mặc định
@@ -748,9 +751,9 @@ Task + Sprint** khớp 1-1 với 18 endpoint. Ba điểm dễ vấp khi chạy t
    ADR-006 về cơ chế phân quyền 2 tầng)
 5. Code backend từng module theo nhóm function: Project → Task → Employee → Thống kê
 6. Code Frontend theo từng module đã có API tương ứng: ~~Đăng nhập~~ ✅ → ~~Project (danh
-   sách)~~ ✅ → **Task/Board (Kanban + Backlog) ← đang ở đây** → Dashboard thống kê — làm
-   ngay sau khi API của module đó ổn định, không đợi toàn bộ backend xong mới bắt đầu (§6).
-   *Còn nợ ở bước Project: sửa/xóa (cần round-trip `RowVersion`, ADR-016).*
+   sách + CRUD)~~ ✅ → **Task/Board (Kanban + Backlog) ← đang ở đây** → Dashboard thống kê
+   — làm ngay sau khi API của module đó ổn định, không đợi toàn bộ backend xong mới bắt
+   đầu (§6)
 7. Tích hợp Real-time (SignalR) sau khi core CRUD (backend + frontend) đã ổn định — xem §6
 8. Viết Unit Test + Integration Test (backend), kiểm thử thủ công luồng chính (frontend)
 9. Containerize (Docker) + CI/CD (tùy chọn)
@@ -889,6 +892,7 @@ CLI, xem `docs/uml/README.md`. Trước đây nguồn chỉ nằm trong thuộc 
 | 2026-07-31 | **(ADR-029)** TypeScript types viết tay ở `types/`, không dùng OpenAPI codegen | Swagger hiện đang sai ở 4 chỗ nên codegen sẽ sinh ra types sai theo; kèm điểm chuyển đổi tường minh — chi tiết bên dưới |
 | 2026-07-31 | **(ADR-030)** Interceptor refresh phải **single-flight**: một promise dùng chung, các request khác xếp hàng rồi retry đúng một lần | Reuse detection của `AuthService.RefreshAsync` sẽ thu hồi TOÀN BỘ phiên nếu hai request cùng gọi `/refresh` — chi tiết bên dưới |
 | 2026-07-31 | **(ADR-031)** Dùng Next.js **15**, không dùng 16 | Next 16 đổi `middleware.ts` → `proxy.ts` khiến mọi tài liệu tra cứu bị lệch tên — chi tiết bên dưới |
+| 2026-07-31 | **(ADR-032)** `ProjectSummaryResponse` trả kèm `RoleInProject` của người gọi | Không có nó thì UI phải gọi `GET /projects/{id}/members` cho TỪNG dòng để biết được hiện nút Sửa/Xóa hay không (N+1) — chi tiết bên dưới |
 
 | | | |
 
@@ -1218,6 +1222,14 @@ tên task là mất dữ liệu thật kiểu lost-update, không có cơ chế 
 **Kiểm chứng:** `TasksCrudTests.Sua_task_voi_RowVersion_cu_thi_bi_chan_409` và
 `TaskStatusTransitionTests.Doi_status_khong_can_RowVersion_nhung_lan_hai_cung_dich_bi_chan_409`.
 
+> **Cập nhật 2026-07-31 — vòng lặp đã khép ở phía UI.** Cho tới phiên này, `RowVersion`
+> mới chỉ được test ở tầng HTTP; **chưa có màn hình nào từng round-trip nó thật**. Nay
+> `components/projects/edit-project-dialog.tsx` là chỗ đầu tiên đi trọn luồng: nạp chi
+> tiết khi mở dialog (danh sách cố ý không có `rowVersion`) → gửi lại nguyên vẹn khi PUT →
+> nhận 409 thì **tải lại rồi để người dùng quyết định**, tuyệt đối không tự gửi lại.
+> Tự động thử lại chính là ghi đè thay đổi của người khác — đúng thứ mà ADR này sinh ra
+> để chặn, nên "xử lý 409" theo kiểu retry ngầm là làm hỏng nó một cách lịch sự.
+
 #### ADR-022 (2026-07-30) — Enum serialize ra JSON dưới dạng tên
 
 **Bối cảnh:** `Program.cs` không cấu hình gì cho enum nên `System.Text.Json` trả về số thứ tự:
@@ -1383,7 +1395,7 @@ là `private static` trong `TaskStatusTransitionService`. Comment cần đúng d
 `CommentAdded`, nên tách ra `TaskNotificationExtensions` và refactor service cũ dùng lại — hai
 bản sao sẽ lệch nhau ngay lần đầu ai đó thêm một nhóm người nhận mới.
 
-### Chi tiết ADR-027 → ADR-031 (phiên Frontend, 2026-07-31)
+### Chi tiết ADR-027 → ADR-032 (phiên Frontend, 2026-07-31)
 
 #### ADR-027 (2026-07-31) — Refresh token đi bằng cookie httpOnly, access token giữ trong bộ nhớ
 
@@ -1600,6 +1612,50 @@ thực rằng nó không phải chuyện code chạy hay không.
 **Điểm xem lại:** khi Next 17 ra hoặc khi hệ sinh thái đã theo kịp tên `proxy.ts`, việc
 nâng cấp là chạy `npx @next/codemod@latest middleware-to-proxy .` — rẻ, vì ta không có
 file nào cần đổi.
+
+#### ADR-032 (2026-07-31) — Danh sách project trả kèm vai trò của người gọi
+
+**Bối cảnh:** khi làm nút Sửa/Xóa cho từng dòng danh sách, phát hiện frontend **không có
+cách nào** biết mình là `ProjectManager` hay `Viewer` trong project đó.
+`ProjectSummaryResponse` chỉ có `Id`, `Name`, `Status`, `ExpectedCompletionDate`; vai trò
+chỉ lấy được qua `GET /projects/{id}/members` — tức là một request cho **mỗi dòng**.
+
+Ba lựa chọn: (1) cứ hiện nút rồi để backend trả 403; (2) gọi thêm endpoint thành viên cho
+từng dòng; (3) trả vai trò kèm trong danh sách.
+
+**Quyết định: (3).** `ProjectSummaryResponse` thêm trường `RoleInProject`.
+
+**Vì sao không (1):** §10 đã chốt "muốn ẩn/hiện nút đúng thì đọc `RoleInProject` từ API,
+đừng đoán từ mã lỗi". Hiện nút rồi để backend từ chối là đẩy việc phân quyền thành một
+thông báo lỗi — người dùng bấm xong mới biết mình không được phép.
+
+**Vì sao không (2):** N+1 thẳng thừng, 10 dòng là 11 request.
+
+**Vì sao (3) rẻ hơn vẻ ngoài:** truy vấn phân trang **vốn đã** lọc theo
+`p.Members.Any(m => m.EmployeeId == @me && Accepted)` — nó buộc phải chạm đúng hàng
+`ProjectMember` chứa vai trò rồi. Lấy thêm một cột từ hàng đã đọc không tốn round-trip
+nào. Nói cách khác dữ liệu đã ở sẵn đó, chỉ là trước giờ không được chiếu ra.
+
+🔴 **Chi tiết quan trọng nhất — vì sao `ToSummary` được viết TAY thay vì để Mapperly sinh:**
+vai trò phụ thuộc *người đang hỏi* nên không suy ra được từ `Project`. Nếu giữ bản một
+tham số do Mapperly sinh, call site nào quên truyền vai trò sẽ nhận giá trị mặc định của
+enum — mà `RoleInProject` có ordinal 0 là **`ProjectManager`**. Hỏng theo đúng chiều nguy
+hiểm nhất: UI hiện nút Sửa/Xóa cho cả `Viewer`, và hỏng **im lặng** vì không có gì đỏ.
+
+Nên `ProjectMapper.ToSummary(Project, RoleInProject)` bắt buộc hai tham số và không có
+overload một tham số. Trình biên dịch chặn ngay tại chỗ, không cần ai phải nhớ. Cùng
+nguyên tắc *bảo đảm bằng cấu trúc hơn bảo đảm bằng kỷ luật lập trình viên* mà ADR-023 dùng
+cho chữ ký `INotificationRepository` và ADR-008 dùng cho `ISoftDeletable`.
+
+**Kiểm chứng:**
+`ProjectsCrudTests.Danh_sach_tra_ve_vai_tro_cua_chinh_nguoi_goi_chu_khong_phai_cua_project`
+— cùng **một** project, PM và Viewer gọi danh sách và nhận về hai vai trò khác nhau. Test
+này cũng là chốt chặn hồi quy cho đúng cái bẫy ordinal-0 ở trên.
+
+**Ảnh hưởng tương thích:** thêm trường vào response là thay đổi cộng thêm — không client
+nào vỡ. Không test nào phải sửa (không chỗ nào `new ProjectSummaryResponse(...)` bằng tay,
+tất cả đều deserialize). `IProjectRepository.GetPagedForEmployeeAsync` đổi kiểu trả về
+sang `PagedResult<ProjectWithRole>`, chỉ ảnh hưởng một call site trong `ProjectService`.
 
 #### Đính chính 2026-07-30 — CORS ghi ✅ nhưng chưa từng hoạt động
 
