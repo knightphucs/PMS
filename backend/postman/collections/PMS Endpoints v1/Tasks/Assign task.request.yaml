@@ -24,7 +24,7 @@ body:
   content: |-
     {
         "employeeId": "EFA6F8EC-83DF-453F-91C3-0088CF05EFE2",
-        "role": 0
+        "role": "Owner"
     }
 auth:
   type: bearer

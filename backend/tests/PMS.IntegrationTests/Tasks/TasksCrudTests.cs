@@ -22,7 +22,7 @@ public class TasksCrudTests : IntegrationTestBase
 
         var taskId = await CreateTaskAsync(pm.Client, projectId, "Dựng API");
 
-        var detail = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{taskId}");
+        var detail = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{taskId}", TestJson.Options);
         detail!.Status.ShouldBe(Status.ToDo);
         detail.ReporterId.ShouldBe(pm.EmployeeId);
         detail.ProjectId.ShouldBe(projectId);
@@ -38,7 +38,7 @@ public class TasksCrudTests : IntegrationTestBase
         var projectId = await CreateProjectAsync(pm.Client);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
-        var detail = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{taskId}");
+        var detail = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{taskId}", TestJson.Options);
         var staleRowVersion = detail!.RowVersion;
 
         var first = await pm.Client.PutAsJsonAsync($"/api/v1/tasks/{taskId}",
@@ -50,7 +50,7 @@ public class TasksCrudTests : IntegrationTestBase
 
         second.StatusCode.ShouldBe(HttpStatusCode.Conflict);
 
-        var after = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{taskId}");
+        var after = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{taskId}", TestJson.Options);
         after!.Name.ShouldBe("Lần sửa 1");   // lần 2 không được ghi đè
     }
 
@@ -95,7 +95,7 @@ public class TasksCrudTests : IntegrationTestBase
         await CreateTaskAsync(pm.Client, projectId, "Subtask", parentTaskId: parentId);
 
         var paged = await pm.Client.GetFromJsonAsync<PagedResult<TaskSummaryResponse>>(
-            $"/api/v1/projects/{projectId}/tasks");
+            $"/api/v1/projects/{projectId}/tasks", TestJson.Options);
 
         // Subtask hiện trong chi tiết task cha, không phải mục riêng ở danh sách
         paged!.Items.ShouldHaveSingleItem().Id.ShouldBe(parentId);

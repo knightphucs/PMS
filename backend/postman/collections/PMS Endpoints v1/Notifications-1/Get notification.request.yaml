@@ -1,0 +1,50 @@
+$kind: http-request
+name: Get notification
+url: "{{api_url}}/notifications?isRead=&Page=&PageSize=&SortBy=&SortDirection=&Search=&IsDescending=&Skip="
+method: GET
+queryParams:
+  - key: isRead
+    value: ""
+    disabled: false
+    description: ""
+    $type: boolean
+  - key: Page
+    value: ""
+    disabled: false
+    description: ""
+    $type: integer
+  - key: PageSize
+    value: ""
+    disabled: false
+    description: ""
+    $type: integer
+  - key: SortBy
+    value: ""
+    disabled: false
+    description: ""
+    $type: string
+  - key: SortDirection
+    value: ""
+    disabled: false
+    description: ""
+    $type: string
+  - key: Search
+    value: ""
+    disabled: false
+    description: ""
+    $type: string
+  - key: IsDescending
+    value: ""
+    disabled: false
+    description: ""
+    $type: boolean
+  - key: Skip
+    value: ""
+    disabled: false
+    description: ""
+    $type: integer
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1785403734951

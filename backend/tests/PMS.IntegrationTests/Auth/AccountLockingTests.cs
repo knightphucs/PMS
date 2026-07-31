@@ -21,7 +21,7 @@ public class AccountLockingTests : IntegrationTestBase
         // Lấy refresh token HỢP LỆ trước khi bị khóa
         var login = await Factory.CreateClient().PostAsJsonAsync("/api/v1/Auth/login",
             new LoginRequest(victim.Email, "Test@1234"));
-        var auth = await login.Content.ReadFromJsonAsync<AuthResponse>();
+        var auth = await login.Content.ReadFromJsonAsync<AuthResponse>(TestJson.Options);
 
         await admin.Client.PostAsJsonAsync(
             $"/api/v1/admin/employees/{victim.EmployeeId}/lock",

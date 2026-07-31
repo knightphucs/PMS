@@ -21,7 +21,7 @@ public class SprintsCrudTests : IntegrationTestBase
 
         var sprintId = await CreateSprintAsync(pm.Client, projectId, "Sprint 1");
 
-        var sprint = await pm.Client.GetFromJsonAsync<SprintResponse>($"/api/v1/sprints/{sprintId}");
+        var sprint = await pm.Client.GetFromJsonAsync<SprintResponse>($"/api/v1/sprints/{sprintId}", TestJson.Options);
         sprint!.Name.ShouldBe("Sprint 1");
         sprint.ProjectId.ShouldBe(projectId);
         sprint.TaskCount.ShouldBe(0);
@@ -37,7 +37,7 @@ public class SprintsCrudTests : IntegrationTestBase
         var chuaBatDau = await CreateSprintAsync(pm.Client, projectId, "Chưa bắt đầu", 10, 24);
 
         var sprints = await pm.Client.GetFromJsonAsync<List<SprintResponse>>(
-            $"/api/v1/projects/{projectId}/sprints");
+            $"/api/v1/projects/{projectId}/sprints", TestJson.Options);
 
         sprints.ShouldNotBeNull();
         sprints!.Single(s => s.Id == dangChay).IsActive.ShouldBeTrue();
@@ -125,13 +125,13 @@ public class SprintsCrudTests : IntegrationTestBase
         var taskId = await CreateTaskAsync(pm.Client, projectId, "Task", sprintId: sprintId);
 
         var backlogTruoc = await pm.Client.GetFromJsonAsync<List<TaskSummary>>(
-            $"/api/v1/projects/{projectId}/backlog");
+            $"/api/v1/projects/{projectId}/backlog", TestJson.Options);
         backlogTruoc!.ShouldBeEmpty();
 
         await pm.Client.DeleteAsync($"/api/v1/sprints/{sprintId}");
 
         var backlogSau = await pm.Client.GetFromJsonAsync<List<TaskSummary>>(
-            $"/api/v1/projects/{projectId}/backlog");
+            $"/api/v1/projects/{projectId}/backlog", TestJson.Options);
         backlogSau!.ShouldHaveSingleItem().Id.ShouldBe(taskId);
     }
 

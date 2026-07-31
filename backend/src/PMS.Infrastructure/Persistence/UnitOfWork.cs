@@ -17,7 +17,8 @@ public class UnitOfWork : IUnitOfWork
     private IProjectMemberRepository? _projectMembers;
     private IRepository<TaskAssignment>? _taskAssignments;
     private IRepository<ActivityLog>? _activityLogs;
-    private IRepository<Notification>? _notifications;
+    private INotificationRepository? _notifications;
+    private ICommentRepository? _comments;
 
     public UnitOfWork(PmsDbContext context) => _context = context;
 
@@ -29,7 +30,8 @@ public class UnitOfWork : IUnitOfWork
     public IProjectMemberRepository ProjectMembers => _projectMembers ??= new ProjectMemberRepository(_context);
     public IRepository<TaskAssignment> TaskAssignments => _taskAssignments ??= new Repository<TaskAssignment>(_context);
     public IRepository<ActivityLog> ActivityLogs => _activityLogs ??= new Repository<ActivityLog>(_context);
-    public IRepository<Notification> Notifications => _notifications ??= new Repository<Notification>(_context);
+    public INotificationRepository Notifications => _notifications ??= new NotificationRepository(_context);
+    public ICommentRepository Comments => _comments ??= new CommentRepository(_context);
 
     public Task<int> SaveChangesAsync(CancellationToken ct = default) => _context.SaveChangesAsync(ct);
 

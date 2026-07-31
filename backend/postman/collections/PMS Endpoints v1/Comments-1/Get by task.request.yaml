@@ -1,0 +1,61 @@
+$kind: http-request
+name: Get by task
+url: "{{api_url}}/tasks/:task_id/comments?Page=&PageSize=&SortBy=&SortDirection=&Search=&IsDescending=&Skip="
+method: GET
+queryParams:
+  - key: Page
+    value: ""
+    disabled: false
+    description: ""
+    $type: integer
+  - key: PageSize
+    value: ""
+    disabled: false
+    description: ""
+    $type: integer
+  - key: SortBy
+    value: ""
+    disabled: false
+    description: ""
+    $type: string
+  - key: SortDirection
+    value: ""
+    disabled: false
+    description: ""
+    $type: string
+  - key: Search
+    value: ""
+    disabled: false
+    description: ""
+    $type: string
+  - key: IsDescending
+    value: ""
+    disabled: false
+    description: ""
+    $type: boolean
+  - key: Skip
+    value: ""
+    disabled: false
+    description: ""
+    $type: integer
+pathVariables:
+  - key: task_id
+    value: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1382951582276517

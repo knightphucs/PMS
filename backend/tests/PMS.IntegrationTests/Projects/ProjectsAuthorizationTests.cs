@@ -35,7 +35,7 @@ public class ProjectsAuthorizationTests : IntegrationTestBase
         await CreateProjectAsync(a.Client);
 
         var paged = await b.Client.GetFromJsonAsync<PagedResult<ProjectSummaryResponse>>(
-            "/api/v1/Projects");
+            "/api/v1/Projects", TestJson.Options);
 
         paged!.Items.ShouldBeEmpty();
         paged.TotalCount.ShouldBe(0);

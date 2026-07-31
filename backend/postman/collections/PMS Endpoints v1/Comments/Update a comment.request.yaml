@@ -1,0 +1,32 @@
+$kind: http-request
+name: Update a comment
+url: "{{api_url}}/comments/:id"
+method: PUT
+pathVariables:
+  - key: id
+    value: 00000000-0000-0000-0000-000000000000
+    description: CHỈ tác giả sửa được — ProjectManager cũng nhận 403 (ADR-026)
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: |-
+    {
+        "content": "Đã sửa lại nội dung bình luận"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4200000000000203

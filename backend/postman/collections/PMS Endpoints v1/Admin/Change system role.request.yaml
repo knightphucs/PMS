@@ -23,6 +23,6 @@ body:
   type: json
   content: |-
     {
-        "role": 0
+        "role": "User"
     }
 order: 4176008205644637

@@ -1,0 +1,26 @@
+$kind: http-request
+name: Delete comment
+url: "{{api_url}}/comments/:id"
+method: DELETE
+pathVariables:
+  - key: id
+    value: ""
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 2290543099642350
