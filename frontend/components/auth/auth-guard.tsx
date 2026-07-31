@@ -59,9 +59,18 @@ function BootstrapSkeleton() {
 /**
  * Ngược lại của AuthGuard: dùng cho /login và /register.
  *
- * Người đã đăng nhập mà mở lại /login thì đưa thẳng vào ứng dụng — đứng nhập lại lần nữa
- * là vô nghĩa, và với luồng này còn nguy hiểm hơn: đăng nhập lại cấp một refresh token
- * mới trong khi cái cũ vẫn còn hạn.
+ * Người đã đăng nhập mà mở lại /login thì đưa thẳng vào ứng dụng — nhập lại lần nữa là
+ * vô nghĩa, và còn cấp thêm một refresh token mới trong khi cái cũ vẫn còn hạn.
+ *
+ * ⚠️ Khác AuthGuard ở một điểm quan trọng: **KHÔNG** chặn render khi `status === 'unknown'`.
+ *
+ * Chặn ở đây là tối ưu ngược. AuthGuard chặn vì nó bảo vệ nội dung riêng tư — để lọt một
+ * nhịp là rò rỉ. Còn `/login` thì chẳng có gì để rò, mà trường hợp PHỔ BIẾN NHẤT của nó
+ * lại đúng là "chưa đăng nhập": bắt chờ hết một vòng `/auth/refresh` (vòng đó gần như
+ * chắc chắn trả 401) nghĩa là mọi khách đều nhìn khung xám trước khi thấy ô đăng nhập.
+ *
+ * Đổi lại, người ĐÃ đăng nhập mà gõ tay `/login` sẽ thấy form thoáng qua trước khi bị
+ * chuyển hướng. Trường hợp đó hiếm hơn nhiều, và cái giá của nó nhẹ hơn.
  */
 export function GuestOnly({ children }: { children: React.ReactNode }) {
   const status = useSessionBootstrap();
@@ -70,14 +79,6 @@ export function GuestOnly({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (status === 'authenticated') router.replace('/projects');
   }, [status, router]);
-
-  if (status === 'unknown') {
-    return (
-      <div className="flex min-h-svh items-center justify-center" aria-busy="true">
-        <Skeleton className="h-96 w-full max-w-md" />
-      </div>
-    );
-  }
 
   return <>{children}</>;
 }
