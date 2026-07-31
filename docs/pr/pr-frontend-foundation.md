@@ -86,8 +86,19 @@ token đã thu hồi bị coi là token bị đánh cắp → `RevokeAllAsync` t
 Ba request cùng gọi `/refresh` là người dùng bị đá khỏi mọi thiết bị. Triệu chứng ngoài
 đời: *"thỉnh thoảng tự đăng xuất"* — gần như không tái hiện được theo yêu cầu.
 
-Đã **kiểm chứng thật** chứ không suy luận: gọi trực tiếp vào backend đang chạy, gửi lại
-một refresh token đã xoay vòng → 401, và ngay sau đó **phiên hợp lệ cũng trả 401**.
+Đã **kiểm chứng thật** chứ không suy luận, và bằng hai nửa ghép lại:
+
+- *Phía backend* — gọi trực tiếp vào API đang chạy: gửi lại một refresh token đã xoay
+  vòng → 401, và ngay sau đó **phiên hợp lệ cũng trả 401**. Kịch bản hỏng có thật.
+- *Phía client* — biên dịch `lib/api/**` bằng `tsc` rồi chạy trên Node với `fetch` giả để
+  **đếm** số lời gọi: ba request cùng nhận 401 → **đúng 1** lời gọi `/auth/refresh`, 6
+  lượt gọi nghiệp vụ (3 lần 401 + 3 lần retry), phiên vẫn sống.
+
+Kèm **mutation test**: đổi `inFlight ??=` thành `inFlight =` thì số lời gọi nhảy lên 3 và
+kiểm tra đỏ — nên đây không phải một test xanh vô nghĩa.
+
+⚠️ Ở lần chạy hỏng đó, *"cả ba request thành công"* **vẫn PASS**, vì backend giả không có
+reuse detection. Mỗi nửa đứng một mình đều không đủ; phải ghép mới thành bằng chứng.
 
 ## Kiểm chứng
 
@@ -138,7 +149,11 @@ trên body rỗng sẽ ném `SyntaxError` và nuốt mất mã lỗi thật).
   Windows (trước chỉ có đường dẫn macOS).
 - **Frontend chưa có hạ tầng test** (Vitest/Playwright) — khoảng trống **có ý thức**, cần
   chốt riêng vì nó thêm một bộ công cụ và một vòng CI. Hiện `tsc` + `eslint` + `npm run
-  build` đang giữ chỗ.
+  build` đang giữ chỗ. Harness kiểm single-flight nói trên chạy **một lần rồi xóa**, chưa
+  commit — biến nó thành test thường trực là quyết định cần chốt trước.
+- **Chưa thao tác thật trên UI**: browser trong môi trường phiên này không điều hướng
+  được tới bất kỳ origin nào (kể cả trang ngoài), nên giữ phiên khi F5, guard chuyển
+  hướng không nháy, và các thao tác bấm/kéo chưa được mắt người xác nhận.
 - Board Kanban, chi tiết Task, Notification bell, Dashboard, trang quản lý nhân sự.
 
 ## ⚠️ Người review cần chạy trước khi thử

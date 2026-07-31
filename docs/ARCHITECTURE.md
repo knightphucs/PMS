@@ -670,6 +670,28 @@ lúc chưa có, ba thứ đang giữ chỗ: `tsc --noEmit`, `eslint`, và `npm r
 lỗi prerender mà `next dev` im lặng bỏ qua — đã bắt được thật một lỗi `useSearchParams`
 thiếu `Suspense` ở trang login).
 
+**Single-flight refresh (ADR-030) đã được kiểm chứng bằng chính module thật** ở phiên
+2026-07-31, dù chưa có hạ tầng test thường trực. Cách làm: biên dịch `lib/api/**` +
+`store/**` bằng `tsc` rồi chạy trên Node với `fetch` giả để **đếm** số lời gọi
+`/auth/refresh` — không viết lại logic, vì bản sao chỉ chứng minh bản sao chạy đúng.
+Ba request cùng nhận 401 → **đúng 1** lời gọi refresh, 6 lượt gọi nghiệp vụ (3 lần 401 +
+3 lần retry), phiên vẫn sống.
+
+Quan trọng hơn kết quả xanh: đã chạy **mutation test** — đổi `inFlight ??=` thành
+`inFlight =` (tức bỏ single-flight) thì số lời gọi nhảy lên **3** và kiểm tra đỏ. Không có
+bước này thì không biết test có bảo vệ được gì hay không, đúng bài học của ADR-022.
+
+⚠️ Đáng chú ý: ở lần chạy hỏng đó, **"cả ba request thành công" vẫn PASS** — vì backend
+giả không có reuse detection. Với backend THẬT thì ba lời gọi kia sẽ thu hồi sạch phiên
+(đã kiểm riêng qua HTTP: gửi lại token đã xoay vòng → 401, và phiên hợp lệ **cũng** 401).
+Hai nửa đó ghép lại mới thành bằng chứng đầy đủ; mỗi nửa đứng một mình đều không đủ.
+
+Kịch bản còn **chưa** kiểm được vì browser trong môi trường phiên này không điều hướng
+được tới bất kỳ origin nào (kể cả trang ngoài): giữ phiên khi F5, guard chuyển hướng
+không nháy nội dung, và thao tác kéo/bấm thật trên UI. Phần HTML thì đã kiểm gián tiếp
+bằng cách gọi thẳng dev server — `/projects` khi chưa đăng nhập chỉ trả skeleton, không
+lộ `accessToken` lẫn `pms_refresh_token`.
+
 | Nhóm | Unit | Integration |
 |---|---|---|
 | Domain (invariant, state machine) | `ProjectTests`, `ProjectMemberTests`, `TaskItemTests`, `SoftDeletableContractTests`, `NotificationTests` | — |
