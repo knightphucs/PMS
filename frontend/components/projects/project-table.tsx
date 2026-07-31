@@ -44,7 +44,9 @@ export function ProjectTable({
       )}
       aria-busy={dimmed}
     >
-      <Table>
+      {/* Nới đệm ô ngay tại nơi dùng thay vì sửa components/ui/table.tsx — file đó do
+          shadcn sinh và sẽ bị ghi đè mỗi lần thêm lại component. */}
+      <Table className="[&_td]:px-4 [&_td]:py-3 [&_th]:h-11 [&_th]:px-4">
         <TableHeader className="bg-muted/40">
           <TableRow>
             <TableHead>Tên dự án</TableHead>

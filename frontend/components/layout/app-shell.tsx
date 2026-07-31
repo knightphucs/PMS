@@ -58,7 +58,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <UserMenu />
         </header>
 
-        <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
+        {/*
+          Căn TRÁI, không `mx-auto max-w-5xl`.
+
+          Cột nội dung hẹp căn giữa là bố cục của trang đọc (bài viết, tài liệu). Với ứng
+          dụng bảng biểu thì nó sai: trên màn rộng, phần còn lại sau sidebar bị chia đôi
+          thành hai khoảng trống, nội dung dạt sang phải và bảng chỉ chiếm chưa tới một
+          phần ba chiều ngang. Bảng cần chỗ để thở — căn trái rồi cho nó giãn tới 1600px
+          là vừa: lấp đầy màn 1440px, và không kéo dài vô tận trên màn siêu rộng khiến
+          mắt phải quét ngang quá xa.
+
+          Dùng giá trị tường minh `max-w-[1600px]` chứ KHÔNG dùng `max-w-screen-2xl`:
+          Tailwind v4 đã bỏ nhóm tiện ích `max-w-screen-*`, viết vào chỉ là một class
+          không tồn tại — không lỗi, không cảnh báo, chỉ đơn giản là không có tác dụng.
+        */}
+        <main className="w-full max-w-[1600px] px-4 py-6 sm:px-8 sm:py-8">{children}</main>
       </div>
     </div>
   );
