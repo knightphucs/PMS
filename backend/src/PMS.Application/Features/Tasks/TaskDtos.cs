@@ -2,10 +2,6 @@ using PMS.Domain.Enums;
 
 namespace PMS.Application.Features.Tasks;
 
-/// <summary>
-/// ReporterId không nằm trong request: người tạo task chính là Reporter, lấy từ JWT
-/// (seq-01). Cho client tự khai sẽ mở đường mạo danh người báo cáo.
-/// </summary>
 public record CreateTaskRequest(
     string Name,
     Guid ProjectId,
@@ -14,21 +10,14 @@ public record CreateTaskRequest(
     DateTime? DueDate,
     Priority Priority);
 
-/// <summary>
-/// Không có Status ở đây — đổi trạng thái đi qua endpoint riêng để bắt buộc chạy qua
-/// Workflow Transition Rules, không sửa lén bằng một lệnh PUT (§5).
-/// RowVersion bắt buộc theo ADR-016/021.
-/// </summary>
 public record UpdateTaskRequest(
     string Name,
     DateTime? DueDate,
     Priority Priority,
     byte[] RowVersion);
 
-/// <summary>SprintId = null nghĩa là đưa task về Backlog.</summary>
 public record MoveTaskToSprintRequest(Guid? SprintId);
 
-/// <summary>Gán người khác vào task — chỉ ProjectManager gọi được (seq-02).</summary>
 public record AssignTaskRequest(Guid EmployeeId, RoleInTask Role);
 
 public record TaskSummaryResponse(
@@ -48,10 +37,8 @@ public record TaskAssigneeResponse(
     RoleInTask RoleInTask,
     DateTime AssignedDate);
 
-/// <summary>Một cột của Board Kanban. Luôn xuất hiện đủ 4 cột, kể cả cột rỗng.</summary>
 public record BoardColumn(Status Status, IReadOnlyList<TaskSummaryResponse> Tasks);
 
-/// <summary>SprintId = null nghĩa là board của cả project (kiểu Kanban, không theo sprint).</summary>
 public record BoardResponse(Guid ProjectId, Guid? SprintId, IReadOnlyList<BoardColumn> Columns);
 
 public record TaskDetailResponse(

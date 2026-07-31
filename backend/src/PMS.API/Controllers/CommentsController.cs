@@ -14,10 +14,6 @@ public class CommentsController : ControllerBase
 
     public CommentsController(ICommentService comments) => _comments = comments;
 
-    /// <summary>
-    /// Viết bình luận trên task. ProjectManager/Member được viết, Viewer bị chặn 403 (§10).
-    /// Sinh thông báo cho assignee + watcher + reporter của task.
-    /// </summary>
     [HttpPost("tasks/{taskId:guid}/comments")]
     [ProducesResponseType(typeof(CommentResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -30,7 +26,6 @@ public class CommentsController : ControllerBase
         return Created($"/api/v1/tasks/{taskId}/comments", created);
     }
 
-    /// <summary>Bình luận của task, cũ nhất trước. Mọi thành viên project đọc được, kể cả Viewer.</summary>
     [HttpGet("tasks/{taskId:guid}/comments")]
     [ProducesResponseType(typeof(PagedResult<CommentResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -38,7 +33,6 @@ public class CommentsController : ControllerBase
         Guid taskId, [FromQuery] PagedRequest request, CancellationToken ct)
         => Ok(await _comments.GetByTaskAsync(taskId, request, ct));
 
-    /// <summary>Sửa bình luận — chỉ tác giả, ProjectManager cũng không sửa lời người khác (ADR-026).</summary>
     [HttpPut("comments/{id:guid}")]
     [ProducesResponseType(typeof(CommentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -48,7 +42,6 @@ public class CommentsController : ControllerBase
         Guid id, UpdateCommentRequest req, CancellationToken ct)
         => Ok(await _comments.UpdateAsync(id, req, ct));
 
-    /// <summary>Xóa bình luận — tác giả hoặc ProjectManager; xóa cứng (ADR-026).</summary>
     [HttpDelete("comments/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

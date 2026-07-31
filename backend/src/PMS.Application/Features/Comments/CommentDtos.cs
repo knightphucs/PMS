@@ -6,10 +6,6 @@ namespace PMS.Application.Features.Comments;
 /// </summary>
 public record CreateCommentRequest(string Content);
 
-/// <summary>
-/// Không có RowVersion (ADR-026): chỉ tác giả sửa được comment của mình, nên không tồn tại
-/// kịch bản hai người cùng ghi đè nhau — thứ mà ADR-016/021 sinh ra để chặn.
-/// </summary>
 public record UpdateCommentRequest(string Content);
 
 /// <summary>
