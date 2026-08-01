@@ -33,7 +33,7 @@ export function ProjectPagination({ page, onPageChange, onPageSizeChange, disabl
   const to = Math.min(page.page * page.pageSize, page.totalCount);
 
   return (
-    <div className="bg-background flex flex-col-reverse items-center justify-between gap-4 rounded-lg border p-3 sm:flex-row">
+    <div className="bg-card flex flex-col-reverse items-center justify-between gap-4 rounded-lg border p-3 sm:flex-row">
       <p className="text-muted-foreground text-sm" aria-live="polite">
         Hiển thị <strong className="text-foreground">{from}</strong>–
         <strong className="text-foreground">{to}</strong> trong tổng số{' '}

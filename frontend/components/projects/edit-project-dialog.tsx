@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { WarningBanner } from '@/components/common/warning-banner';
 import { Field } from '@/components/form/field';
 import { FormError } from '@/components/form/form-error';
 import { Button } from '@/components/ui/button';
@@ -144,16 +145,10 @@ export function EditProjectDialog({ project, onClose }: Props) {
         ) : (
           <form onSubmit={onSubmit} noValidate className="grid gap-4">
             {staleWarning ? (
-              <div
-                role="alert"
-                className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
-              >
-                <p className="font-medium">Người khác vừa sửa dự án này.</p>
-                <p className="mt-1">
-                  Biểu mẫu đã được tải lại theo dữ liệu mới nhất. Kiểm tra lại rồi bấm Lưu
-                  nếu bạn vẫn muốn áp dụng thay đổi của mình.
-                </p>
-              </div>
+              <WarningBanner title="Người khác vừa sửa dự án này.">
+                Biểu mẫu đã được tải lại theo dữ liệu mới nhất. Kiểm tra lại rồi bấm Lưu
+                nếu bạn vẫn muốn áp dụng thay đổi của mình.
+              </WarningBanner>
             ) : null}
 
             <FormError message={formError} />

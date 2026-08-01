@@ -3,6 +3,7 @@
 import { MenuIcon } from 'lucide-react';
 import { useState } from 'react';
 
+import { ThemeToggle } from '@/components/common/theme-toggle';
 import { SidebarBrand, SidebarNav } from '@/components/layout/sidebar';
 import { UserMenu } from '@/components/layout/user-menu';
 import { Button } from '@/components/ui/button';
@@ -24,7 +25,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Cột điều hướng — cố định từ md trở lên, trượt vào từ trái ở màn hình nhỏ */}
       <aside
         className={cn(
-          'bg-background fixed inset-y-0 left-0 z-50 w-60 border-r transition-transform duration-200 md:translate-x-0',
+          'bg-sidebar border-sidebar-border fixed inset-y-0 left-0 z-50 w-60 border-r transition-transform duration-200 md:translate-x-0',
           mobileOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
@@ -43,7 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       ) : null}
 
       <div className="md:pl-60">
-        <header className="bg-background/80 sticky top-0 z-30 flex h-14 items-center gap-3 border-b px-4 backdrop-blur sm:px-6">
+        <header className="bg-card/80 sticky top-0 z-30 flex h-14 items-center gap-3 border-b px-4 backdrop-blur sm:px-6">
           <Button
             variant="ghost"
             size="icon-sm"
@@ -55,6 +56,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Button>
 
           <div className="flex-1" />
+          <ThemeToggle />
           <UserMenu />
         </header>
 

@@ -3,7 +3,7 @@
 import { LogOutIcon } from 'lucide-react';
 import { useState } from 'react';
 
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/common/user-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,15 +16,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { SYSTEM_ROLE_LABEL } from '@/types/enums';
-
-function initials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(-2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join('');
-}
 
 export function UserMenu() {
   const { user, logout } = useAuth();
@@ -43,9 +34,7 @@ export function UserMenu() {
       <DropdownMenuTrigger
         render={
           <Button variant="ghost" className="h-auto gap-2 px-2 py-1.5">
-            <Avatar className="size-8">
-              <AvatarFallback className="text-xs">{initials(user.name)}</AvatarFallback>
-            </Avatar>
+            <UserAvatar id={user.id} name={user.name} className="text-xs" />
             <span className="hidden text-sm font-medium sm:inline">{user.name}</span>
           </Button>
         }

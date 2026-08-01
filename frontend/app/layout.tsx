@@ -20,7 +20,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="vi">
+    // suppressHydrationWarning là BẮT BUỘC với next-themes: script chống nháy của nó
+    // gắn class `dark` lên <html> trước khi React hydrate, nên server và client luôn
+    // khác nhau ở đúng thẻ này. Không có cờ này thì mỗi lần tải trang đều log cảnh báo.
+    <html lang="vi" suppressHydrationWarning>
       <body className={`${beVietnamPro.variable} antialiased`}>
         <Providers>
           {children}

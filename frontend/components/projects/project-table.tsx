@@ -39,14 +39,17 @@ export function ProjectTable({
   return (
     <div
       className={cn(
-        'bg-background overflow-x-auto rounded-lg border transition-opacity',
+        'bg-card overflow-x-auto rounded-lg border transition-opacity',
         dimmed && 'pointer-events-none opacity-60',
       )}
       aria-busy={dimmed}
     >
       {/* Nới đệm ô ngay tại nơi dùng thay vì sửa components/ui/table.tsx — file đó do
           shadcn sinh và sẽ bị ghi đè mỗi lần thêm lại component. */}
-      <Table className="[&_td]:px-4 [&_td]:py-3 [&_th]:h-11 [&_th]:px-4">
+      {/* Mật độ theo thang ở `components/common/page-header.tsx`: dòng ~38px chứ không
+          phải 48px. Jira/Linear dày, không thoáng — thoáng làm mắt phải quét xa hơn để
+          đọc cùng một lượng thông tin. Ghi đè ở NƠI DÙNG, không sửa `components/ui/*`. */}
+      <Table className="[&_td]:px-3 [&_td]:py-2 [&_td]:text-[13px] [&_th]:h-9 [&_th]:px-3">
         <TableHeader className="bg-muted/40">
           <TableRow>
             <TableHead>Tên dự án</TableHead>
@@ -120,7 +123,7 @@ export function ProjectTable({
 
 export function ProjectTableSkeleton({ rows = 5 }: { rows?: number }) {
   return (
-    <div className="bg-background rounded-lg border" aria-busy="true">
+    <div className="bg-card rounded-lg border" aria-busy="true">
       <span className="sr-only">Đang tải danh sách dự án…</span>
       <div className="divide-y">
         {Array.from({ length: rows }, (_, i) => (

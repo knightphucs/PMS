@@ -54,3 +54,22 @@ export const SYSTEM_ROLE_LABEL: Record<SystemRole, string> = {
   User: 'Người dùng',
   SystemAdmin: 'Quản trị hệ thống',
 };
+
+export const PRIORITY_LABEL: Record<Priority, string> = {
+  Highest: 'Cao nhất',
+  High: 'Cao',
+  Medium: 'Trung bình',
+  Low: 'Thấp',
+  Lowest: 'Thấp nhất',
+};
+
+export const ROLE_IN_TASK_LABEL: Record<RoleInTask, string> = {
+  Owner: 'Phụ trách',
+  Contributor: 'Tham gia',
+};
+
+export const INVITATION_STATUS_LABEL: Record<InvitationStatus, string> = {
+  Pending: 'Chờ phản hồi',
+  Accepted: 'Đã tham gia',
+  Declined: 'Đã từ chối',
+};

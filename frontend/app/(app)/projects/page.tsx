@@ -1,17 +1,18 @@
 'use client';
 
-import { FolderPlusIcon, RefreshCwIcon, SearchIcon, SearchXIcon } from 'lucide-react';
+import { FolderPlusIcon, SearchIcon, SearchXIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { EmptyState } from '@/components/common/empty-state';
+import { PageHeader } from '@/components/common/page-header';
+import { QueryError } from '@/components/common/query-error';
 import { CreateProjectDialog } from '@/components/projects/create-project-dialog';
 import { DeleteProjectDialog } from '@/components/projects/delete-project-dialog';
 import { EditProjectDialog } from '@/components/projects/edit-project-dialog';
 import { ProjectPagination } from '@/components/projects/project-pagination';
 import { ProjectTable, ProjectTableSkeleton } from '@/components/projects/project-table';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { errorMessage } from '@/lib/api/problem';
 import { useDebounced } from '@/lib/hooks/use-debounced';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { DEFAULT_PAGE_SIZE } from '@/types/common';
@@ -40,24 +41,14 @@ export default function ProjectsPage() {
 
   return (
     <div className="grid gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="grid gap-1">
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl font-semibold tracking-tight">Dự án</h1>
-            {query.data ? (
-              <span className="bg-muted text-muted-foreground rounded-full px-2.5 py-0.5 text-xs font-medium tabular-nums">
-                {query.data.totalCount}
-              </span>
-            ) : null}
-          </div>
-          <p className="text-muted-foreground text-sm">
-            Các dự án bạn đang tham gia.
-          </p>
-        </div>
-        <CreateProjectDialog />
-      </div>
+      <PageHeader
+        title="Dự án"
+        count={query.data?.totalCount}
+        description="Các dự án bạn đang tham gia."
+        actions={<CreateProjectDialog />}
+      />
 
-      <div className="bg-background flex flex-wrap items-center gap-3 rounded-lg border p-3">
+      <div className="bg-card flex flex-wrap items-center gap-3 rounded-lg border p-3">
         <div className="relative min-w-56 flex-1">
           <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
@@ -77,22 +68,12 @@ export default function ProjectsPage() {
       </div>
 
       {query.isError ? (
-        <Alert variant="destructive">
-          <AlertTitle>Không tải được danh sách dự án</AlertTitle>
-          <AlertDescription className="grid gap-3">
-            <span>{errorMessage(query.error)}</span>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-fit"
-              onClick={() => void query.refetch()}
-              disabled={query.isFetching}
-            >
-              <RefreshCwIcon className="size-4" />
-              {query.isFetching ? 'Đang thử lại…' : 'Thử lại'}
-            </Button>
-          </AlertDescription>
-        </Alert>
+        <QueryError
+          title="Không tải được danh sách dự án"
+          error={query.error}
+          onRetry={() => void query.refetch()}
+          isRetrying={query.isFetching}
+        />
       ) : showSkeleton ? (
         <ProjectTableSkeleton rows={pageSize > 10 ? 10 : pageSize} />
       ) : hasResults ? (
@@ -134,31 +115,6 @@ export default function ProjectsPage() {
 
       <EditProjectDialog project={editing} onClose={() => setEditing(null)} />
       <DeleteProjectDialog project={deleting} onClose={() => setDeleting(null)} />
-    </div>
-  );
-}
-
-function EmptyState({
-  icon,
-  title,
-  description,
-  action,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="bg-background grid place-items-center gap-3 rounded-lg border border-dashed px-6 py-16 text-center">
-      <div className="bg-muted text-muted-foreground grid size-14 place-items-center rounded-full">
-        {icon}
-      </div>
-      <div className="grid gap-1">
-        <p className="font-medium">{title}</p>
-        <p className="text-muted-foreground max-w-md text-sm">{description}</p>
-      </div>
-      {action ? <div className="mt-2">{action}</div> : null}
     </div>
   );
 }
