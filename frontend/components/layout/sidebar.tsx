@@ -36,6 +36,11 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     title: 'Công việc',
     items: [
       { label: 'Dự án', icon: FolderKanbanIcon, href: '/projects' },
+      // ⚠️ Hai mục này KHÔNG thể có `href`, kể cả sau khi màn hình đã làm xong: cả hai
+      // thuộc phạm vi MỘT project (`/projects/{id}/board`) mà app-shell không biết
+      // project nào đang mở — nó nằm trên segment `[id]`. Vào Board/Backlog qua tab của
+      // trang chi tiết dự án. Đừng nhớ "project vừa mở" vào store: giá trị đó nói dối
+      // ngay khi người dùng mở hai tab trình duyệt.
       { label: 'Bảng Kanban', icon: KanbanSquareIcon },
       { label: 'Backlog', icon: ListTodoIcon },
     ],

@@ -2,6 +2,8 @@
 
 import { CalendarClockIcon, MoreHorizontalIcon, PencilIcon, Trash2Icon } from 'lucide-react';
 
+import Link from 'next/link';
+
 import { StatusBadge } from '@/components/projects/status-badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -70,7 +72,14 @@ export function ProjectTable({
 
             return (
               <TableRow key={project.id}>
-                <TableCell className="font-medium">{project.name}</TableCell>
+                <TableCell className="font-medium">
+                  <Link
+                    href={`/projects/${project.id}`}
+                    className="hover:text-primary hover:underline underline-offset-4 transition-colors"
+                  >
+                    {project.name}
+                  </Link>
+                </TableCell>
                 <TableCell>
                   <StatusBadge status={project.status} />
                 </TableCell>
