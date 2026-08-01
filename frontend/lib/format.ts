@@ -4,10 +4,19 @@ const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
   year: 'numeric',
 });
 
-const shortDateFormatter = new Intl.DateTimeFormat('vi-VN', {
-  day: '2-digit',
-  month: '2-digit',
-});
+/**
+ * ⚠️ KHÔNG dùng `Intl.DateTimeFormat('vi-VN', { day, month })` cho dạng ngắn.
+ *
+ * Với vi-VN, ICU trả về mẫu chỉ-ngày-tháng bằng dấu GẠCH NGANG (`29-07`) trong khi mẫu
+ * đủ ba thành phần lại dùng dấu gạch chéo (`12/08/2026`). Đặt hai cái cạnh nhau trong
+ * cùng một khoảng ngày cho ra `29-07 – 12/08/2026`, trông hệt như lỗi. Tự ghép để giữ
+ * một kiểu dấu duy nhất.
+ */
+function dayMonth(date: Date): string {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${day}/${month}`;
+}
 
 /** Ngày từ API là chuỗi ISO. Hiển thị theo định dạng Việt Nam. */
 export function formatDate(iso: string): string {
@@ -35,7 +44,7 @@ export function isPastDue(iso: string): boolean {
 export function formatShortDate(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '—';
-  return shortDateFormatter.format(date);
+  return dayMonth(date);
 }
 
 /** Khoảng ngày của sprint: `12/08 – 26/08/2026`. */
