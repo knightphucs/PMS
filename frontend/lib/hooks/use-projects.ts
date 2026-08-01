@@ -15,7 +15,21 @@ import type { CreateProjectRequest, UpdateProjectRequest } from '@/types/project
 export const projectKeys = {
   all: ['projects'] as const,
   list: (params: PagedRequest) => [...projectKeys.all, 'list', params] as const,
+  /** Nguồn `rowVersion`. `staleTime: 0` / `gcTime: 0` — CHỈ dành cho form sửa. */
   detail: (id: string) => [...projectKeys.all, 'detail', id] as const,
+  /**
+   * Cùng endpoint với `detail` nhưng khóa riêng và cache bình thường.
+   *
+   * Trang chi tiết project cần `name` (breadcrumb, header) và `members` (suy ra vai trò
+   * của mình) trong suốt phiên làm việc, không phải chỉ trong lúc một dialog đang mở.
+   * Dùng chung khóa với `detail` thì hoặc là trang refetch ở mỗi lần đổi tab, hoặc là
+   * cache bị vứt ngay khi đóng dialog — và tệ hơn cả: form sửa sẽ nhận một `rowVersion`
+   * cũ tới 5 phút, tức 409 bảo đảm.
+   *
+   * Giá phải trả là một `GET /projects/{id}` thừa khi mở dialog sửa từ trang chi tiết.
+   * Đó là giá đúng của luật ADR-016 "muốn ghi đè thì phải chứng minh đã đọc bản mới nhất".
+   */
+  overview: (id: string) => [...projectKeys.all, 'overview', id] as const,
 };
 
 export function useProjects(params: PagedRequest) {
@@ -59,6 +73,21 @@ export function useProject(id: string | null) {
     enabled: id !== null,
     staleTime: 0,
     gcTime: 0,
+  });
+}
+
+/**
+ * Chi tiết project cho HIỂN THỊ — tên, mô tả, danh sách thành viên.
+ *
+ * ⚠️ Đừng lấy `rowVersion` từ đây để gửi lên: dữ liệu ở đây được phép cũ vài phút. Form
+ * sửa phải dùng `useProject` (khóa `detail`).
+ */
+export function useProjectOverview(projectId: string | null) {
+  return useQuery({
+    queryKey: projectKeys.overview(projectId ?? ''),
+    queryFn: ({ signal }) => getProject(projectId!, signal),
+    enabled: projectId !== null,
+    staleTime: 5 * 60_000,
   });
 }
 

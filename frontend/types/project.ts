@@ -55,3 +55,22 @@ export interface CreateProjectRequest {
 export interface UpdateProjectRequest extends CreateProjectRequest {
   rowVersion: string;
 }
+
+export interface InviteMemberRequest {
+  /** Mời bằng EMAIL, không phải id. 404 nếu email chưa có tài khoản — cố ý không tự tạo hộ. */
+  email: string;
+  role: RoleInProject;
+}
+
+export interface ChangeMemberRoleRequest {
+  role: RoleInProject;
+}
+
+/** Kiểu phần tử của `GET /projects/invitations` — lời mời đang chờ TÔI phản hồi. */
+export interface MyInvitationResponse {
+  projectId: string;
+  projectName: string;
+  /** Vai trò được mời vào, chưa có hiệu lực cho tới khi chấp nhận. */
+  role: RoleInProject;
+  invitedAt: string;
+}

@@ -3,6 +3,7 @@
 import { MenuIcon } from 'lucide-react';
 import { useState } from 'react';
 
+import { Breadcrumbs } from '@/components/common/breadcrumbs';
 import { ThemeToggle } from '@/components/common/theme-toggle';
 import { SidebarBrand, SidebarNav } from '@/components/layout/sidebar';
 import { UserMenu } from '@/components/layout/user-menu';
@@ -54,6 +55,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           >
             <MenuIcon className="size-4" />
           </Button>
+
+          <Breadcrumbs />
 
           <div className="flex-1" />
           <ThemeToggle />
