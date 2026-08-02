@@ -12,8 +12,8 @@ body:
 auth:
   type: noauth
 description: |-
-  Thân phản hồi CỐ Ý không còn `refreshToken` (ADR-027) — nó về bằng cookie httpOnly
-  `pms_refresh_token` mà Postman tự lưu vào cookie jar. Biến môi trường `refresh_token`
+  Thân phản hồi CỐ Ý không còn `refreshToken` (ADR-027) — nó về bằng cookie httpOnly  
+  `pms_refresh_token` mà Postman tự lưu vào cookie jar. Biến môi trường `refresh_token`  
   không còn dùng nữa và đã bị bỏ.
 scripts:
   - type: afterResponse
