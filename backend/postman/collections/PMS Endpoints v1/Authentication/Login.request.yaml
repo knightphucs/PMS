@@ -11,15 +11,18 @@ body:
     }
 auth:
   type: noauth
+description: |-
+  Thân phản hồi CỐ Ý không còn `refreshToken` (ADR-027) — nó về bằng cookie httpOnly  
+  `pms_refresh_token` mà Postman tự lưu vào cookie jar. Biến môi trường `refresh_token`  
+  không còn dùng nữa và đã bị bỏ.
 scripts:
   - type: afterResponse
     code: |-
       const response = pm.response.json();
 
-      if (pm.response.code === 200 && response.accessToken && response.refreshToken) {
+      if (pm.response.code === 200 && response.accessToken) {
           pm.environment.set("access_token", response.accessToken);
-          pm.environment.set("refresh_token", response.refreshToken);
-          console.log("Token saved.");
+          console.log("Access token saved. Refresh token nằm trong cookie httpOnly.");
       } else {
           console.log("No token found.");
       }

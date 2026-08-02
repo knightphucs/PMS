@@ -16,7 +16,7 @@ public class ProjectRepository : Repository<Project>, IProjectRepository
                 .ThenInclude(m => m.Employee)
             .FirstOrDefaultAsync(p => p.Id == id, ct);
 
-    public async Task<PagedResult<Project>> GetPagedForEmployeeAsync(
+    public async Task<PagedResult<ProjectWithRole>> GetPagedForEmployeeAsync(
         Guid employeeId, PagedRequest request, CancellationToken ct = default)
     {
         // Global Query Filter đã tự loại project IsDeleted = true.
@@ -43,12 +43,19 @@ public class ProjectRepository : Repository<Project>, IProjectRepository
             _                 => query.OrderBy(p => p.ExpectedCompletionDate)
         };
 
+        // Lấy kèm vai trò của chính employee trong từng project. `First` an toàn vì mệnh
+        // đề Where phía trên đã bảo đảm có đúng một ProjectMember Accepted khớp
+        // (unique index trên (ProjectId, EmployeeId) là chốt chặn cuối — ADR-012).
         var items = await query
             .Skip(request.Skip)
             .Take(request.PageSize)
+            .Select(p => new ProjectWithRole(
+                p,
+                p.Members.First(m => m.EmployeeId == employeeId
+                                  && m.InvitationStatus == InvitationStatus.Accepted).RoleInProject))
             .ToListAsync(ct);
 
-        return new PagedResult<Project>
+        return new PagedResult<ProjectWithRole>
         {
             Items = items,
             TotalCount = totalCount,

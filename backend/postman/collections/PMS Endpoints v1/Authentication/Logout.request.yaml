@@ -2,14 +2,14 @@ $kind: http-request
 name: Logout
 url: "{{api_url}}/auth/logout"
 method: POST
-body:
-  type: json
-  content: |-
-    {
-        "refreshToken": "string"
-    }
 auth:
   type: bearer
   credentials:
     token: "{{access_token}}"
+description: |-
+  Không có body: refresh token cần thu hồi được đọc từ cookie httpOnly (ADR-027).  
+  Vẫn cần access token hợp lệ ở header Authorization vì endpoint có \[Authorize\].
+
+  Trả 204 và xóa cookie. Idempotent — gọi lại khi cookie đã mất thì nhận 401 do  
+  không đọc được cookie, đó là hành vi đúng.
 order: 3391370548275651
