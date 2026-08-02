@@ -88,7 +88,10 @@ export function ChangeRoleDialog({
           <Label htmlFor="change-role">Vai trò</Label>
           <Select value={role} onValueChange={(value) => setRole(value as RoleInProject)}>
             <SelectTrigger id="change-role" className="w-full">
-              <SelectValue />
+              {/* `SelectValue` của Base UI hiện giá trị thô — phải tự định dạng. */}
+              <SelectValue>
+                {(current: RoleInProject) => ROLE_IN_PROJECT_LABEL[current]}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {ROLES.map((item) => (

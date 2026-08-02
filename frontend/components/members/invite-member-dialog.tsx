@@ -127,7 +127,11 @@ export function InviteMemberDialog({ projectId }: { projectId: string }) {
               onValueChange={(value) => setValue('role', value as RoleInProject)}
             >
               <SelectTrigger id="invite-role" className="w-full">
-                <SelectValue />
+                {/* `SelectValue` của Base UI hiện giá trị thô ("Member") chứ không phải
+                    nhãn của item — phải tự định dạng. */}
+                <SelectValue>
+                  {(current: RoleInProject) => ROLE_IN_PROJECT_LABEL[current]}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {ROLES.map((item) => (
