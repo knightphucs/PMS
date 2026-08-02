@@ -242,6 +242,16 @@ Jira/Linear **dày**, không thoáng. Hiện app đang thoáng sai chỗ.
 - Ngày dạng ngắn: **`Intl.DateTimeFormat('vi-VN', { day, month })` trả về dấu GẠCH NGANG**
   (`29-07`) trong khi mẫu đủ ba thành phần dùng gạch chéo (`12/08/2026`). Ghép hai cái
   trong một khoảng ngày ra `29-07 – 12/08/2026`, trông hệt như lỗi. Tự ghép chuỗi.
+- 🔴 **Class `.variable` của `next/font` phải đặt trên `<html>`, KHÔNG phải `<body>`.**
+  `globals.css` `@apply font-sans` ở tầng `html`; đặt biến ở `<body>` thì `<html>` không
+  thấy biến → font-family không hợp lệ → rơi về **Times New Roman**, `<body>` thừa kế
+  luôn. Không lỗi, không cảnh báo. Bug này sống từ phiên dựng scaffold tới 2026-08-02.
+  Kiểm bằng `getComputedStyle(document.documentElement).fontFamily`, đừng tin mắt.
+- **Đổi font thì phải kiểm bộ `vietnamese`** trong
+  `next/dist/compiled/@next/font/dist/google/font-data.json`. Thiếu glyph thì trình duyệt
+  âm thầm rơi về font dự phòng ở đúng vài ký tự có dấu — rất khó thấy. Cách kiểm bằng số:
+  đo bề rộng ký tự bằng canvas với `font: '400 40px "Tên Font", monospace'` rồi so với
+  `'400 40px monospace'`; trùng nhau nghĩa là glyph bị thiếu.
 
 ---
 

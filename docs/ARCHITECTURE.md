@@ -16,12 +16,21 @@
 > thuần của Kanban. **0 migration** (thay đổi backend phiên này chỉ là DTO + `Include`).
 >
 > ### ➡️ Phiên tiếp theo nên làm gì
-> Ba hạng mục còn lại đều **bị chặn bởi backend**, nên phiên sau là **phiên backend**:
-> 1. **Đợt API ngắn**: `Description` cho task, mã task `PMS-12`, Label, Watcher,
->    ActivityLog đọc → mở khóa màn **chi tiết Task**.
-> 2. **API thống kê** → mở khóa Dashboard.
-> 3. Job task quá hạn → Notification `DueSoon`, rồi **chuông thông báo** ở frontend
->    (API đọc đã sẵn sàng từ lâu, chỉ chưa có màn).
+> 📋 **Danh sách đầy đủ việc còn dang dở ở §1 → "Việc còn dang dở"** — gồm cả code đã viết
+> mà chưa có màn nào dùng. Đọc trước để khỏi viết lại thứ đã có. Tóm tắt:
+>
+> **Làm được ngay, KHÔNG chờ backend** (API đã sẵn sàng từ lâu):
+> 1. ⭐ **"Lời mời của tôi"** — luồng mời thành viên hiện **chưa khép kín**: PM mời được
+>    nhưng người được mời **không có chỗ nào bấm Chấp nhận**. Toàn bộ hook + endpoint đã
+>    viết xong ở phiên 2026-08-02, chỉ thiếu một trang. Rẻ nhất, giá trị cao nhất.
+> 2. **Notification bell** — `NotificationsController` đủ dùng.
+> 3. **Admin: quản lý nhân sự** — `AdminEmployeesController` đã có, chưa có màn nào.
+>
+> **Cần làm backend trước:**
+> 4. **Đợt API ngắn**: `Description` cho task, mã task `PMS-12`, Label, Watcher,
+>    ActivityLog đọc → mở khóa màn **chi tiết Task** (màn ⬜ lớn nhất còn lại).
+> 5. **API thống kê** → mở khóa Dashboard.
+> 6. Job task quá hạn → Notification `DueSoon`.
 >
 > ⚠️ Trước khi làm Kanban hay đụng vào state machine của task: `docs/frontend-next-session.md`
 > §6 có **một đính chính quan trọng** — quy tắc chuyển trạng thái **KHÔNG PHẢI** "cột kề".
@@ -161,6 +170,76 @@ Dashboard) đều chờ API:
 Khoản nợ kiểm chứng của hai phiên trước cũng đã trả: phiên này thao tác thật trên trình
 duyệt, xác nhận được giữ phiên khi F5, single-flight refresh (một lần F5 → **đúng một**
 `/refresh`), và toàn bộ luồng 409 của `RowVersion`.
+
+### Việc còn dang dở — đọc trước khi bắt đầu phiên mới
+
+> Liệt kê thẳng, không giấu. Mục đích: phiên sau **không phải dò lại**, và không viết lại
+> thứ đã có. Cập nhật 2026-08-02.
+
+#### A. Code ĐÃ VIẾT nhưng chưa có màn nào dùng
+
+Không phải code chết cần xóa — chúng đúng, có test ở chỗ cần thiết, và là thứ màn hình
+tương ứng sẽ cần ngay. Nhưng phải biết là **đang có sẵn** để khỏi viết lại:
+
+| Thứ đã có | Ở đâu | Màn hình sẽ dùng |
+|---|---|---|
+| `useMyInvitations`, `useRespondToInvitation` + 3 endpoint accept/decline/list | `lib/hooks/use-members.ts`, `lib/api/endpoints/members.ts` | **"Lời mời của tôi"** — chưa có màn. Hiện chỉ chấp nhận lời mời được bằng gọi API tay |
+| `canComment`, `canEditComment`, `canDeleteComment` (ADR-026) | `lib/tasks/permissions.ts` | Khối **Comment** ở màn chi tiết Task |
+| `useSelfAssignTask`, `getTaskAssignees` | `lib/hooks/use-tasks.ts`, `endpoints/tasks.ts` | Nút "Tự nhận việc" ở chi tiết Task (dialog giao việc hiện chỉ dùng gán/gỡ) |
+| `listProjectTasks` (phân trang, `sortBy` name/priority/status) | `endpoints/tasks.ts` | Màn **danh sách task** dạng bảng có phân trang, nếu sau này cần |
+| `mayFailUnpredictably(status)` | `lib/tasks/status-transitions.ts` | Đánh dấu trước nước đi có thể 409 do `TaskLink` chặn |
+| `findTaskInBoard` | `lib/tasks/board-cache.ts` | Tiện ích tra thẻ, dùng khi làm cập nhật lạc quan chỗ khác |
+
+⚠️ **Đáng chú ý nhất: "Lời mời của tôi".** Luồng mời thành viên hiện **chưa khép kín** trên
+giao diện — PM mời được, nhưng người được mời **không có chỗ nào để bấm Chấp nhận**. Toàn
+bộ tầng dữ liệu đã xong, chỉ thiếu một trang. Đây là món rẻ nhất và có giá trị nhất còn lại.
+
+#### B. Màn hình chưa làm, xếp theo "có bị chặn không"
+
+**KHÔNG bị chặn — làm được ngay, API đã sẵn sàng từ lâu:**
+1. **"Lời mời của tôi"** — xem mục A. Nhỏ.
+2. **Notification bell** — `NotificationsController` đủ (danh sách phân trang, đếm chưa đọc,
+   đánh dấu một/tất cả). Dùng cặp `(relatedEntityKind, relatedEntityId)` để điều hướng
+   (ADR-025), **đừng tự dựng bảng type→route**. Nhỏ–vừa.
+3. **Comment trên task** — `CommentsController` đủ. Nhưng nó nằm trong màn chi tiết Task,
+   mà màn đó lại bị chặn (xem dưới) — trừ khi làm Comment thành một khối riêng.
+4. **Admin: quản lý nhân sự** — `AdminEmployeesController` đã có (khóa/mở tài khoản, cấp
+   `SystemAdmin`) và **chưa có màn nào**. Nhỏ.
+
+**BỊ CHẶN bởi backend:**
+5. **Chi tiết Task** — chờ `Description`, mã `PMS-12`, Label, Watcher, TaskLink, ActivityLog.
+   Đây là màn ⬜ lớn nhất còn lại.
+6. **Dashboard thống kê** — chờ API thống kê.
+7. **Search toàn cục** — hiện chỉ có `search` theo tên trong từng danh sách.
+
+#### C. Nợ kỹ thuật đã biết
+
+- **Không có trường thứ tự task ở bất kỳ đâu.** Sắp xếp thẻ trong cùng một cột (kiểu
+  Trello) là **không làm được** — cần thêm cột rank + endpoint reorder ở backend. Đây là lý
+  do đã cố ý bỏ `@dnd-kit/sortable`.
+- **Tạo subtask chưa có giao diện.** `CreateTaskRequest.ParentTaskId` hỗ trợ sẵn và domain
+  đã chặn subtask 2 cấp, nhưng dialog tạo task hiện luôn gửi `parentTaskId: null`.
+- **Sprint không có `RowVersion`** → sửa đồng thời là last-write-wins, không có tín hiệu.
+  Đừng dựng UI cảnh báo stale cho sprint.
+- **`invalidateQueries(projectDataKeys.all)` hơi rộng**: chuyển task sang sprint cũng làm
+  mới cả danh sách thành viên. Có chủ đích — đổi an toàn lấy chính xác, và danh sách thành
+  viên nhỏ. Nếu sau này thấy chậm thì mới tách nhỏ khóa.
+- **`seq-12-refresh-token`** mới có `.mmd`, chưa sinh `.drawio`/`.png` (máy chưa cài
+  draw.io Desktop). Lệnh ở `docs/uml/README.md`.
+- Hai file `backend/postman/.../Login|Logout.request.yaml` đang có thay đổi **chưa commit**
+  — chỉ là đổi ký tự xuống dòng do công cụ Postman sinh ra, không phải thay đổi nội dung.
+
+#### D. Chưa kiểm chứng bằng tay
+
+Phiên 2026-08-02 kiểm rất kỹ trên Chrome ở kích thước desktop, nhưng **chưa** kiểm:
+- Kéo–thả bằng **cảm ứng** thật (đã cấu hình `TouchSensor` với `delay: 220` để không
+  khóa thao tác cuộn cột, nhưng chưa thử trên thiết bị thật).
+- Kéo–thả bằng **bàn phím** thật (đã cấu hình `KeyboardSensor` + nhánh dự phòng
+  `rectIntersection` vì `pointerWithin` luôn rỗng khi không có con trỏ).
+- Giao diện trên **màn hình nhỏ** (bố cục board đã đặt `sm:grid-cols-2` / `xl:grid-cols-4`
+  nhưng chưa xem thật).
+- Luồng **403** khi `Member` không phải assignee cố kéo thẻ (đã gác ở client theo ADR-017
+  nên khó chạm tới; cần đăng nhập bằng tài khoản Member để thử).
 
 ---
 
@@ -441,10 +520,32 @@ tổng hợp kết quả...).
 ## 6. Kiến trúc Frontend
 
 **Stack:** Next.js 15 (App Router, TypeScript) + TailwindCSS 4 + shadcn/ui + TanStack Query 5
-+ Zustand 5 + react-hook-form + Zod 4 *(+ Recharts khi làm Dashboard)*
++ Zustand 5 + react-hook-form + Zod 4 + `@dnd-kit` (Kanban) + Vitest *(+ Recharts khi làm Dashboard)*
 
 > Từ 2026-07-31 mục này mô tả **hiện trạng**, không còn là dự kiến. Năm quyết định nền
 > tảng nằm ở ADR-027 → ADR-032 (§15).
+
+**Font chữ: IBM Plex Sans** (`next/font/google`, weight 400/500/600/700, subset
+`latin` + `vietnamese`).
+
+> 🔴 **Hai cái bẫy về font, cả hai đều hỏng IM LẶNG:**
+>
+> 1. **Bộ `vietnamese` là bắt buộc.** Geist mặc định của scaffold đã bị loại vì thiếu dấu
+>    ở một số ký tự tổ hợp (`ế ệ ỗ ữ`…) — lỗi chỉ lộ ở vài từ nên rất dễ lọt. Trước khi
+>    đổi font, kiểm `subsets` trong
+>    `next/dist/compiled/@next/font/dist/google/font-data.json`.
+> 2. **Class `.variable` của `next/font` phải đặt trên `<html>`, KHÔNG phải `<body>`.**
+>    Nó định nghĩa `--font-sans`, mà `globals.css` lại `@apply font-sans` ở tầng `html`.
+>    Đặt ở `<body>` thì lúc `<html>` tính `font-family` biến chưa tồn tại → giá trị không
+>    hợp lệ → trình duyệt rơi về **Times New Roman**, và `<body>` thừa kế luôn cái đó.
+>    Không lỗi, không cảnh báo, chỉ là cả ứng dụng dùng font serif.
+>    **Bug này đã tồn tại từ phiên dựng scaffold cho tới khi phát hiện ngày 2026-08-02** —
+>    mọi ảnh chụp giao diện trước mốc đó đều là Times New Roman.
+>
+> Cách kiểm nhanh trong console, đừng tin mắt:
+> ```js
+> getComputedStyle(document.documentElement).fontFamily  // phải ra tên font thật
+> ```
 
 **Cấu trúc phân lớp Frontend** (đúng như đã vẽ từ đầu, nay đã dựng thật):
 ```
