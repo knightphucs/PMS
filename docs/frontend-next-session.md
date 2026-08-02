@@ -185,10 +185,26 @@ Jira/Linear **dày**, không thoáng. Hiện app đang thoáng sai chỗ.
 
 **Kanban:**
 - Thả thẻ về **đúng cột nó đang đứng** → **409** (state machine từ chối "đứng yên"). Kéo–thả phải **chặn trước**, không được để bắn request rồi hiện toast đỏ.
-- **Nhảy bước** `ToDo → Done` → **409**. Chỉ cho thả sang cột kề.
-- Task đang bị `Blocks` chặn cũng → 409.
+- **Nhảy bước** `ToDo → Done` → **409**.
+- ⚠️ **ĐÍNH CHÍNH 2026-08-02:** dòng trên trước đây viết *"Chỉ cho thả sang cột kề"* — **SAI**,
+  và cài theo nó là ship bug theo cả hai chiều. Đã đối chiếu `TaskItem.CanTransitionTo`
+  (`PMS.Domain/Entities/TaskItem.cs:77-86`), state machine thật có **đúng sáu** bước:
+  ```
+  ToDo → InProgress          InProgress → Review        Review → Done
+  InProgress → ToDo          Review → InProgress        Done → Review
+  ```
+  Nghĩa là `Done → Review` và `Review → InProgress` là **bước lùi HỢP LỆ** (task bị
+  trả về sửa), còn `ToDo → Review` **trông như cột kề nhưng KHÔNG hợp lệ**.
+  Bản sao phía frontend nằm ở `lib/tasks/status-transitions.ts`, có test khóa lại đúng
+  hai phản ví dụ này.
+- Task đang bị `Blocks` chặn cũng → 409, **nhưng chỉ khi đích là `InProgress`** —
+  `TaskStatusTransitionService` chỉ gọi `EnsureNotBlockedAsync` cho nhánh đó. Mọi cột
+  khác đều đoán trước được hoàn toàn ở client.
 - `PATCH /tasks/{id}/status` và `PUT /tasks/{id}/sprint` **KHÔNG** cần `RowVersion` (ADR-021); `PUT /tasks/{id}` thì **bắt buộc**.
 - Board luôn trả **đủ 4 cột** kể cả cột rỗng.
+- Board **không có `sprintId`** KHÔNG phải "board của backlog": backend rơi xuống
+  `GetRootTasksByProjectAsync`, tức **tất cả** task gốc kể cả task thuộc sprint khác.
+  Nhãn đúng cho lựa chọn đó là **"Tất cả task"**.
 
 **Chung:**
 - 404 ≠ "không có quyền". Người ngoài project nhận 404 **cố ý** (ADR-006/019).
@@ -201,6 +217,31 @@ Jira/Linear **dày**, không thoáng. Hiện app đang thoáng sai chỗ.
 - **Đừng gọi `performRefresh()` trực tiếp** — chỉ `refreshAccessToken()` (ADR-030).
 - Tailwind v4 **đã bỏ** `max-w-screen-*`. Class không tồn tại thì im lặng không có tác dụng, không hề báo lỗi.
 - `components/ui/*` do shadcn sinh — chỉnh style ở **nơi dùng**, đừng sửa file đó (sẽ bị ghi đè).
+
+**Thêm sau phiên 2026-08-02:**
+- **`SelectValue` của Base UI hiện GIÁ TRỊ THÔ**, không phải nhãn của `SelectItem`. Phải
+  truyền hàm định dạng: `<SelectValue>{(v) => NHAN[v]}</SelectValue>`. Không làm thì ô
+  chọn hiện `"Member"` thay vì `"Thành viên"`, hoặc nguyên một guid.
+- **`onValueChange` của Base UI `Select` có thể trả `null`** khi bỏ chọn — kiểu là
+  `string | null`, phải xử lý cả hai.
+- **Đừng chạy `npm run build` khi `npm run dev` đang chạy.** Cả hai cùng ghi vào `.next`
+  và làm hỏng nó: trang trả 500 kèm `ENOENT ... _buildManifest.js.tmp.*`. Phải `rm -rf
+  .next` rồi khởi động lại.
+- **`vitest.config` phải đặt tên `.mts`.** `package.json` không có `"type": "module"` nên
+  Vitest nạp file `.ts` bằng `require()` và chết `ERR_REQUIRE_ESM` ở phụ thuộc `std-env`.
+- **Vitest không đọc `.env.local`** mà `lib/api/config.ts` thì NÉM ngay lúc import nếu
+  thiếu `NEXT_PUBLIC_API_BASE_URL` → phải set qua `test.env` trong config.
+- **`new Response('', { status: 204 })` NÉM** — body phải là `null` cho 204/205/304.
+- **`mockResolvedValue(response)` chỉ dùng được MỘT lần**: body của `Response` chỉ đọc
+  được một lượt, lời gọi thứ hai chết với "Body is unusable". Dùng `mockImplementation`
+  để dựng `Response` mới mỗi lần.
+- **Đo tương phản màu thì đừng bóc `getComputedStyle().color` bằng regex** — Chrome trả
+  `lab()`/`oklch()`, không phải `rgb()`. Vẽ lên canvas 1×1 rồi đọc pixel, và nhớ **xếp
+  chồng cả các lớp nền bán trong suốt** (`bg-muted/30`, `bg-primary/5`) chứ không lấy lớp
+  đầu tiên gặp được.
+- Ngày dạng ngắn: **`Intl.DateTimeFormat('vi-VN', { day, month })` trả về dấu GẠCH NGANG**
+  (`29-07`) trong khi mẫu đủ ba thành phần dùng gạch chéo (`12/08/2026`). Ghép hai cái
+  trong một khoảng ngày ra `29-07 – 12/08/2026`, trông hệt như lỗi. Tự ghép chuỗi.
 
 ---
 

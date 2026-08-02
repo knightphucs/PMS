@@ -67,10 +67,16 @@
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  /* Đậm hơn mặc định của shadcn (0.556). Đã ĐO trên trình duyệt: 0.556 chỉ đạt 4.35:1
+     so với nền thật của trang (`bg-muted/30` chứ không phải trắng tinh) — dưới chuẩn
+     AA 4.5:1. 0.535 cho 4.75:1. Đây là màu của mọi phụ đề, meta và nhãn cột nên nó
+     chiếm phần lớn chữ trên màn hình. */
+  --muted-foreground: oklch(0.535 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+  /* Cùng lý do: mặc định 0.577 cho 4.38:1, 0.555 cho 4.66:1. Màu này vừa là chữ (ngày
+     quá hạn, thông báo lỗi) vừa là nền nút xóa. */
+  --destructive: oklch(0.555 0.245 27.325);
   /* Cảnh báo (409 dữ liệu đã cũ, task quá hạn). Trước đây rải bg-amber-50/text-amber-900
      cứng trong component — không đổi theo chế độ sáng/tối được. */
   --warning: oklch(0.72 0.16 75);

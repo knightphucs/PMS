@@ -75,7 +75,9 @@ export function ProjectTable({
                 <TableCell className="font-medium">
                   <Link
                     href={`/projects/${project.id}`}
-                    className="hover:text-primary hover:underline underline-offset-4 transition-colors"
+                    // `text-foreground` tường minh: không có nó thì link thừa kế màu xám
+                    // của bảng và chỉ đạt 2.85:1 ở chế độ sáng (đã đo).
+                    className="text-foreground hover:text-primary underline-offset-4 transition-colors hover:underline"
                   >
                     {project.name}
                   </Link>

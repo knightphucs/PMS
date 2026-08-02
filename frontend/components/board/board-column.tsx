@@ -73,7 +73,8 @@ export function BoardColumn({
 
       <div className="flex min-h-24 flex-col gap-2 overflow-y-auto">
         {tasks.length === 0 ? (
-          <p className="text-muted-foreground/70 grid flex-1 place-items-center rounded-lg border border-dashed py-6 text-xs">
+          // Không dùng `/70`: đã đo được 2.71:1 ở chế độ sáng, dưới xa chuẩn AA 4.5:1.
+          <p className="text-muted-foreground grid flex-1 place-items-center rounded-lg border border-dashed py-6 text-xs">
             {eligible ? 'Thả vào đây' : 'Trống'}
           </p>
         ) : (
