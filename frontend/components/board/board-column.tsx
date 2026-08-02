@@ -16,7 +16,8 @@ interface Props {
   activeTask: TaskSummaryResponse | null;
   canDragTask: (task: TaskSummaryResponse) => boolean;
   dragDisabledReason: string;
-  onOpenMenu?: (task: TaskSummaryResponse) => void;
+  /** Menu thao tác cho từng thẻ; `null` khi người dùng không có quyền nào. */
+  renderMenu?: (task: TaskSummaryResponse) => React.ReactNode;
 }
 
 export function BoardColumn({
@@ -25,7 +26,7 @@ export function BoardColumn({
   activeTask,
   canDragTask,
   dragDisabledReason,
-  onOpenMenu,
+  renderMenu,
 }: Props) {
   /**
    * 🔴 MỘT nguồn sự thật cho cả hành vi lẫn hình thức.
@@ -82,7 +83,7 @@ export function BoardColumn({
               task={task}
               canDrag={canDragTask(task)}
               disabledReason={dragDisabledReason}
-              onOpenMenu={onOpenMenu}
+              menu={renderMenu?.(task)}
             />
           ))
         )}

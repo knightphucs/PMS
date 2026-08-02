@@ -2,11 +2,10 @@
 
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { CalendarIcon, GitBranchIcon, MoreHorizontalIcon } from 'lucide-react';
+import { CalendarIcon, GitBranchIcon } from 'lucide-react';
 
 import { AvatarStack } from '@/components/common/avatar-stack';
 import { PriorityIcon } from '@/components/tasks/priority-icon';
-import { Button } from '@/components/ui/button';
 import { formatShortDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { TaskSummaryResponse } from '@/types/task';
@@ -17,12 +16,16 @@ interface Props {
   canDrag: boolean;
   /** Lý do không kéo được, hiện ở tooltip gốc của trình duyệt. */
   disabledReason?: string;
-  onOpenMenu?: (task: TaskSummaryResponse) => void;
+  /**
+   * Menu thao tác, truyền vào dưới dạng slot thay vì callback: thẻ không cần biết gì về
+   * sprint, quyền hay dialog nào — nó chỉ vẽ.
+   */
+  menu?: React.ReactNode;
   /** Bản vẽ trong `DragOverlay` — không gắn listener, không mờ đi. */
   overlay?: boolean;
 }
 
-export function TaskCard({ task, canDrag, disabledReason, onOpenMenu, overlay }: Props) {
+export function TaskCard({ task, canDrag, disabledReason, menu, overlay }: Props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
     // Đưa cả object vào `data` để `onDragStart`/`onDragEnd` biết trạng thái hiện tại của
@@ -52,20 +55,7 @@ export function TaskCard({ task, canDrag, disabledReason, onOpenMenu, overlay }:
         <h3 className="line-clamp-2 flex-1 text-[13px] leading-snug font-medium">
           {task.name}
         </h3>
-        {onOpenMenu && !overlay ? (
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            className="-mt-0.5 -mr-1 shrink-0"
-            aria-label={`Thao tác với ${task.name}`}
-            // Ngăn cú bấm chậm biến thành thao tác kéo. Ràng buộc distance 6px của
-            // PointerSensor đã đỡ phần lớn, nhưng không đỡ được click giữ lâu.
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={() => onOpenMenu(task)}
-          >
-            <MoreHorizontalIcon className="size-3.5" />
-          </Button>
-        ) : null}
+        {menu && !overlay ? <div className="-mt-0.5 -mr-1 shrink-0">{menu}</div> : null}
       </div>
 
       {/* Thanh tiến độ subtask CHỈ hiện khi > 0.

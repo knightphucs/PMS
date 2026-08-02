@@ -63,14 +63,14 @@ export function BoardView({
   board,
   role,
   myEmployeeId,
-  onOpenMenu,
+  renderMenu,
 }: {
   projectId: string;
   sprintId: string | null;
   board: BoardResponse;
   role: RoleInProject | null;
   myEmployeeId: string | null;
-  onOpenMenu?: (task: TaskSummaryResponse) => void;
+  renderMenu?: (task: TaskSummaryResponse) => React.ReactNode;
 }) {
   const sensors = useBoardSensors();
   const changeStatus = useChangeTaskStatus(projectId, sprintId);
@@ -150,7 +150,7 @@ export function BoardView({
             activeTask={activeTask}
             canDragTask={canDragTask}
             dragDisabledReason={dragDisabledReason}
-            onOpenMenu={onOpenMenu}
+            renderMenu={renderMenu}
           />
         ))}
       </div>

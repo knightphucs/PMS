@@ -1,5 +1,6 @@
 'use client';
 
+import { PlusIcon } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
@@ -8,6 +9,8 @@ import { BoardView } from '@/components/board/board-view';
 import { SprintSwitcher } from '@/components/board/sprint-switcher';
 import { PageHeader } from '@/components/common/page-header';
 import { QueryError } from '@/components/common/query-error';
+import { useTaskActions } from '@/components/tasks/use-task-actions';
+import { Button } from '@/components/ui/button';
 import { useBoard } from '@/lib/hooks/use-board';
 import { useMyProjectRole } from '@/lib/hooks/use-my-project-role';
 import { useSprints } from '@/lib/hooks/use-sprints';
@@ -36,6 +39,13 @@ function BoardContent() {
   const sprints = useSprints(id);
   const board = useBoard(id, sprintId);
   const { role, myEmployeeId } = useMyProjectRole(id);
+  const taskActions = useTaskActions({
+    projectId: id,
+    role,
+    myEmployeeId,
+    // Đang xem bảng của sprint nào thì task tạo mới gợi ý luôn sprint đó.
+    defaultSprintId: sprintId,
+  });
 
   const handleSprintChange = (next: string | null) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -56,12 +66,23 @@ function BoardContent() {
         count={taskCount}
         description="Kéo thẻ sang cột khác để đổi trạng thái."
         actions={
-          <SprintSwitcher
-            sprints={sprints.data}
-            isLoading={sprints.isPending}
-            value={sprintId}
-            onChange={handleSprintChange}
-          />
+          <>
+            <SprintSwitcher
+              sprints={sprints.data}
+              isLoading={sprints.isPending}
+              value={sprintId}
+              onChange={handleSprintChange}
+            />
+            {/* MỘT nút tạo task ở đây, KHÔNG phải nút `+` trên từng cột:
+                `CreateTaskRequest` không có trường status nên task mới luôn là `ToDo` —
+                nút `+` trên cột Hoàn thành sẽ là một lời nói dối. */}
+            {taskActions.canManage ? (
+              <Button size="sm" onClick={taskActions.openCreate}>
+                <PlusIcon className="size-4" />
+                Tạo task
+              </Button>
+            ) : null}
+          </>
         }
       />
 
@@ -81,8 +102,11 @@ function BoardContent() {
           board={board.data}
           role={role}
           myEmployeeId={myEmployeeId}
+          renderMenu={taskActions.renderMenu}
         />
       )}
+
+      {taskActions.dialogs}
     </div>
   );
 }
