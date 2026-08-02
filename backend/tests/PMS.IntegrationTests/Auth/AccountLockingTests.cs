@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using PMS.Application.Features.Admin;
 using PMS.Application.Features.Auth;
@@ -18,17 +19,26 @@ public class AccountLockingTests : IntegrationTestBase
         var admin = await CreateSystemAdminAsync();      // helper mới, xem bên dưới
         var victim = await CreateUserAsync();
 
-        // Lấy refresh token HỢP LỆ trước khi bị khóa
-        var login = await Factory.CreateClient().PostAsJsonAsync("/api/v1/Auth/login",
+        // MỘT client duy nhất cho cả login lẫn refresh: kể từ ADR-027 refresh token đi
+        // bằng cookie, mà CookieContainer là RIÊNG cho từng HttpClient — hai client thì
+        // cookie không chảy qua được. BaseAddress phải là https vì cookie có Secure=true
+        // và CookieContainer lọc bỏ cookie secure trên URI http (mặc định của
+        // WebApplicationFactory là http://localhost).
+        var client = Factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        // Lấy refresh token HỢP LỆ trước khi bị khóa — nay nằm trong cookie, không phải body
+        var login = await client.PostAsJsonAsync("/api/v1/auth/login",
             new LoginRequest(victim.Email, "Test@1234"));
-        var auth = await login.Content.ReadFromJsonAsync<AuthResponse>(TestJson.Options);
+        login.EnsureSuccessStatusCode();
 
         await admin.Client.PostAsJsonAsync(
             $"/api/v1/admin/employees/{victim.EmployeeId}/lock",
             new LockAccountRequest("Vi phạm chính sách"));
 
-        var refresh = await Factory.CreateClient().PostAsJsonAsync("/api/v1/Auth/refresh",
-            new RefreshTokenRequest(auth!.RefreshToken));
+        var refresh = await client.PostAsync("/api/v1/auth/refresh", null);
 
         refresh.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
 

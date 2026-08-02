@@ -77,4 +77,24 @@ public class CorsPolicyTests : IntegrationTestBase
         response.Headers.TryGetValues("Access-Control-Allow-Headers", out var headers).ShouldBeTrue();
         headers!.ShouldContain(h => h.Contains("authorization", StringComparison.OrdinalIgnoreCase));
     }
+
+    /// <summary>
+    /// ADR-027: thiếu header này thì trình duyệt vứt bỏ Set-Cookie ở phản hồi cross-origin
+    /// và không đính cookie vào request sau — toàn bộ luồng refresh hỏng im lặng, đúng kiểu
+    /// hỏng mà chính lớp test này sinh ra để chặn.
+    /// </summary>
+    [Fact]
+    public async Task Phan_hoi_cho_phep_gui_kem_cookie_credentials()
+    {
+        var client = Factory.CreateClient();
+
+        var request = new HttpRequestMessage(HttpMethod.Get, "/health");
+        request.Headers.Add("Origin", PmsWebApplicationFactory.TestFrontendOrigin);
+
+        var response = await client.SendAsync(request);
+
+        response.Headers.TryGetValues("Access-Control-Allow-Credentials", out var values)
+            .ShouldBeTrue("Thiếu Access-Control-Allow-Credentials — cookie refresh của ADR-027 sẽ không hoạt động.");
+        values!.ShouldContain("true");
+    }
 }

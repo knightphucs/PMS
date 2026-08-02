@@ -16,7 +16,24 @@ file text riêng.
 
 ## Sinh lại
 
-Cần draw.io Desktop (đã có sẵn `-x/--export`, nhận cả input `.mmd`):
+Cần draw.io Desktop (đã có sẵn `-x/--export`, nhận cả input `.mmd`).
+
+**Windows** — đường dẫn khác, cài bằng `winget install JGraph.Draw`:
+
+```powershell
+$DRAWIO = "$env:ProgramFiles\draw.io\draw.io.exe"
+cd docs/uml
+
+& $DRAWIO -x -f xml --no-sandbox `
+  -o seq-diagram/seq-12-refresh-token.drawio `
+     seq-diagram/src/seq-12-refresh-token.mmd
+
+& $DRAWIO -x -f png -s 2 --no-sandbox `
+  -o diagram_png/seq-12-refresh-token.png `
+     seq-diagram/seq-12-refresh-token.drawio
+```
+
+**macOS:**
 
 ```bash
 DRAWIO=/Applications/draw.io.app/Contents/MacOS/draw.io
@@ -51,6 +68,7 @@ cd docs/uml
 | 09 | `seq-09-delete-sprint` | PM xóa sprint | ADR-020: task về Backlog, **không** bị xóa |
 | 10 | `seq-10-read-notification` | Đọc / đánh dấu đã đọc thông báo | ADR-023: ngoại lệ hợp lệ của ADR-006/019, thông báo người khác → 404; đánh dấu lần hai vẫn 200 (idempotent); ADR-024: mark-all đi qua ChangeTracker, 1 `SaveChanges` |
 | 11 | `seq-11-delete-comment` | Xóa comment trên task | ADR-026: ngoài project → 404, không phải tác giả và không phải PM → 403, xóa **cứng** + `ActivityLog` |
+| 12 | `seq-12-refresh-token` | Cơ chế refresh token phía client | ADR-027/030: single-flight, hàng đợi request, nhánh reuse detection → `RevokeAllAsync` → đăng xuất sạch; refresh chủ động trước 60s. ⚠️ **mới chỉ có `.mmd`**, xem "Nợ còn lại" |
 
 ## Bẫy khi viết `.mmd`
 
@@ -61,6 +79,11 @@ XML (`&amp;lt;`), nên PNG hiện ra nguyên văn `PagedResult&lt;Notification&g
 
 ## Nợ còn lại
 
+- 🔴 **`seq-12-refresh-token` mới chỉ có `.mmd`, chưa có `.drawio` và `.png`.** Máy làm
+  phiên 2026-07-31 là Windows và **không cài draw.io Desktop** (README trước đó chỉ ghi
+  đường dẫn macOS — các phiên trước làm trên máy khác). Nguồn Mermaid đã viết xong và là
+  thứ review được; chỉ cần chạy hai lệnh ở mục "Sinh lại" trên máy có draw.io là ra đủ.
+  **Nhớ mở PNG ra xem thật** thay vì tin CLI báo thành công.
 - `seq-04` và `seq-05` **không có** thuộc tính `mermaidData` nhúng, nên không trích ngược
   ra `.mmd` được. Hai diagram này vẫn đúng với code hiện tại nên chưa cần vẽ lại; khi nào
   phải sửa chúng thì viết `.mmd` mới rồi sinh lại như các file khác.

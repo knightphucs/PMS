@@ -20,6 +20,14 @@ public record MoveTaskToSprintRequest(Guid? SprintId);
 
 public record AssignTaskRequest(Guid EmployeeId, RoleInTask Role);
 
+/// <summary>
+/// Người đảm nhận, rút gọn cho THẺ trên board/backlog — chỉ đủ để vẽ avatar.
+/// Khác <see cref="TaskAssigneeResponse"/> ở chỗ bỏ <c>RoleInTask</c> và
+/// <c>AssignedDate</c>: board trả về hàng chục task một lượt, mỗi byte thừa nhân lên
+/// theo số thẻ. Cần đầy đủ thì gọi <c>GET /tasks/{id}/assignees</c>.
+/// </summary>
+public record TaskCardAssignee(Guid EmployeeId, string EmployeeName);
+
 public record TaskSummaryResponse(
     Guid Id,
     string Name,
@@ -29,7 +37,8 @@ public record TaskSummaryResponse(
     bool IsOverdue,
     Guid? SprintId,
     Guid? ParentTaskId,
-    decimal SubtaskProgress);
+    decimal SubtaskProgress,
+    IReadOnlyList<TaskCardAssignee> Assignees);
 
 public record TaskAssigneeResponse(
     Guid EmployeeId,

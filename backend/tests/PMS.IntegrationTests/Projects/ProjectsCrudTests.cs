@@ -50,6 +50,34 @@ public class ProjectsCrudTests : IntegrationTestBase
         paged.TotalCount.ShouldBe(1);
     }
 
+    /// <summary>
+    /// `RoleInProject` trong danh sách phải là vai trò của NGƯỜI ĐANG GỌI, không phải một
+    /// thuộc tính cố định của project. Không có nó thì UI phải gọi thêm
+    /// `GET /projects/{id}/members` cho từng dòng để biết có được hiện nút Sửa/Xóa không.
+    ///
+    /// Test này cũng là chốt chặn chống hồi quy về giá trị mặc định: `RoleInProject` có
+    /// ordinal 0 là `ProjectManager`, nên nếu ai đó để trường này không được gán thì mọi
+    /// người đều hiện ra là PM — hỏng theo đúng chiều nguy hiểm nhất.
+    /// </summary>
+    [Fact]
+    public async Task Danh_sach_tra_ve_vai_tro_cua_chinh_nguoi_goi_chu_khong_phai_cua_project()
+    {
+        var pm = await CreateUserAsync();
+        var viewer = await CreateUserAsync();
+        var projectId = await CreateProjectAsync(pm.Client);
+        await InviteAndAcceptAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
+
+        var pmView = await pm.Client.GetFromJsonAsync<PagedResult<ProjectSummaryResponse>>(
+            "/api/v1/Projects", TestJson.Options);
+        var viewerView = await viewer.Client.GetFromJsonAsync<PagedResult<ProjectSummaryResponse>>(
+            "/api/v1/Projects", TestJson.Options);
+
+        // Cùng MỘT project, hai người nhìn thấy hai vai trò khác nhau.
+        pmView!.Items.ShouldHaveSingleItem().RoleInProject.ShouldBe(RoleInProject.ProjectManager);
+        viewerView!.Items.ShouldHaveSingleItem().RoleInProject.ShouldBe(RoleInProject.Viewer);
+        viewerView.Items[0].Id.ShouldBe(pmView.Items[0].Id);
+    }
+
     [Fact] // KB6
     public async Task PM_sua_duoc_project()
     {

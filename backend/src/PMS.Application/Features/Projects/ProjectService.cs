@@ -38,7 +38,8 @@ public class ProjectService : IProjectService
         _logger.LogInformation("Tạo project {ProjectId} bởi {EmployeeId}",
             project.Id, _currentUser.EmployeeId);
 
-        return _mapper.ToSummary(project);
+        // Người tạo luôn là ProjectManager — Project.Create() tự chèn ProjectMember đó.
+        return _mapper.ToSummary(project, RoleInProject.ProjectManager);
     }
 
     public async Task<ProjectDetailResponse> GetByIdAsync(Guid id, CancellationToken ct = default)
@@ -58,7 +59,7 @@ public class ProjectService : IProjectService
             _currentUser.RequireEmployeeId(), 
             request, ct);
 
-        return paged.Map(_mapper.ToSummary);
+        return paged.Map(x => _mapper.ToSummary(x.Project, x.RoleInProject));
     }
 
     public async Task<ProjectDetailResponse> UpdateAsync(

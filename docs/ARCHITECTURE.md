@@ -5,39 +5,86 @@
 > Mục đích: đảm bảo tính nhất quán xuyên suốt quá trình phát triển, và làm tài liệu
 > tham chiếu cho báo cáo thực tập tốt nghiệp.
 >
-> Cập nhật lần cuối: 2026-07-30 (phiên Notification API + Comment API)
+> Cập nhật lần cuối: 2026-08-02 (phiên Frontend — Board Kanban + Sprint + Thành viên)
 
 > ## 🧭 Bắt đầu phiên mới ở đây
-> **Trạng thái:** backend core đã ĐẦY ĐỦ. Auth, Project (kể cả quản lý thành viên),
-> Employee management, Task, Sprint/Backlog/Board xong từ trước; **Notification API +
-> Comment API vừa hoàn thành ở phiên 2026-07-30 (tiếp)** — build sạch, **315 test pass**
-> (189 unit + 126 integration), **0 migration** cho cả phiên vì schema đã đủ sẵn.
+> **Trạng thái:** backend core ĐẦY ĐỦ, **frontend nay có 6 màn hình dùng được thật**:
+> danh sách Dự án, và trang chi tiết dự án bốn tab (Bảng Kanban / Backlog / Sprint /
+> Thành viên). Có dark mode, màu thương hiệu, breadcrumb.
+> Backend **324 test pass** (189 unit + 135 integration), clean build 0 warning;
+> frontend `typecheck` + `eslint` + `build` sạch và **76 test** cho `lib/api/` + logic
+> thuần của Kanban. **0 migration** (thay đổi backend phiên này chỉ là DTO + `Include`).
 >
-> ### ⚠️ Phiên tiếp theo PHẢI là Frontend, không thêm module backend nào nữa
-> Bảng lộ trình ở §1 đã khuyên "xong hạng mục 1–2 rồi chuyển sang frontend" — hai hạng mục
-> đó (Notification, Comment) đã xong. Thư mục `frontend/` vẫn **chưa tồn tại**, trong khi
-> đây là phần chiếm nhiều thời gian nhất và là thứ hội đồng nhìn thấy đầu tiên. Mọi hạng
-> mục backend còn lại (Watcher/Label/TaskLink, ActivityLog API, Dashboard, job quá hạn)
-> đều làm xen kẽ được và **không cái nào chặn** việc dựng 4 màn hình đầu tiên.
+> ### ➡️ Phiên tiếp theo nên làm gì
+> 📋 **Danh sách đầy đủ việc còn dang dở ở §1 → "Việc còn dang dở"** — gồm cả code đã viết
+> mà chưa có màn nào dùng. Đọc trước để khỏi viết lại thứ đã có. Tóm tắt:
 >
-> **Hai cái bẫy đắt nhất của bước frontend đã được dọn trước ở phiên này:**
-> - Enum nay trả về dạng **chuỗi** (`"Review"` thay vì `2`) — ADR-022. Định nghĩa
->   TypeScript types theo string union, đừng theo số.
-> - CORS trước đây **chưa từng hoạt động** dù ADR ghi ✅ (hai lỗi im lặng, xem đính chính
->   cuối §15). Nay đã sửa và có `CorsPolicyTests` giữ. Thêm origin của Next.js vào
->   `Cors:AllowedOrigins` trong `appsettings.Development.json` là đủ.
+> **Làm được ngay, KHÔNG chờ backend** (API đã sẵn sàng từ lâu):
+> 1. ⭐ **"Lời mời của tôi"** — luồng mời thành viên hiện **chưa khép kín**: PM mời được
+>    nhưng người được mời **không có chỗ nào bấm Chấp nhận**. Toàn bộ hook + endpoint đã
+>    viết xong ở phiên 2026-08-02, chỉ thiếu một trang. Rẻ nhất, giá trị cao nhất.
+> 2. **Notification bell** — `NotificationsController` đủ dùng.
+> 3. **Admin: quản lý nhân sự** — `AdminEmployeesController` đã có, chưa có màn nào.
 >
-> **Trước khi viết code frontend, đọc theo thứ tự:**
-> 1. §6 (Kiến trúc Frontend) và §13 bước 6 — thứ tự màn hình đã chốt
-> 2. Swagger ở `/swagger` khi chạy Development — enum nay hiện dropdown tên, dùng để đối
->    chiếu DTO thay vì đọc code C#
-> 3. `backend/postman/collections/PMS Endpoints v1/` — 8 folder, đã có Notifications và
->    Comments; §11 có 3 điểm dễ vấp khi gọi tay
-> 4. §15 ADR-022 → ADR-026 — năm quyết định mới của phiên này
+> **Cần làm backend trước:**
+> 4. **Đợt API ngắn**: `Description` cho task, mã task `PMS-12`, Label, Watcher,
+>    ActivityLog đọc → mở khóa màn **chi tiết Task** (màn ⬜ lớn nhất còn lại).
+> 5. **API thống kê** → mở khóa Dashboard.
+> 6. Job task quá hạn → Notification `DueSoon`.
 >
-> **Nếu vì lý do nào đó vẫn phải làm backend trước:** khuôn mẫu gần nhất là
-> `PMS.Application/Features/Comments/` (mới nhất, đủ cả 4 thao tác CRUD + phân quyền
-> per-row) hoặc `Features/Notifications/` (nếu là dữ liệu không project-scoped).
+> ⚠️ Trước khi làm Kanban hay đụng vào state machine của task: `docs/frontend-next-session.md`
+> §6 có **một đính chính quan trọng** — quy tắc chuyển trạng thái **KHÔNG PHẢI** "cột kề".
+>
+> ### ⚠️ TRƯỚC KHI CHẠY LẦN ĐẦU TRÊN MÁY MỚI — hai lệnh bắt buộc
+> Cả hai đều ghi vào kho chứng chỉ tin cậy của Windows nên **phải tự chạy tay** trong
+> terminal có quyền, không tự động hóa được:
+> ```powershell
+> dotnet dev-certs https --trust     # để trình duyệt tin https://localhost:7264
+> mkcert -install                    # để `next dev --experimental-https` sinh được cert
+> ```
+> **Vì sao bắt buộc, không phải tùy chọn:** refresh token đi trong cookie `SameSite=Strict`
+> (ADR-027). Theo luật *schemeful same-site*, `http://localhost` và `https://localhost` là
+> **hai site khác nhau** — chạy Next trên http thì cookie không bao giờ được gửi và toàn
+> bộ luồng refresh hỏng **im lặng** (401 mà không có gì chỉ ra nguyên nhân).
+>
+> **Ba cái bẫy của Kanban — đọc trước khi đụng vào state machine của task:**
+> - Kéo thẻ về **đúng cột nó đang đứng** nhận **409** (state machine từ chối "đứng yên").
+>   UI phải chặn **trước**, đừng bắn request rồi hiện toast đỏ.
+> - ⚠️ Quy tắc chuyển trạng thái **KHÔNG PHẢI "cột kề"** — tài liệu cũ ghi sai, đã đính
+>   chính ở `docs/frontend-next-session.md` §6. `Done → Review` là **bước lùi hợp lệ**,
+>   còn `ToDo → Review` trông kề nhưng **không** hợp lệ. Nguồn sự thật:
+>   `TaskItem.CanTransitionTo` (`TaskItem.cs:77-86`); bản sao frontend có test ở
+>   `frontend/lib/tasks/status-transitions.test.ts`.
+> - `PATCH /tasks/{id}/status` và `PUT /tasks/{id}/sprint` **KHÔNG** cần `RowVersion`
+>   (ADR-021), nhưng `PUT /tasks/{id}` thì **bắt buộc**.
+> - Board luôn trả **đủ 4 cột** kể cả cột rỗng — không phải tự dựng cột thiếu.
+>
+> **Đọc theo thứ tự:**
+> 1. `docs/frontend-next-session.md` §6 — danh sách bẫy đã trả giá, gồm cả bẫy của
+>    Base UI, Vitest và đo tương phản màu
+> 2. §6 (Kiến trúc Frontend) — hiện trạng, không còn là dự kiến
+> 3. §15 **ADR-027 → ADR-032** — sáu quyết định của phiên 2026-07-31
+> 4. `frontend/lib/api/` — tầng API client; đọc `refresh.ts` trước tiên
+> 5. `docs/uml/seq-diagram/src/seq-12-refresh-token.mmd` — cơ chế refresh có nhánh
+>
+> **Khuôn mẫu để copy khi làm màn hình mới** (cập nhật 2026-08-02):
+> - Trang trong tab dự án: `app/(app)/projects/[id]/sprints/page.tsx` — ngắn nhất, đủ cả
+>   bốn trạng thái (skeleton / empty / error / data) và gác quyền theo vai trò.
+> - Bảng có phân trang: `app/(app)/projects/page.tsx` + `lib/hooks/use-projects.ts`.
+> - Form có `RowVersion` (ADR-016): `components/tasks/task-form-dialog.tsx`.
+> - Primitive dùng chung ở `components/common/` — đừng chép lại EmptyState/QueryError/
+>   PageHeader/ConfirmDialog lần nữa.
+>
+> ⚠️ **Quyền: đọc `lib/tasks/permissions.ts`, đừng tự suy từ mã lỗi.** `roleInProject`
+> chỉ có ở `GET /projects` (danh sách), **KHÔNG** có ở `GET /projects/{id}` — muốn biết
+> vai trò của mình trên trang chi tiết thì tự tìm mình trong `members[]`, và chỉ tính khi
+> `invitationStatus === 'Accepted'` (dùng sẵn `useMyProjectRole`).
+>
+> ⚠️ **Đừng thêm `middleware.ts` để chặn route.** Cookie có `Path=/api/v1/auth` nên
+> middleware **không đọc được** và sẽ đá cả người đã đăng nhập về `/login`. Guard nằm ở
+> `components/auth/auth-guard.tsx` — lý do đầy đủ ở ADR-028.
+>
+> **Nếu phải làm backend:** khuôn mẫu gần nhất vẫn là `PMS.Application/Features/Comments/`.
 > ⚠️ **`Watcher` không kế thừa `BaseEntity`** (khóa kép `TaskId + EmployeeId`) nên
 > `ApplyAuditFields()` không đóng dấu `CreatedAt`, và `IRepository<T> where T : BaseEntity`
 > không phục vụ được nó — phải xử lý riêng, đừng mất thời gian phát hiện lại.
@@ -76,21 +123,30 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | Board (Kanban) + Backlog | ✅ | `GET /projects/{id}/board?sprintId=` và `/backlog`; board luôn trả đủ 4 cột kể cả cột rỗng |
 | Comment — API | ✅ | `CommentService`/`CommentsController`, có Unit + Integration Test. Quyền theo ADR-026: viết = PM/Member, sửa = chỉ tác giả, xóa = tác giả hoặc PM. Xóa cứng |
 | Watcher / Label / TaskLink — API | ⬜ | Entity + configuration + migration đã có; `TaskLink` đang được dùng gián tiếp qua blocker check nhưng chưa có API tạo/xóa link |
+| Task — người đảm nhận trên thẻ board/backlog | ✅ | `TaskSummaryResponse.Assignees` (thêm 2026-08-02, **không migration**). Đồng thời sửa bug im lặng: ba query board/backlog thiếu `Include` nên `SubtaskProgress` LUÔN trả 0 |
 | Notification — API đọc | ✅ | `NotificationFeedService`/`NotificationsController` — danh sách có phân trang, đếm chưa đọc, đánh dấu một/tất cả. Ngoại lệ hợp lệ của ADR-006/019 — xem ADR-023 |
 | Activity Log — API đọc | ⬜ | Đã ghi đủ qua `IActivityLogger` (ADR-013) ở mọi luồng Project/Task/Comment, nhưng chưa có endpoint nào đọc lịch sử ra — cùng loại khoảng trống mà Notification vừa đóng |
 | Employee management (ngoài Auth) | ✅ | `AdminEmployeesController` — khóa/mở tài khoản, cấp `SystemAdmin` — *bảng này từng ghi ⬜ dù đã code xong, đã sửa lại 2026-07-29* |
 | Thống kê / Dashboard | ⬜ | Chưa bắt đầu |
-| Frontend (toàn bộ) | ⬜ | Thư mục `frontend/` chưa tồn tại trong repo |
+| Frontend — nền tảng (scaffold, API client, Auth, Project CRUD) | ✅ | Next 15 + Tailwind 4 + shadcn/ui + TanStack Query + Zustand. Tầng API client xử lý JWT, single-flight refresh (ADR-030) và cả 4 hình dạng lỗi của backend. Đăng ký/đăng nhập/giữ phiên khi F5/đăng xuất + route guard. Project: danh sách phân trang + tìm kiếm + tạo + sửa (round-trip `RowVersion`, xử lý 409 bằng tải lại) + xóa (xử lý 409 còn task chưa xong) |
+| Frontend — Project detail (tab) + Thành viên + Sprint | ✅ | `app/(app)/projects/[id]/` với tab là segment định tuyến thật. Mời/đổi vai trò/gỡ/rời dự án; Sprint CRUD đầy đủ |
+| Frontend — Board/Backlog Kanban | ✅ | `@dnd-kit` + cập nhật lạc quan. Ba bẫy 409 chặn bằng **cấu trúc** (`useDroppable disabled`) nên không request nào được tạo ra — đã kiểm chứng trên trình duyệt |
+| Frontend — Task CRUD + giao việc | ✅ | Tạo/sửa (trọn luồng `RowVersion` 409 của ADR-016)/xóa, gán–tự nhận–gỡ người |
+| Frontend — dark mode + màu thương hiệu | ✅ | Xanh Jira trên `--primary`, ThemeProvider + nút chuyển, breadcrumb. Đã đo tương phản WCAG AA trên cả 5 màn × 2 chế độ |
+| Frontend — hạ tầng test | ✅ | Vitest cho `lib/api/` + logic thuần của Kanban — 76 test |
+| Frontend — chi tiết Task, Notification bell, Dashboard | ⬜ | Chi tiết Task chờ Watcher/Label/TaskLink + ActivityLog API; Dashboard chờ API thống kê |
 | Real-time (SignalR) | ⬜ | Có chủ đích — chỉ làm sau khi core CRUD ổn định (xem §6) |
 
 ### Lộ trình các phiên tiếp theo
 
-> Sắp theo thứ tự phụ thuộc và giá trị, không phải theo độ khó. Cập nhật 2026-07-30 (phiên
-> Notification + Comment). Hai hạng mục 1–2 của bảng cũ **đã xong**, nên Frontend lên #1.
+> Sắp theo thứ tự phụ thuộc và giá trị, không phải theo độ khó. Cập nhật 2026-08-02 (phiên
+> Frontend — Board Kanban). Hạng mục 1 **đã xong**; mọi hạng mục còn lại đều bị chặn bởi
+> backend, nên phiên sau là **phiên backend**.
 
 | # | Hạng mục | Vì sao xếp ở đây | Quy mô ước tính |
 |---|---|---|---|
-| 1 | **Frontend — bắt đầu** (Next.js scaffold → Auth → Project list → Board/Backlog) | API của Project + Task + Sprint + Comment + Notification đã đủ ổn định để dựng các màn hình chính. §13 bước 6 đã nói không đợi backend xong hết. **Đây là rủi ro tiến độ lớn nhất** — thư mục `frontend/` vẫn chưa tồn tại, mà đây là phần chiếm nhiều thời gian nhất và là thứ hội đồng nhìn thấy đầu tiên. Enum đã trả về dạng chuỗi (ADR-022) và CORS đã thật sự hoạt động, nên hai cái bẫy đắt nhất của bước này đã được dọn trước | Lớn — nhiều phiên |
+| ~~1~~ | ~~Frontend — Project detail + Board/Backlog Kanban + Sprint~~ | ✅ **Xong 2026-08-02.** 6 màn hình dùng được thật, kéo–thả có cập nhật lạc quan, dark mode, 76 test | — |
+| 1b | **Đợt backend ngắn**: `Description` + mã task `PMS-12`, Label, Watcher, ActivityLog đọc | ⭐ **Việc tiếp theo.** Bốn thứ này cùng chặn màn **chi tiết Task** — màn ⬜ lớn nhất còn lại. Gom một đợt rẻ hơn làm rời. Mã task còn là chi tiết ảnh hưởng thị giác lớn nhất tới cảm giác "giống Jira", và càng để lâu càng phải backfill nhiều | Vừa — 1 migration |
 | 2 | **Watcher + Label + TaskLink API** | Ba cái nhỏ, gom một đợt. ⚠️ `Watcher` **không** kế thừa `BaseEntity` nên `IRepository<T>` không phục vụ được, phải xử lý riêng. `TaskLink` cần thêm guard chống link vòng (A blocks B và B blocks A cùng lúc sẽ khóa chết cả hai ở blocker check). `Watcher` giờ có thêm lý do rõ ràng để làm: nó đã nằm trong `InterestedEmployeeIds` của cả luồng đổi status lẫn comment, nhưng chưa có API nào để đăng ký theo dõi | Vừa |
 | 3 | **Background job task quá hạn** → Notification `DueSoon` | `ITaskRepository.GetOverdueAsync` **đã tồn tại nhưng chưa có caller nào** — đúng loại code chờ sẵn mà nếu để lâu sẽ lệch khỏi nghiệp vụ. Phụ thuộc cũ đã được giải: giờ đã đọc được thông báo nên job có ý nghĩa thật | Nhỏ |
 | 4 | **Activity Log API đọc** | Khoảng trống cùng loại với Notification trước phiên này: `IActivityLogger` ghi ở mọi luồng (nay có cả 3 action của Comment) nhưng chưa endpoint nào đọc ra. Cần cho tab "Activity" ở màn hình chi tiết task (§6) | Nhỏ — 1 service, 1–2 endpoint |
@@ -98,12 +154,92 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | 6 | **Reset password** | Mục ⬜ cuối cùng của Auth. Còn phụ thuộc email service nên để sau | Nhỏ–vừa |
 | 7 | **Real-time (SignalR)** | Theo §6, chỉ làm sau khi core CRUD **và** frontend đã ổn định | Vừa |
 
-**Rủi ro tiến độ cần nói thẳng:** backend core giờ đã đầy đủ (Auth, Project, Member, Task,
-Sprint, Board, Comment, Notification) nhưng frontend **vẫn ở con số không**. Lời khuyên của
-bảng này ở phiên trước là "xong hạng mục 1–2 rồi chuyển sang frontend" — hai hạng mục đó
-đã xong, nên **phiên tới phải là frontend**, không thêm module backend nào nữa. Các hạng mục
-2–5 đều là thứ làm xen kẽ được khi frontend cần tới chúng; không hạng mục nào trong đó chặn
-việc dựng 4 màn hình đầu tiên.
+**Tiến độ, nói thẳng (cập nhật 2026-08-02):** rủi ro lớn nhất của hai phiên trước —
+"frontend ở con số không", rồi "Board Kanban là màn hội đồng nhìn vào nhiều nhất mà vẫn
+chưa có" — **đã gỡ xong cả hai**. Board chạy thật, kéo–thả có cập nhật lạc quan, và ba
+bẫy 409 được chặn bằng cấu trúc chứ không phải bằng toast đỏ.
+
+Rủi ro nay đổi hình dạng lần nữa và **đảo chiều**: từ đây trở đi **frontend bị backend
+chặn**, không phải ngược lại. Ba màn ⬜ còn lại (chi tiết Task, Notification bell,
+Dashboard) đều chờ API:
+- **Chi tiết Task** chờ `Description` + Label + Watcher + ActivityLog (hạng mục 1b, 2, 4)
+- **Dashboard** chờ API thống kê (hạng mục 5)
+- **Notification bell** là ngoại lệ — API đọc đã sẵn sàng từ lâu, chỉ là chưa có màn.
+  Đây là món **rẻ nhất** còn lại nếu muốn thêm một màn nữa mà không phải đụng backend.
+
+Khoản nợ kiểm chứng của hai phiên trước cũng đã trả: phiên này thao tác thật trên trình
+duyệt, xác nhận được giữ phiên khi F5, single-flight refresh (một lần F5 → **đúng một**
+`/refresh`), và toàn bộ luồng 409 của `RowVersion`.
+
+### Việc còn dang dở — đọc trước khi bắt đầu phiên mới
+
+> Liệt kê thẳng, không giấu. Mục đích: phiên sau **không phải dò lại**, và không viết lại
+> thứ đã có. Cập nhật 2026-08-02.
+
+#### A. Code ĐÃ VIẾT nhưng chưa có màn nào dùng
+
+Không phải code chết cần xóa — chúng đúng, có test ở chỗ cần thiết, và là thứ màn hình
+tương ứng sẽ cần ngay. Nhưng phải biết là **đang có sẵn** để khỏi viết lại:
+
+| Thứ đã có | Ở đâu | Màn hình sẽ dùng |
+|---|---|---|
+| `useMyInvitations`, `useRespondToInvitation` + 3 endpoint accept/decline/list | `lib/hooks/use-members.ts`, `lib/api/endpoints/members.ts` | **"Lời mời của tôi"** — chưa có màn. Hiện chỉ chấp nhận lời mời được bằng gọi API tay |
+| `canComment`, `canEditComment`, `canDeleteComment` (ADR-026) | `lib/tasks/permissions.ts` | Khối **Comment** ở màn chi tiết Task |
+| `useSelfAssignTask`, `getTaskAssignees` | `lib/hooks/use-tasks.ts`, `endpoints/tasks.ts` | Nút "Tự nhận việc" ở chi tiết Task (dialog giao việc hiện chỉ dùng gán/gỡ) |
+| `listProjectTasks` (phân trang, `sortBy` name/priority/status) | `endpoints/tasks.ts` | Màn **danh sách task** dạng bảng có phân trang, nếu sau này cần |
+| `mayFailUnpredictably(status)` | `lib/tasks/status-transitions.ts` | Đánh dấu trước nước đi có thể 409 do `TaskLink` chặn |
+| `findTaskInBoard` | `lib/tasks/board-cache.ts` | Tiện ích tra thẻ, dùng khi làm cập nhật lạc quan chỗ khác |
+
+⚠️ **Đáng chú ý nhất: "Lời mời của tôi".** Luồng mời thành viên hiện **chưa khép kín** trên
+giao diện — PM mời được, nhưng người được mời **không có chỗ nào để bấm Chấp nhận**. Toàn
+bộ tầng dữ liệu đã xong, chỉ thiếu một trang. Đây là món rẻ nhất và có giá trị nhất còn lại.
+
+#### B. Màn hình chưa làm, xếp theo "có bị chặn không"
+
+**KHÔNG bị chặn — làm được ngay, API đã sẵn sàng từ lâu:**
+1. **"Lời mời của tôi"** — xem mục A. Nhỏ.
+2. **Notification bell** — `NotificationsController` đủ (danh sách phân trang, đếm chưa đọc,
+   đánh dấu một/tất cả). Dùng cặp `(relatedEntityKind, relatedEntityId)` để điều hướng
+   (ADR-025), **đừng tự dựng bảng type→route**. Nhỏ–vừa.
+3. **Comment trên task** — `CommentsController` đủ. Nhưng nó nằm trong màn chi tiết Task,
+   mà màn đó lại bị chặn (xem dưới) — trừ khi làm Comment thành một khối riêng.
+4. **Admin: quản lý nhân sự** — `AdminEmployeesController` đã có (khóa/mở tài khoản, cấp
+   `SystemAdmin`) và **chưa có màn nào**. Nhỏ.
+
+**BỊ CHẶN bởi backend:**
+5. **Chi tiết Task** — chờ `Description`, mã `PMS-12`, Label, Watcher, TaskLink, ActivityLog.
+   Đây là màn ⬜ lớn nhất còn lại.
+6. **Dashboard thống kê** — chờ API thống kê.
+7. **Search toàn cục** — hiện chỉ có `search` theo tên trong từng danh sách.
+
+#### C. Nợ kỹ thuật đã biết
+
+- **Không có trường thứ tự task ở bất kỳ đâu.** Sắp xếp thẻ trong cùng một cột (kiểu
+  Trello) là **không làm được** — cần thêm cột rank + endpoint reorder ở backend. Đây là lý
+  do đã cố ý bỏ `@dnd-kit/sortable`.
+- **Tạo subtask chưa có giao diện.** `CreateTaskRequest.ParentTaskId` hỗ trợ sẵn và domain
+  đã chặn subtask 2 cấp, nhưng dialog tạo task hiện luôn gửi `parentTaskId: null`.
+- **Sprint không có `RowVersion`** → sửa đồng thời là last-write-wins, không có tín hiệu.
+  Đừng dựng UI cảnh báo stale cho sprint.
+- **`invalidateQueries(projectDataKeys.all)` hơi rộng**: chuyển task sang sprint cũng làm
+  mới cả danh sách thành viên. Có chủ đích — đổi an toàn lấy chính xác, và danh sách thành
+  viên nhỏ. Nếu sau này thấy chậm thì mới tách nhỏ khóa.
+- **`seq-12-refresh-token`** mới có `.mmd`, chưa sinh `.drawio`/`.png` (máy chưa cài
+  draw.io Desktop). Lệnh ở `docs/uml/README.md`.
+- Hai file `backend/postman/.../Login|Logout.request.yaml` đang có thay đổi **chưa commit**
+  — chỉ là đổi ký tự xuống dòng do công cụ Postman sinh ra, không phải thay đổi nội dung.
+
+#### D. Chưa kiểm chứng bằng tay
+
+Phiên 2026-08-02 kiểm rất kỹ trên Chrome ở kích thước desktop, nhưng **chưa** kiểm:
+- Kéo–thả bằng **cảm ứng** thật (đã cấu hình `TouchSensor` với `delay: 220` để không
+  khóa thao tác cuộn cột, nhưng chưa thử trên thiết bị thật).
+- Kéo–thả bằng **bàn phím** thật (đã cấu hình `KeyboardSensor` + nhánh dự phòng
+  `rectIntersection` vì `pointerWithin` luôn rỗng khi không có con trỏ).
+- Giao diện trên **màn hình nhỏ** (bố cục board đã đặt `sm:grid-cols-2` / `xl:grid-cols-4`
+  nhưng chưa xem thật).
+- Luồng **403** khi `Member` không phải assignee cố kéo thẻ (đã gác ở client theo ADR-017
+  nên khó chạm tới; cần đăng nhập bằng tài khoản Member để thử).
 
 ---
 
@@ -122,10 +258,11 @@ việc dựng 4 màn hình đầu tiên.
 | Containerization | Docker *(tùy chọn, giai đoạn sau)* | Dễ deploy, dễ trình bày |
 | CI/CD | GitHub Actions *(tùy chọn, giai đoạn sau)* | Build + test tự động |
 | Source Control | Git (GitHub/GitLab) | Branching: `main` / `dev` / `feature/*` |
-| **Frontend** | **Next.js (TypeScript) + TailwindCSS + shadcn/ui** | SSR/routing chuẩn, type-safety khớp tinh thần OOP backend |
-| **Data Fetching** | **TanStack Query** | Caching, loading state, đồng bộ API chuẩn công nghiệp |
-| **State Management** | **Zustand** | Quản lý state phức tạp (filter, sort, cache) |
-| **Data Visualization** | **Recharts** | Dashboard thống kê (mục "Thống kê" trong mindmap) |
+| **Frontend** | **Next.js 15 (App Router, TypeScript) + TailwindCSS 4 + shadcn/ui** | Type-safety khớp tinh thần OOP backend. **Next 15 chứ không phải 16** — xem ADR-031. App Router dùng cho routing/layout, không dùng SSR data-fetching — xem ADR-028 |
+| **Data Fetching** | **TanStack Query 5** | Caching, loading state, đồng bộ API chuẩn công nghiệp |
+| **State Management** | **Zustand 5** | Client state (phiên đăng nhập, filter, modal). Store auth **không persist** — ADR-027 |
+| **Form + Validation (FE)** | **react-hook-form + Zod 4** | shadcn/ui v4 đã bỏ component `form` khi chuyển sang Base UI nên nối tay; schema Zod soi gương FluentValidation phía backend |
+| **Data Visualization** | **Recharts** | Dashboard thống kê (mục "Thống kê" trong mindmap) — *chưa cài, làm cùng màn Dashboard* |
 | **Real-time** | **SignalR** (tích hợp sau khi core ổn định) | Cập nhật task/project real-time giữa nhiều người dùng, không cần F5 |
 | **Background Job** | **Hangfire** *(hoặc BackgroundService của .NET)* | Chạy job định kỳ check task quá hạn để sinh Notification |
 | **Validation** | **FluentValidation** | Tách luật validate khỏi Controller/DTO, dễ unit test, hỗ trợ rule async (vd check email đã tồn tại). Free, Apache 2.0 |
@@ -176,12 +313,29 @@ ProjectManagementSystem/
 │   └── tests/
 │       ├── PMS.UnitTests/
 │       └── PMS.IntegrationTests/
-├── frontend/
-│   ├── app/                     # Next.js App Router (pages, layouts)
-│   ├── components/              # shadcn/ui components, shared UI
-│   ├── lib/                     # API client, TanStack Query hooks
-│   ├── store/                   # Zustand stores
-│   └── types/                   # TypeScript types (khớp với DTO backend)
+├── frontend/                        # hiện trạng 2026-07-31, không còn là dự kiến
+│   ├── app/                         # App Router. KHÔNG dùng src/
+│   │   ├── layout.tsx               # Providers (TanStack Query) + Toaster
+│   │   ├── (auth)/                  # route group — tên trong ngoặc KHÔNG vào URL
+│   │   │   ├── layout.tsx           #   GuestOnly: đã đăng nhập thì đẩy vào /projects
+│   │   │   ├── login/ register/
+│   │   └── (app)/                   # mọi trang cần đăng nhập
+│   │       ├── layout.tsx           #   AuthGuard + AppShell (đặt 1 lần, không lặp)
+│   │       └── projects/
+│   ├── components/
+│   │   ├── ui/                      # shadcn/ui (Base UI ở v4, không còn Radix)
+│   │   ├── auth/ form/ layout/ projects/
+│   ├── lib/
+│   │   ├── api/                     # ⭐ tầng API client — mọi màn hình đi qua đây
+│   │   │   ├── config.ts            #   base URL, đường dẫn auth, ngưỡng refresh
+│   │   │   ├── problem.ts           #   ProblemDetails -> ApiError (4 hình dạng lỗi)
+│   │   │   ├── refresh.ts           #   🔴 single-flight refresh (ADR-030)
+│   │   │   ├── http.ts              #   apiFetch: JWT, retry 401, 204
+│   │   │   └── endpoints/           #   auth.ts, projects.ts
+│   │   ├── hooks/ validation/       # TanStack Query hooks; schema Zod
+│   │   └── format.ts form.ts utils.ts
+│   ├── store/                       # Zustand — auth-store.ts (KHÔNG persist)
+│   └── types/                       # soi gương DTO backend 1-1 (ADR-029)
 ├── docs/
 │   ├── uml/                     # Class diagram, Use case, Sequence diagram
 │   ├── erd/
@@ -365,38 +519,92 @@ tổng hợp kết quả...).
 
 ## 6. Kiến trúc Frontend
 
-**Stack:** Next.js (TypeScript) + TailwindCSS + shadcn/ui + TanStack Query + Zustand + Recharts
+**Stack:** Next.js 15 (App Router, TypeScript) + TailwindCSS 4 + shadcn/ui + TanStack Query 5
++ Zustand 5 + react-hook-form + Zod 4 + `@dnd-kit` (Kanban) + Vitest *(+ Recharts khi làm Dashboard)*
 
-**Cấu trúc phân lớp Frontend:**
+> Từ 2026-07-31 mục này mô tả **hiện trạng**, không còn là dự kiến. Năm quyết định nền
+> tảng nằm ở ADR-027 → ADR-032 (§15).
+
+**Font chữ: IBM Plex Sans** (`next/font/google`, weight 400/500/600/700, subset
+`latin` + `vietnamese`).
+
+> 🔴 **Hai cái bẫy về font, cả hai đều hỏng IM LẶNG:**
+>
+> 1. **Bộ `vietnamese` là bắt buộc.** Geist mặc định của scaffold đã bị loại vì thiếu dấu
+>    ở một số ký tự tổ hợp (`ế ệ ỗ ữ`…) — lỗi chỉ lộ ở vài từ nên rất dễ lọt. Trước khi
+>    đổi font, kiểm `subsets` trong
+>    `next/dist/compiled/@next/font/dist/google/font-data.json`.
+> 2. **Class `.variable` của `next/font` phải đặt trên `<html>`, KHÔNG phải `<body>`.**
+>    Nó định nghĩa `--font-sans`, mà `globals.css` lại `@apply font-sans` ở tầng `html`.
+>    Đặt ở `<body>` thì lúc `<html>` tính `font-family` biến chưa tồn tại → giá trị không
+>    hợp lệ → trình duyệt rơi về **Times New Roman**, và `<body>` thừa kế luôn cái đó.
+>    Không lỗi, không cảnh báo, chỉ là cả ứng dụng dùng font serif.
+>    **Bug này đã tồn tại từ phiên dựng scaffold cho tới khi phát hiện ngày 2026-08-02** —
+>    mọi ảnh chụp giao diện trước mốc đó đều là Times New Roman.
+>
+> Cách kiểm nhanh trong console, đừng tin mắt:
+> ```js
+> getComputedStyle(document.documentElement).fontFamily  // phải ra tên font thật
+> ```
+
+**Cấu trúc phân lớp Frontend** (đúng như đã vẽ từ đầu, nay đã dựng thật):
 ```
-UI Components (shadcn/ui)
+UI Components (shadcn/ui — Base UI ở v4)
       ↓
-Pages/App Router (Next.js)
+Pages / App Router (Next.js)          <- routing + layout, KHÔNG fetch (ADR-028)
       ↓
-Custom Hooks (TanStack Query — gọi API, cache, loading/error state)
+Custom Hooks (TanStack Query — cache, loading/error state)
       ↓
-API Client (fetch/axios wrapper, xử lý JWT token)
+API Client (lib/api — JWT, single-flight refresh, map ProblemDetails)
       ↓
 Backend API (ASP.NET Core)
 ```
 
 **Quản lý state:**
-- **Server state** (dữ liệu từ API: Project, Task, Employee): TanStack Query — tự động cache, refetch, invalidate
-- **Client state** (UI state: filter đang chọn, modal đang mở, theme...): Zustand
+- **Server state** (Project, Task, Employee): TanStack Query — cache, refetch, invalidate
+- **Client state** (phiên đăng nhập, filter, modal): Zustand. Store auth **không persist**
+  (ADR-027) — access token chỉ sống trong bộ nhớ
 
-**Các trang chính (dự kiến):**
-- Trang đăng nhập / đăng ký (JWT)
-- Danh sách Project + tạo/sửa/xóa (theo quyền RoleInProject)
-- Chi tiết Project → **Board dạng Kanban** (cột theo Status) + **Backlog** (task chưa gán Sprint)
-- Quản lý Sprint: tạo Sprint, kéo task từ Backlog vào Sprint
-- Chi tiết Task: thông tin, Priority badge, Labels, danh sách người đảm nhận (Assignee)
+**Xác thực — tóm tắt, chi tiết ở ADR-027:**
+
+| | Lưu ở đâu | Ai đọc được | Vì sao |
+|---|---|---|---|
+| Refresh token (7 ngày) | Cookie `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth` | Chỉ trình duyệt + backend | Một lỗ XSS mà đọc được nó là chiếm phiên vĩnh viễn qua rotation |
+| Access token (15 phút) | Bộ nhớ (Zustand, không persist) | JS của chính trang | Mất khi F5 — đổi lại bằng một lượt `/refresh` |
+
+Mọi endpoint nghiệp vụ xác thực bằng header `Authorization: Bearer` chứ không bằng cookie,
+nên chúng **miễn nhiễm CSRF**; cookie chỉ đi tới 4 endpoint auth nhờ `Path`.
+
+**Các trang chính:**
+- ✅ Trang đăng nhập / đăng ký
+- ✅ Danh sách Project + tạo / **sửa / xóa** (đủ luồng `RowVersion` 409-tải-lại của ADR-016
+  và luồng 409 "còn task chưa hoàn thành" của ADR-008)
+- ✅ Chi tiết Project — bốn tab là **segment định tuyến thật** (`[id]/board|backlog|sprints|members`),
+  không phải tab state: mỗi tab giữ query riêng (`?sprint=`), chia sẻ link được, Back đúng
+- ✅ **Board Kanban** kéo–thả (`@dnd-kit`) + cập nhật lạc quan; ba bẫy 409 chặn bằng
+  **cấu trúc** (`useDroppable disabled` khiến cột không phải ứng viên va chạm) nên bước
+  đi không hợp lệ **không tạo ra request nào**
+- ✅ **Backlog** — chuyển task vào Sprint bằng **menu**, không kéo–thả: `PUT /tasks/{id}/sprint`
+  không có ngữ nghĩa vị trí nên kéo–thả sẽ hứa một thứ tự mà backend không lưu được
+- ✅ Quản lý Sprint (CRUD đầy đủ) + quản lý Thành viên (mời / đổi vai trò / gỡ / rời dự án)
+- ✅ Dark mode + màu thương hiệu (xanh Jira) + breadcrumb trên header
+- ⬜ Chi tiết Task: thông tin, Priority badge, Labels, danh sách người đảm nhận (Assignee)
   + Reporter, nút "Watch"/"Unwatch", **Comment**, **Linked Issues** (Blocks/Relates to),
   **Activity Log** (lịch sử thay đổi), **danh sách Subtask** (progress bar % hoàn thành
   + mỗi Subtask click vào mở ra như 1 Task đầy đủ, không phải checkbox tĩnh)
-- Trang quản lý Nhân sự + phân quyền theo từng Project
-- **Thanh Search/Filter** toàn cục: tìm task theo tên, người phụ trách, status, deadline
-- **Notification bell** (góc header): danh sách thông báo, đánh dấu đã đọc
-- Dashboard thống kê (Recharts): tỷ lệ hoàn thành, task theo nhân sự, task quá hạn
+- ⬜ Trang quản lý Nhân sự + phân quyền theo từng Project
+- ⬜ **Thanh Search/Filter** toàn cục: tìm task theo tên, người phụ trách, status, deadline
+- ⬜ **Notification bell** (góc header): danh sách thông báo, đánh dấu đã đọc
+- ⬜ Dashboard thống kê (Recharts): tỷ lệ hoàn thành, task theo nhân sự, task quá hạn
+
+**Quy ước ẩn/hiện nút theo quyền** (§10 là nguồn luật, đây là cách áp dụng):
+- Đọc `RoleInProject` từ API thành viên. **Đừng đoán quyền từ mã lỗi** — người ngoài
+  project nhận **404** chứ không phải 403 (ADR-006/019), nên 404 không nói gì về quyền.
+- UI **không bao giờ** hiển thị "bạn không có quyền" cho 404; phải xử lý như "không tìm thấy".
+  Đã cứng hóa trong `lib/api/problem.ts`.
+- Ba luật per-row không nằm trong ma trận `ProjectPermissions`, frontend phải tự áp:
+  đổi status = Assignee **hoặc** PM (ADR-017); sửa comment = **chỉ tác giả**, xóa comment
+  = tác giả **hoặc** PM (ADR-026).
 
 **Real-time (SignalR):**
 - Tích hợp **sau khi core CRUD đã ổn định** — không làm ngay từ đầu
@@ -404,9 +612,18 @@ Backend API (ASP.NET Core)
   thấy thay đổi ngay lập tức mà không cần reload
 - Frontend dùng `@microsoft/signalr` client kết nối tới SignalR Hub bên backend
 
-**Type-safety giữa Frontend/Backend:**
-- Định nghĩa TypeScript types ở `frontend/types/` khớp 1-1 với DTO của backend
-  (cân nhắc dùng OpenAPI codegen từ Swagger để tự sinh types, giảm sai sót thủ công)
+**Type-safety giữa Frontend/Backend:** đã chốt **viết tay** ở `frontend/types/`, mỗi file
+soi gương một file DTO backend (`types/auth.ts` ↔ `Features/Auth/AuthDtos.cs`). Không dùng
+OpenAPI codegen — lý do và điểm chuyển đổi ở **ADR-029**.
+
+**Chạy lần đầu trên máy mới:**
+```powershell
+dotnet dev-certs https --trust     # để trình duyệt tin backend https://localhost:7264
+mkcert -install                    # để `next dev --experimental-https` sinh được cert
+cd frontend; cp .env.example .env.local; npm install; npm run dev
+```
+⚠️ Cả hai lệnh trên **bắt buộc**, không phải tùy chọn — xem khối "Bắt đầu phiên mới" ở
+đầu tài liệu để biết vì sao (schemeful same-site).
 
 ---
 
@@ -447,10 +664,18 @@ thay đổi breaking. *(Hiện dùng tiền tố route tĩnh, chưa cài package
 — chỉ cần khi cần v2 song song với v1.)*
 
 ### CORS Policy ✅
-Cấu hình CORS rõ ràng cho phép origin của Frontend (Next.js dev: `localhost:3000`,
-production: domain thật) — không dùng `AllowAnyOrigin` khi có JWT/cookie. Bắt buộc phải
-làm trước khi Frontend (chưa có, xem "Tiến độ triển khai theo module" ở §1) gọi API thật,
-nếu không mọi request từ browser sẽ bị chặn bởi same-origin policy.
+Policy `PmsFrontend` liệt kê origin tường minh qua `Cors:AllowedOrigins` — **không** dùng
+`AllowAnyOrigin`. Dev hiện có `http://localhost:5173`, `http://localhost:3000` và
+`https://localhost:3000` (bản https là cái Next.js thật sự chạy).
+
+**`.AllowCredentials()` là bắt buộc kể từ ADR-027**: thiếu nó thì trình duyệt vứt bỏ
+`Set-Cookie` ở phản hồi cross-origin và không đính cookie vào request sau — luồng refresh
+hỏng **im lặng**. `AllowAnyOrigin` + `AllowCredentials` là tổ hợp bị chuẩn CORS cấm, nên
+việc đã liệt kê origin tường minh từ đầu hóa ra là điều kiện cần để làm được cookie auth.
+
+Có `CorsPolicyTests` (5 fact) giữ, gồm một fact riêng cho `Access-Control-Allow-Credentials`.
+⚠️ Đừng sửa phần CORS trong `Program.cs` mà không chạy lại bộ test này — xem đính chính
+2026-07-30 cuối §15 để biết cấu hình này từng hỏng im lặng suốt nhiều phiên như thế nào.
 
 ### Cấu hình Secrets
 - **Local dev**: `dotnet user-secrets` cho connection string, JWT secret — không commit
@@ -567,9 +792,49 @@ project khác nhau):
 - **Integration Test** (xUnit + Shouldly): test API endpoint end-to-end trên SQL Server
   thật, database riêng `PmsTestDb` — xem ADR-010 (§15) về lý do không dùng EF InMemory/SQLite
 
-### Hiện trạng (2026-07-30, sau phiên Notification + Comment)
+### Hiện trạng (2026-07-31, sau phiên Frontend — nền tảng)
 
-**315 test pass** — 189 unit + 126 integration, build 0 warning.
+**322 test pass** — 189 unit + 133 integration, clean build 0 warning.
+*(+7 so với phiên trước: `AuthCookieTests` 5 fact, 1 fact `Access-Control-Allow-Credentials`,
+1 fact vai trò-theo-người-gọi trong danh sách project.)*
+
+⚠️ **Chuỗi kết nối test mặc định giả định một tài khoản `sa` không có trên mọi máy.**
+`PmsWebApplicationFactory` mặc định
+`Server=localhost,1433;...;User Id=sa;Password=Pms@Local2026`. Máy dùng SQL Server bản cài
+sẵn với Windows Authentication sẽ nhận `Login failed for user 'sa'` cho **toàn bộ** 132
+integration test — trông như code hỏng nhưng thật ra là môi trường. Factory đã có sẵn
+đường thoát bằng biến môi trường:
+```powershell
+$env:PMS_TEST_DB = "Server=localhost;Database=PmsTestDb;Integrated Security=True;TrustServerCertificate=True;Encrypt=False"
+```
+
+**Frontend chưa có hạ tầng test** (Vitest/Playwright). Đây là khoảng trống **có ý thức**,
+chưa phải quyết định: cần chốt riêng vì nó thêm một bộ công cụ và một vòng CI nữa. Trong
+lúc chưa có, ba thứ đang giữ chỗ: `tsc --noEmit`, `eslint`, và `npm run build` (bắt được
+lỗi prerender mà `next dev` im lặng bỏ qua — đã bắt được thật một lỗi `useSearchParams`
+thiếu `Suspense` ở trang login).
+
+**Single-flight refresh (ADR-030) đã được kiểm chứng bằng chính module thật** ở phiên
+2026-07-31, dù chưa có hạ tầng test thường trực. Cách làm: biên dịch `lib/api/**` +
+`store/**` bằng `tsc` rồi chạy trên Node với `fetch` giả để **đếm** số lời gọi
+`/auth/refresh` — không viết lại logic, vì bản sao chỉ chứng minh bản sao chạy đúng.
+Ba request cùng nhận 401 → **đúng 1** lời gọi refresh, 6 lượt gọi nghiệp vụ (3 lần 401 +
+3 lần retry), phiên vẫn sống.
+
+Quan trọng hơn kết quả xanh: đã chạy **mutation test** — đổi `inFlight ??=` thành
+`inFlight =` (tức bỏ single-flight) thì số lời gọi nhảy lên **3** và kiểm tra đỏ. Không có
+bước này thì không biết test có bảo vệ được gì hay không, đúng bài học của ADR-022.
+
+⚠️ Đáng chú ý: ở lần chạy hỏng đó, **"cả ba request thành công" vẫn PASS** — vì backend
+giả không có reuse detection. Với backend THẬT thì ba lời gọi kia sẽ thu hồi sạch phiên
+(đã kiểm riêng qua HTTP: gửi lại token đã xoay vòng → 401, và phiên hợp lệ **cũng** 401).
+Hai nửa đó ghép lại mới thành bằng chứng đầy đủ; mỗi nửa đứng một mình đều không đủ.
+
+Kịch bản còn **chưa** kiểm được vì browser trong môi trường phiên này không điều hướng
+được tới bất kỳ origin nào (kể cả trang ngoài): giữ phiên khi F5, guard chuyển hướng
+không nháy nội dung, và thao tác kéo/bấm thật trên UI. Phần HTML thì đã kiểm gián tiếp
+bằng cách gọi thẳng dev server — `/projects` khi chưa đăng nhập chỉ trả skeleton, không
+lộ `accessToken` lẫn `pms_refresh_token`.
 
 | Nhóm | Unit | Integration |
 |---|---|---|
@@ -578,12 +843,19 @@ project khác nhau):
 | Project | `ProjectServiceTests`, `ProjectMemberServiceTests`, `ProjectPermissionsTests` | `ProjectsCrudTests`, `ProjectsAuthorizationTests`, `ProjectsDeleteTests`, `ProjectMembersTests` |
 | Task / Sprint | `TaskServiceTests`, `TaskStatusTransitionServiceTests`, `TaskAssignmentServiceTests`, `SprintServiceTests` | `TasksCrudTests`, `TasksAuthorizationTests`, `TaskStatusTransitionTests`, `TaskAssignmentTests`, `SubtaskTests`, `SprintsCrudTests`, `BacklogAndBoardTests` |
 | Notification / Comment | `NotificationFeedServiceTests`, `CommentServiceTests` | `NotificationsTests`, `CommentsTests` |
-| Hạ tầng API (cấu hình pipeline) | — | `CorsPolicyTests`, `EnumSerializationTests` |
+| Hạ tầng API (cấu hình pipeline) | — | `CorsPolicyTests`, `EnumSerializationTests`, `AuthCookieTests` |
 
-Nhóm cuối là loại test mới của phiên này và đáng ghi lại lý do: **cấu hình pipeline cũng là
-quyết định kiến trúc và cũng cần test giữ**. `CorsPolicyTests` sinh ra sau khi phát hiện CORS
-đã bị vô hiệu hóa im lặng suốt nhiều phiên dù ADR ghi ✅ — không test nào đỏ, build không
-warning, vì middleware không tìm thấy policy thì chỉ log rồi đi tiếp (xem đính chính ở §15).
+Nhóm cuối đáng ghi lại lý do: **cấu hình pipeline cũng là quyết định kiến trúc và cũng cần
+test giữ**. `CorsPolicyTests` sinh ra sau khi phát hiện CORS đã bị vô hiệu hóa im lặng suốt
+nhiều phiên dù ADR ghi ✅ — không test nào đỏ, build không warning, vì middleware không tìm
+thấy policy thì chỉ log rồi đi tiếp (xem đính chính ở §15).
+
+`AuthCookieTests` (2026-07-31) theo đúng khuôn đó cho ADR-027, và lặp lại cùng một bài học
+ở một hình dạng mới: nó đọc **thẳng chuỗi `Set-Cookie`** thay vì dùng `CookieContainer`,
+vì `CookieContainer` nuốt mất thuộc tính cookie và thậm chí không enforce `SameSite` — test
+đi qua nó sẽ vẫn xanh dù ai đó tháo mất `HttpOnly` hay `Secure`. *Test đi qua cùng lớp
+trừu tượng với thứ cần bảo vệ thì không bảo vệ được lớp đó* — đã đúng với `EnumSerialization`
+(phải đọc raw JSON), nay đúng thêm lần nữa với cookie.
 
 **Không đặt mục tiêu % coverage.** Lý do: chỉ số đó thưởng cho test chạm nhiều dòng, trong
 khi thứ dự án này cần bảo vệ là **các quyết định kiến trúc** — và ba lần lỗi thật đã lộ ra
@@ -613,6 +885,14 @@ Task + Sprint** khớp 1-1 với 18 endpoint. Ba điểm dễ vấp khi chạy t
    Gửi rỗng → 400 (validator), gửi giá trị cũ sau khi đã sửa một lần → 409 (ADR-021).
 3. **Trường nullable phải gửi `null`**, không gửi chuỗi `"string"` — `sprintId`,
    `parentTaskId`, `dueDate` mà để `"string"` sẽ lỗi parse 400.
+4. **`Refresh` và `Logout` không còn body** kể từ ADR-027 — refresh token đi bằng cookie
+   `pms_refresh_token` mà Postman tự giữ trong cookie jar. Chỉ cần chạy `Login` hoặc
+   `Register` trước là có. Biến môi trường `refresh_token` đã bỏ, `access_token` vẫn còn.
+   ⚠️ Giữ `auth` **chữ thường** trong URL: `Path` của cookie phân biệt hoa thường trong khi
+   route ASP.NET thì không, nên `{{api_url}}/Auth/refresh` vẫn trúng route nhưng cookie
+   không được đính kèm và bạn nhận 401 không rõ nguyên nhân.
+   ⚠️ Bấm Send `Refresh` **hai lần liên tiếp** sẽ kích hoạt reuse detection và thu hồi
+   toàn bộ phiên — phải đăng nhập lại. Đó là hành vi đúng, không phải lỗi (xem ADR-030).
 
 ---
 
@@ -636,9 +916,10 @@ Task + Sprint** khớp 1-1 với 18 endpoint. Ba điểm dễ vấp khi chạy t
 4. Authentication/Authorization backend (đổi lên trước — xem ADR §15, 2026-07-25 và
    ADR-006 về cơ chế phân quyền 2 tầng)
 5. Code backend từng module theo nhóm function: Project → Task → Employee → Thống kê
-6. Code Frontend theo từng module đã có API tương ứng: Đăng nhập → Project (danh sách +
-   CRUD) → Task/Board (Kanban + Backlog) → Dashboard thống kê — làm ngay sau khi API của
-   module đó ổn định, không đợi toàn bộ backend xong mới bắt đầu (xem §6)
+6. Code Frontend theo từng module đã có API tương ứng: ~~Đăng nhập~~ ✅ → ~~Project (danh
+   sách + CRUD)~~ ✅ → **Task/Board (Kanban + Backlog) ← đang ở đây** → Dashboard thống kê
+   — làm ngay sau khi API của module đó ổn định, không đợi toàn bộ backend xong mới bắt
+   đầu (§6)
 7. Tích hợp Real-time (SignalR) sau khi core CRUD (backend + frontend) đã ổn định — xem §6
 8. Viết Unit Test + Integration Test (backend), kiểm thử thủ công luồng chính (frontend)
 9. Containerize (Docker) + CI/CD (tùy chọn)
@@ -772,6 +1053,12 @@ CLI, xem `docs/uml/README.md`. Trước đây nguồn chỉ nằm trong thuộc 
 | 2026-07-30 | **(ADR-024)** `MarkAllAsRead` đi qua `ChangeTracker`, không dùng `ExecuteUpdateAsync` | Bulk update bỏ qua `ApplyAuditFields()` nên mất `UpdatedAt` — cùng lý do ADR-008 chọn Option A — chi tiết bên dưới |
 | 2026-07-30 | **(ADR-025)** `RelatedEntityKind` suy ra từ `NotificationType` bằng computed property, không thêm cột | Không phải migrate dữ liệu đã tồn tại, và không sinh ra khả năng `Type` lệch với `Kind` — chi tiết bên dưới |
 | 2026-07-30 | **(ADR-026)** Comment: viết = PM/Member, sửa = CHỈ tác giả, xóa = tác giả hoặc PM; xóa cứng | Tách theo mức độ xâm phạm chứ không theo cấp bậc — viết lại lời người khác nặng hơn xóa — chi tiết bên dưới |
+| 2026-07-31 | **(ADR-027)** Refresh token đi bằng cookie `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth`, access token giữ trong bộ nhớ; cả hai rời khỏi `localStorage` | Refresh token sống 7 ngày và xoay vòng vô hạn nên một lỗ XSS đọc được nó là chiếm phiên vĩnh viễn — chi tiết bên dưới |
+| 2026-07-31 | **(ADR-028)** Giữ App Router nhưng dùng cho routing/layout, fetch toàn bộ ở client; route guard đặt ở client chứ KHÔNG ở `middleware.ts` | Cookie có `Path=/api/v1/auth` nên middleware không đọc được; nới `Path` ra `/` thì đánh mất chính thứ đang bảo vệ — chi tiết bên dưới |
+| 2026-07-31 | **(ADR-029)** TypeScript types viết tay ở `types/`, không dùng OpenAPI codegen | Swagger hiện đang sai ở 4 chỗ nên codegen sẽ sinh ra types sai theo; kèm điểm chuyển đổi tường minh — chi tiết bên dưới |
+| 2026-07-31 | **(ADR-030)** Interceptor refresh phải **single-flight**: một promise dùng chung, các request khác xếp hàng rồi retry đúng một lần | Reuse detection của `AuthService.RefreshAsync` sẽ thu hồi TOÀN BỘ phiên nếu hai request cùng gọi `/refresh` — chi tiết bên dưới |
+| 2026-07-31 | **(ADR-031)** Dùng Next.js **15**, không dùng 16 | Next 16 đổi `middleware.ts` → `proxy.ts` khiến mọi tài liệu tra cứu bị lệch tên — chi tiết bên dưới |
+| 2026-07-31 | **(ADR-032)** `ProjectSummaryResponse` trả kèm `RoleInProject` của người gọi | Không có nó thì UI phải gọi `GET /projects/{id}/members` cho TỪNG dòng để biết được hiện nút Sửa/Xóa hay không (N+1) — chi tiết bên dưới |
 
 | | | |
 
@@ -1101,6 +1388,14 @@ tên task là mất dữ liệu thật kiểu lost-update, không có cơ chế 
 **Kiểm chứng:** `TasksCrudTests.Sua_task_voi_RowVersion_cu_thi_bi_chan_409` và
 `TaskStatusTransitionTests.Doi_status_khong_can_RowVersion_nhung_lan_hai_cung_dich_bi_chan_409`.
 
+> **Cập nhật 2026-07-31 — vòng lặp đã khép ở phía UI.** Cho tới phiên này, `RowVersion`
+> mới chỉ được test ở tầng HTTP; **chưa có màn hình nào từng round-trip nó thật**. Nay
+> `components/projects/edit-project-dialog.tsx` là chỗ đầu tiên đi trọn luồng: nạp chi
+> tiết khi mở dialog (danh sách cố ý không có `rowVersion`) → gửi lại nguyên vẹn khi PUT →
+> nhận 409 thì **tải lại rồi để người dùng quyết định**, tuyệt đối không tự gửi lại.
+> Tự động thử lại chính là ghi đè thay đổi của người khác — đúng thứ mà ADR này sinh ra
+> để chặn, nên "xử lý 409" theo kiểu retry ngầm là làm hỏng nó một cách lịch sự.
+
 #### ADR-022 (2026-07-30) — Enum serialize ra JSON dưới dạng tên
 
 **Bối cảnh:** `Program.cs` không cấu hình gì cho enum nên `System.Text.Json` trả về số thứ tự:
@@ -1265,6 +1560,268 @@ trước đó nó chỉ là một dòng trong file configuration mà không tài
 là `private static` trong `TaskStatusTransitionService`. Comment cần đúng danh sách đó cho
 `CommentAdded`, nên tách ra `TaskNotificationExtensions` và refactor service cũ dùng lại — hai
 bản sao sẽ lệch nhau ngay lần đầu ai đó thêm một nhóm người nhận mới.
+
+### Chi tiết ADR-027 → ADR-032 (phiên Frontend, 2026-07-31)
+
+#### ADR-027 (2026-07-31) — Refresh token đi bằng cookie httpOnly, access token giữ trong bộ nhớ
+
+**Bối cảnh:** `AuthResponse` trả cả `AccessToken` lẫn `RefreshToken` trong thân JSON, nên
+phương án rẻ nhất là frontend cất cả hai vào `localStorage` — không phải đụng một dòng
+backend nào. Câu hỏi đặt ra đúng lúc chưa có màn hình nào, tức là lúc đổi còn rẻ nhất.
+
+**Quyết định:**
+
+| | Lưu ở đâu | JS đọc được? |
+|---|---|---|
+| Refresh token (7 ngày) | Cookie `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth` | Không |
+| Access token (15 phút) | Zustand, **không** persist | Có |
+
+`AuthenticatedResponse` (mới) là kiểu trả ra HTTP và **không có** refresh token.
+`AuthResponse` giữ nguyên làm hợp đồng nội bộ giữa `AuthService` và controller.
+
+**Vì sao hai token đối xử khác nhau — đây là điểm chính:** hai token không cùng giá trị
+với kẻ tấn công. Access token sống 15 phút và chết theo tab. Refresh token sống 7 ngày và
+**xoay vòng vô hạn** — ai cầm được nó thì cứ mỗi lần sắp hết hạn lại đổi lấy một cái mới,
+truy cập không bao giờ mất kể cả khi nạn nhân đổi mật khẩu. Nên chi phí bảo vệ dồn vào
+đúng token đắt, còn token rẻ thì đổi lấy sự đơn giản.
+
+**Vì sao không để refresh token trong body nữa dù đã có cookie:** đây là điểm dễ làm nửa
+vời. Nếu vẫn trả `refreshToken` trong JSON "cho tiện", XSS chỉ cần gọi `/auth/refresh` với
+`credentials:'include'` rồi đọc body — cookie `HttpOnly` mất **sạch** tác dụng. Có
+`AuthCookieTests.Than_phan_hoi_khong_duoc_chua_refresh_token` giữ đúng điều này.
+
+**CSRF không bị đánh đổi lấy XSS:** phản xạ thông thường là "chuyển sang cookie thì mở
+cửa CSRF". Ở đây không, vì cookie chỉ tới **4 endpoint auth** nhờ `Path`, còn mọi endpoint
+nghiệp vụ vẫn xác thực bằng header `Authorization` — mà header tùy chỉnh thì trang khác
+không đặt được nếu không qua preflight CORS. Riêng `/auth/refresh` được `SameSite=Strict`
+che. Nếu đưa cả access token vào cookie thì mới phải thêm anti-CSRF cho toàn bộ API — đó
+là lý do phương án đó bị loại.
+
+🔴 **Bẫy 1 — `Path` của cookie PHÂN BIỆT hoa thường, route ASP.NET thì KHÔNG.** Route
+`[Route("api/v1/[controller]")]` sinh ra `/api/v1/Auth` (chữ A hoa). Client gọi
+`/api/v1/auth/refresh` vẫn trúng route, nhưng trình duyệt so `Path=/api/v1/Auth` với
+`/api/v1/auth` thấy khác nên **không đính cookie** → 401 mà không có gì chỉ ra nguyên
+nhân. Đã đổi thành `[Route("api/v1/auth")]` tường minh. Postman không ảnh hưởng vì routing
+case-insensitive. Cùng lớp lỗi "cấu hình đúng về hình thức nhưng im lặng không làm gì" với
+đính chính CORS bên dưới.
+
+🔴 **Bẫy 2 — schemeful same-site buộc Next dev phải chạy HTTPS.** Cookie `SameSite=Strict`
+do `https://localhost:7264` đặt sẽ **không** được gửi từ trang `http://localhost:3000`:
+trình duyệt tính "site" gồm cả scheme, nên http và https là hai site khác nhau dù cùng
+host. Vì vậy script `dev` chạy `next dev --experimental-https` và cần `mkcert -install`.
+
+🔴 **Bẫy 3 — `WebApplicationFactory` mặc định `BaseAddress = http://localhost`.**
+`CookieContainer` lọc bỏ cookie `Secure` trên URI http, nên test nào cần cookie chảy qua
+phải tạo client với `BaseAddress = https://localhost`. Thêm nữa `CookieContainer` là
+**riêng cho từng `HttpClient`** — `AccountLockingTests` trước đây dùng hai client cho login
+và refresh nên đã gộp về một.
+
+**Chi phí thật đã trả:** 1 controller, 1 DTO mới, 1 dòng `.AllowCredentials()`, 1 origin
+thêm vào config, 1 test phải sửa. **Không** đụng `AuthService`, **không** migration,
+**không** đụng 185 call site register/login trong test — vì cookie là mối quan tâm
+*transport* nên xử lý ở tầng API, đúng tinh thần ADR-006 tách theo cơ chế.
+
+**Kiểm chứng:** `AuthCookieTests` (5 fact) đọc **thẳng header `Set-Cookie`** chứ không qua
+`CookieContainer` — cùng lý do `EnumSerializationTests` phải đọc raw JSON: đi qua cùng lớp
+trừu tượng với thứ cần bảo vệ thì không bảo vệ được gì (`CookieContainer` thậm chí không
+enforce `SameSite`, nên thuộc tính đó **chỉ** kiểm được ở mức chuỗi).
+
+**Giới hạn đã biết (chấp nhận có ý thức):** `Secure=true` cứng, không rẽ theo môi trường.
+Nghĩa là backend chạy thuần HTTP thì đăng nhập không hoạt động. Chấp nhận vì `Program.cs`
+đã có `UseHttpsRedirection()` vô điều kiện và §15 đã chốt HTTPS bắt buộc từ 2026-07-22 —
+thêm nhánh rẽ chỉ tạo một cấu hình có thể vô tình bật ở production.
+
+---
+
+#### ADR-028 (2026-07-31) — Giữ App Router nhưng thừa nhận vai trò routing/layout; guard ở client
+
+**Bối cảnh — mâu thuẫn phải nói thẳng:** §2 chốt Next.js *vì* "SSR/routing chuẩn", nhưng
+§2 cũng chốt TanStack Query, và ADR-027 vừa đặt access token vào bộ nhớ trình duyệt. Ba
+thứ đó cộng lại nghĩa là **Server Component không có token để gọi API**, nên gần như mọi
+trang phải là `"use client"` — tức là không dùng được điểm mạnh SSR data-fetching mà lý do
+chọn Next.js ban đầu viện dẫn.
+
+**Ba lựa chọn:**
+1. Đổi sang Pages Router cho trung thực với kiến trúc client-side.
+2. Làm SSR thật: Server Component gọi backend, token đọc từ cookie ở phía server, thêm một
+   tầng route handler proxy.
+3. Giữ App Router, dùng cho routing/layout, fetch toàn bộ ở client.
+
+**Quyết định: phương án 3**, và ghi rõ đánh đổi thay vì giả vờ không có.
+
+**Vì sao không phương án 1:** App Router vẫn cho những thứ Pages Router không có **kể cả
+khi mọi trang đều là client component** — nested layout (`(app)/layout.tsx` giữ nguyên
+header khi đổi route, không remount), route group để tách `(auth)`/`(app)` mà không thêm
+cấp URL, và `loading.tsx`/`error.tsx` theo từng nhánh. Ngoài ra Pages Router là chế độ kế
+thừa; chọn nó năm 2026 sẽ phải giải thích vì sao dùng cái cũ.
+
+**Vì sao không phương án 2:** buộc phải có tầng proxy và làm TanStack Query gần như thừa.
+Quy mô vượt xa lợi ích ở đồ án này — dữ liệu đều sau đăng nhập, không có trang công khai
+nào cần SEO hay first-paint nhanh.
+
+🔴 **Hệ quả quan trọng nhất — KHÔNG dùng `middleware.ts` để chặn route.** Đây là thứ ai
+cũng làm theo phản xạ và nó **hỏng im lặng theo chiều tệ nhất**: middleware chặn route
+bằng cách đọc cookie phiên, nhưng cookie của ADR-027 có `Path=/api/v1/auth` nên request
+tới `/projects` **không** mang nó theo. Middleware luôn thấy "chưa đăng nhập" và đá cả
+người đã đăng nhập về `/login` — người dùng không bao giờ vào được ứng dụng.
+
+Nới `Path` ra `/` để middleware đọc được thì đánh mất chính điều ADR-027 bảo vệ: cookie sẽ
+đi kèm mọi request nghiệp vụ và biến chúng thành mục tiêu CSRF. Nên guard nằm ở
+`components/auth/auth-guard.tsx`, và lý do đã ghi ngay trong file đó để phiên sau không ai
+"sửa" lại. *(Có phương án thứ ba: thêm một cookie "gợi ý phiên" không chứa bí mật với
+`Path=/` cho middleware đọc. Chưa làm — nó là một nguồn sự thật thứ hai về trạng thái đăng
+nhập, và cái giá phải trả là mỗi lần lệch sẽ khó chẩn đoán.)*
+
+**Ba trạng thái, không phải hai:** `unknown` / `authenticated` / `anonymous`. Gộp `unknown`
+vào `anonymous` là bug nhìn thấy được: sau F5 access token đã mất nên phải gọi
+`/auth/refresh` một lần mới biết, và trong lúc chờ mà coi là chưa đăng nhập thì người dùng
+bị văng về `/login` rồi mới quay lại.
+
+**Đánh đổi đã chấp nhận:** không có SSR cho dữ liệu, first paint là skeleton, không SEO.
+Cả ba đều không quan trọng với ứng dụng nội bộ sau đăng nhập.
+
+---
+
+#### ADR-029 (2026-07-31) — TypeScript types viết tay, không dùng OpenAPI codegen
+
+**Bối cảnh:** §6 để ngỏ "cân nhắc dùng OpenAPI codegen từ Swagger để tự sinh types, giảm
+sai sót thủ công". Đến lúc phải chốt.
+
+**Quyết định:** viết tay ở `frontend/types/`, mỗi file soi gương một file DTO backend
+(`types/auth.ts` ↔ `Features/Auth/AuthDtos.cs`) để đối chiếu được bằng mắt.
+
+**Lý do quyết định — không phải "đỡ thêm bước build" mà là codegen sẽ sinh ra thứ SAI:**
+`ProjectMembersController` có **4 chỗ `[ProducesResponseType]` khai sai** — hai chỗ khai
+`PagedResult<T>` trong khi handler trả mảng trần, hai chỗ khai `201` trong khi trả `200`.
+Codegen tin vào tài liệu Swagger, nên nó sẽ sinh ra types sai một cách **tự tin và im
+lặng**, và người đọc sẽ tin types hơn là tin code. Viết tay từ chữ ký C# thật thì bốn chỗ
+đó lộ ra ngay.
+
+Ba lý do phụ: số DTO cần cho phiên này chỉ khoảng 12; output codegen vài nghìn dòng không
+chèn được vào báo cáo; và types viết tay là chỗ tự nhiên để ghi lại tri thức mà OpenAPI
+không diễn đạt được — ví dụ "gửi `description: ''` chứ không phải `null` vì
+`ProjectService` gọi `.Trim()`", hay "`rowVersion` bắt buộc round-trip khi `PUT` nhưng
+không cần khi `PATCH status`".
+
+**Rủi ro và cách giảm thiểu:** types viết tay sẽ lệch dần khỏi backend. Giảm bằng quy ước
+đặt tên soi gương 1-1 và bằng việc dùng `Record<Enum, T>` cho mọi bảng tra (nhãn, màu) —
+thêm giá trị enum mới mà quên cập nhật thì đỏ ngay lúc biên dịch.
+
+**Điểm chuyển đổi, ghi rõ để không phải tranh luận lại:** chuyển sang
+`openapi-typescript` khi **hoặc** số DTO vượt ~40, **hoặc** xảy ra lần lệch type thứ hai
+gây bug thật. Điều kiện tiên quyết: sửa 4 chỗ `[ProducesResponseType]` sai trước, nếu
+không codegen chỉ tự động hóa việc sinh ra lỗi.
+
+---
+
+#### ADR-030 (2026-07-31) — Interceptor refresh bắt buộc single-flight
+
+**Bối cảnh:** đây là bug tốn kém nhất của cả bước frontend nếu để lọt, và nó **không** tự
+lộ ra khi thử tay từng thao tác một.
+
+`AuthService.RefreshAsync` dùng rotation kèm reuse detection theo RFC 9700: token cũ bị
+thu hồi ngay khi đổi, và dùng lại một token **đã thu hồi** bị coi là token bị đánh cắp nên
+backend gọi `RevokeAllAsync` — thu hồi **toàn bộ** phiên của người dùng đó.
+
+Hệ quả: nếu ba request cùng nhận 401 rồi cùng gọi `/auth/refresh` với một refresh token,
+request đầu đổi thành công, hai request sau gửi đúng token vừa bị thu hồi → người dùng bị
+đá khỏi mọi thiết bị. Triệu chứng ngoài đời là **"thỉnh thoảng tự đăng xuất"** — chỉ xuất
+hiện khi có từ hai request cùng hết hạn một lúc, nên gần như không tái hiện được theo yêu
+cầu và rất khó lần ra nguyên nhân.
+
+**Quyết định:** `lib/api/refresh.ts` giữ **một** biến `inFlight`. Lời gọi thứ hai trở đi
+nhận lại đúng promise đang chạy thay vì tạo request mới; xong thì tất cả cùng retry
+**đúng một lần**. Không lặp: lần hai vẫn 401 nghĩa là phiên đã chết thật, thử tiếp chỉ tạo
+thêm lời gọi vô ích.
+
+**Refresh chủ động, không chỉ phản ứng với 401:** `AuthenticatedResponse` có
+`accessTokenExpiresAt`, nên khi còn dưới 60s là đổi token trước lúc gửi. Ngưỡng 60s rộng
+hơn `ClockSkew` 30s của backend. Đường này cũng đi qua cùng `inFlight`, nên nhiều request
+cùng phát hiện token sắp hết hạn vẫn chỉ tạo một lời gọi.
+
+**Bảo đảm bằng cấu trúc, không bằng kỷ luật:** hàm `performRefresh()` để `private` trong
+module, chỉ `refreshAccessToken()` được export. Không có đường gọi thẳng để ai đó vô tình
+lách qua hàng đợi. Cùng nguyên tắc ADR-023 dùng cho chữ ký `INotificationRepository`.
+
+**Đã kiểm chứng thật, không phải suy luận** (2026-07-31, gọi trực tiếp vào backend đang
+chạy): gửi lại một refresh token đã xoay vòng → 401; và ngay sau đó **phiên hợp lệ cũng
+trả 401**. Tức là kịch bản hỏng có thật đúng như mô tả, không phải lo xa.
+
+**Vì sao access token không persist lại là một quyết định tốt cho việc này:** mỗi lần F5
+đều mất access token nên đều chạy qua đúng đường single-flight. Cơ chế khó nhất của phiên
+được diễn tập liên tục trong lúc phát triển, thay vì chỉ chạy sau mỗi 15 phút.
+
+**Điều KHÔNG làm:** tầng API không tự điều hướng khi refresh hỏng — nó chỉ `clearSession()`
+rồi để `AuthGuard` đọc `status` và `replace('/login')`. Giữ được ranh giới thì `lib/api/`
+không phụ thuộc React và test được độc lập.
+
+---
+
+#### ADR-031 (2026-07-31) — Dùng Next.js 15, không dùng 16
+
+**Bối cảnh:** lúc scaffold, bản mới nhất là Next 16.2 (stable), còn 15.5 vẫn được hỗ trợ.
+Phản xạ mặc định là lấy bản mới nhất.
+
+**Quyết định:** Next 15.5 + React 19 + Tailwind 4.
+
+**Lý do:** Next 16 đổi `middleware.ts` → `proxy.ts` và hàm `middleware()` → `proxy()`. Đây
+là đồ án còn nhiều phiên nữa và người làm sẽ phải tra tài liệu liên tục — toàn bộ hướng
+dẫn shadcn/ui, TanStack Query và phần lớn bài viết về Next hiện có đều viết theo tên cũ.
+Với một đồ án tốt nghiệp, **độ khớp tài liệu đáng giá hơn độ mới**: chi phí của việc chọn
+bản mới không nằm ở lúc cài mà nằm ở mỗi lần tra cứu về sau.
+
+**Nghịch lý đáng ghi lại:** ADR-028 đã quyết định *không* dùng `middleware.ts`, nên trên lý
+thuyết việc đổi tên đó không ảnh hưởng gì tới code hiện tại. Lý do giữ Next 15 vì vậy
+không phải là kỹ thuật mà là **chi phí tra cứu** — vẫn là lý do chính đáng, chỉ cần trung
+thực rằng nó không phải chuyện code chạy hay không.
+
+**Điểm xem lại:** khi Next 17 ra hoặc khi hệ sinh thái đã theo kịp tên `proxy.ts`, việc
+nâng cấp là chạy `npx @next/codemod@latest middleware-to-proxy .` — rẻ, vì ta không có
+file nào cần đổi.
+
+#### ADR-032 (2026-07-31) — Danh sách project trả kèm vai trò của người gọi
+
+**Bối cảnh:** khi làm nút Sửa/Xóa cho từng dòng danh sách, phát hiện frontend **không có
+cách nào** biết mình là `ProjectManager` hay `Viewer` trong project đó.
+`ProjectSummaryResponse` chỉ có `Id`, `Name`, `Status`, `ExpectedCompletionDate`; vai trò
+chỉ lấy được qua `GET /projects/{id}/members` — tức là một request cho **mỗi dòng**.
+
+Ba lựa chọn: (1) cứ hiện nút rồi để backend trả 403; (2) gọi thêm endpoint thành viên cho
+từng dòng; (3) trả vai trò kèm trong danh sách.
+
+**Quyết định: (3).** `ProjectSummaryResponse` thêm trường `RoleInProject`.
+
+**Vì sao không (1):** §10 đã chốt "muốn ẩn/hiện nút đúng thì đọc `RoleInProject` từ API,
+đừng đoán từ mã lỗi". Hiện nút rồi để backend từ chối là đẩy việc phân quyền thành một
+thông báo lỗi — người dùng bấm xong mới biết mình không được phép.
+
+**Vì sao không (2):** N+1 thẳng thừng, 10 dòng là 11 request.
+
+**Vì sao (3) rẻ hơn vẻ ngoài:** truy vấn phân trang **vốn đã** lọc theo
+`p.Members.Any(m => m.EmployeeId == @me && Accepted)` — nó buộc phải chạm đúng hàng
+`ProjectMember` chứa vai trò rồi. Lấy thêm một cột từ hàng đã đọc không tốn round-trip
+nào. Nói cách khác dữ liệu đã ở sẵn đó, chỉ là trước giờ không được chiếu ra.
+
+🔴 **Chi tiết quan trọng nhất — vì sao `ToSummary` được viết TAY thay vì để Mapperly sinh:**
+vai trò phụ thuộc *người đang hỏi* nên không suy ra được từ `Project`. Nếu giữ bản một
+tham số do Mapperly sinh, call site nào quên truyền vai trò sẽ nhận giá trị mặc định của
+enum — mà `RoleInProject` có ordinal 0 là **`ProjectManager`**. Hỏng theo đúng chiều nguy
+hiểm nhất: UI hiện nút Sửa/Xóa cho cả `Viewer`, và hỏng **im lặng** vì không có gì đỏ.
+
+Nên `ProjectMapper.ToSummary(Project, RoleInProject)` bắt buộc hai tham số và không có
+overload một tham số. Trình biên dịch chặn ngay tại chỗ, không cần ai phải nhớ. Cùng
+nguyên tắc *bảo đảm bằng cấu trúc hơn bảo đảm bằng kỷ luật lập trình viên* mà ADR-023 dùng
+cho chữ ký `INotificationRepository` và ADR-008 dùng cho `ISoftDeletable`.
+
+**Kiểm chứng:**
+`ProjectsCrudTests.Danh_sach_tra_ve_vai_tro_cua_chinh_nguoi_goi_chu_khong_phai_cua_project`
+— cùng **một** project, PM và Viewer gọi danh sách và nhận về hai vai trò khác nhau. Test
+này cũng là chốt chặn hồi quy cho đúng cái bẫy ordinal-0 ở trên.
+
+**Ảnh hưởng tương thích:** thêm trường vào response là thay đổi cộng thêm — không client
+nào vỡ. Không test nào phải sửa (không chỗ nào `new ProjectSummaryResponse(...)` bằng tay,
+tất cả đều deserialize). `IProjectRepository.GetPagedForEmployeeAsync` đổi kiểu trả về
+sang `PagedResult<ProjectWithRole>`, chỉ ảnh hưởng một call site trong `ProjectService`.
 
 #### Đính chính 2026-07-30 — CORS ghi ✅ nhưng chưa từng hoạt động
 

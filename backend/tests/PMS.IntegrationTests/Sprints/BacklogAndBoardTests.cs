@@ -128,6 +128,57 @@ public class BacklogAndBoardTests : IntegrationTestBase
     }
 
     [Fact]
+    public async Task The_tren_Board_mang_theo_danh_sach_nguoi_dam_nhan()
+    {
+        // Không có dữ liệu này thì client phải gọi N+1 lần /tasks/{id}/assignees chỉ để
+        // vẽ avatar, và không có cách nào biết "tôi có phải assignee không" để gác quyền
+        // đổi status theo ADR-017.
+        var pm = await CreateUserAsync();
+        var member = await CreateUserAsync();
+        var projectId = await CreateProjectAsync(pm.Client);
+        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        var taskId = await CreateTaskAsync(pm.Client, projectId);
+
+        var gan = await pm.Client.PostAsJsonAsync($"/api/v1/tasks/{taskId}/assignees",
+            new AssignTaskRequest(member.EmployeeId, RoleInTask.Owner));
+        gan.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var board = await pm.Client.GetFromJsonAsync<BoardResponse>(
+            $"/api/v1/projects/{projectId}/board", TestJson.Options);
+
+        var the = board!.Columns.SelectMany(c => c.Tasks).ShouldHaveSingleItem();
+        var nguoiLam = the.Assignees.ShouldHaveSingleItem();
+        nguoiLam.EmployeeId.ShouldBe(member.EmployeeId);
+        nguoiLam.EmployeeName.ShouldNotBeNullOrWhiteSpace();
+
+        // Backlog đi qua một query khác — phải kiểm riêng, không suy ra từ board.
+        var backlog = await pm.Client.GetFromJsonAsync<List<TaskSummaryResponse>>(
+            $"/api/v1/projects/{projectId}/backlog", TestJson.Options);
+        backlog!.ShouldHaveSingleItem().Assignees.ShouldHaveSingleItem().EmployeeId.ShouldBe(member.EmployeeId);
+    }
+
+    [Fact]
+    public async Task The_tren_Board_tinh_dung_SubtaskProgress()
+    {
+        // SubtaskProgress đọc Subtasks.Count. Thiếu Include thì collection rỗng và giá
+        // trị LUÔN là 0 — sai im lặng, không có lỗi nào chỉ ra.
+        var pm = await CreateUserAsync();
+        var projectId = await CreateProjectAsync(pm.Client);
+        var parentId = await CreateTaskAsync(pm.Client, projectId, "Task cha");
+        var sub1 = await CreateTaskAsync(pm.Client, projectId, "Sub 1", parentTaskId: parentId);
+        await CreateTaskAsync(pm.Client, projectId, "Sub 2", parentTaskId: parentId);
+
+        await AdvanceStatusAsync(pm.Client, sub1, Status.Done);
+
+        var board = await pm.Client.GetFromJsonAsync<BoardResponse>(
+            $"/api/v1/projects/{projectId}/board", TestJson.Options);
+
+        board!.Columns.SelectMany(c => c.Tasks)
+              .ShouldHaveSingleItem()
+              .SubtaskProgress.ShouldBe(50m);
+    }
+
+    [Fact]
     public async Task Viewer_xem_duoc_Board_va_Backlog()
     {
         var pm = await CreateUserAsync();
