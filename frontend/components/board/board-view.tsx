@@ -147,6 +147,7 @@ export function BoardView({
             key={column.status}
             status={column.status}
             tasks={column.tasks}
+            projectId={projectId}
             activeTask={activeTask}
             canDragTask={canDragTask}
             dragDisabledReason={dragDisabledReason}
