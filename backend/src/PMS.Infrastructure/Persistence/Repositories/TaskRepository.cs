@@ -13,10 +13,18 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
     public async Task<TaskItem?> GetWithDetailsAsync(Guid id, CancellationToken ct = default)
         => await DbSet
             .Include(t => t.Reporter)
+            // Project BẮT BUỘC: ToDetail cần Project.Key để ghép mã PMS-12 (ADR-034).
+            // Reference include nên không nhân dòng.
+            .Include(t => t.Project)
             .Include(t => t.Assignments).ThenInclude(a => a.Employee)
-            // Subtask cũng map qua ToSummary nên cũng cần Assignments, nếu không
-            // TaskDetailResponse.Subtasks[].Assignees rỗng một cách im lặng.
+            // Watchers BẮT BUỘC: TaskDetailResponse.IsWatching đọc collection này. Thiếu
+            // Include thì nó rỗng và IsWatching LUÔN false — sai im lặng, đúng lớp lỗi
+            // SubtaskProgress-luôn-0 đã ghi ở §1 (ADR-036).
+            .Include(t => t.Watchers)
+            // Subtask cũng map qua ToSummary nên cũng cần Assignments + Labels, nếu không
+            // TaskDetailResponse.Subtasks[].Assignees/Labels rỗng một cách im lặng.
             .Include(t => t.Subtasks).ThenInclude(s => s.Assignments).ThenInclude(a => a.Employee)
+            .Include(t => t.Subtasks).ThenInclude(s => s.Labels)
             .Include(t => t.Labels)
             .Include(t => t.Comments).ThenInclude(c => c.Author)
             .Include(t => t.OutgoingLinks).ThenInclude(l => l.TargetTask)
@@ -36,6 +44,12 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
             .Include(t => t.Assignments).ThenInclude(a => a.Employee)
             .FirstOrDefaultAsync(t => t.Id == id, ct);
 
+    // KHÔNG AsNoTracking: caller sửa collection Labels rồi SaveChanges, nên EF phải theo dõi.
+    public async Task<TaskItem?> GetWithLabelsAsync(Guid id, CancellationToken ct = default)
+        => await DbSet
+            .Include(t => t.Labels)
+            .FirstOrDefaultAsync(t => t.Id == id, ct);
+
     public async Task<TaskItem?> GetForStatusChangeAsync(Guid id, CancellationToken ct = default)
         => await DbSet
             // ThenInclude(Employee) BẮT BUỘC: endpoint đổi status trả TaskSummaryResponse,
@@ -44,6 +58,9 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
             .Include(t => t.Assignments).ThenInclude(a => a.Employee)
             .Include(t => t.Watchers)
             .Include(t => t.Subtasks)
+            // Labels: ToSummary trả chip nhãn cho thẻ Kanban. Thiếu Include thì thẻ vừa
+            // kéo–thả xong bị MẤT hết nhãn cho tới lần refetch sau — sai im lặng.
+            .Include(t => t.Labels)
             .AsSplitQuery()
             .FirstOrDefaultAsync(t => t.Id == id, ct);
 
@@ -58,15 +75,18 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
     public async Task<PagedResult<TaskItem>> GetPagedByProjectAsync(
         Guid projectId, PagedRequest request, CancellationToken ct = default)
     {
+        // 🔴 HAI BƯỚC, không phải một. Trước đây đây là một query duy nhất với hai
+        // collection Include và CỐ Ý không AsSplitQuery (split + Skip/Take trên OrderBy
+        // không duy nhất thì thứ tự giữa các câu SQL không xác định). Nhưng thêm Labels
+        // là collection THỨ BA, và JOIN ba collection trong một câu thì số dòng nhân lên
+        // theo assignees × subtasks × labels.
+        //
+        // Cách thoát khỏi thế lưỡng nan: phân trang trên query KHÔNG có Include (chỉ lấy
+        // Id — thứ tự hoàn toàn xác định), rồi nạp lại đúng các Id đó với đủ Include +
+        // AsSplitQuery. Split query lúc này an toàn vì không còn Skip/Take.
+        // Đồng thời khử luôn phép nhân dòng vốn đã có sẵn với hai collection.
         var query = DbSet
             .AsNoTracking()
-            // Cùng lý do với Board/Backlog ở dưới — kết quả cũng map qua ToSummary.
-            // KHÔNG dùng AsSplitQuery ở đây: query này có Skip/Take mà OrderBy theo
-            // DueDate/Name không duy nhất, split query với phân trang không xác định
-            // được thứ tự nên có thể trả về dữ liệu lệch giữa các câu SQL. Một câu duy
-            // nhất thì số dòng nhân lên nhưng bị chặn bởi PageSize (tối đa 100).
-            .Include(t => t.Assignments).ThenInclude(a => a.Employee)
-            .Include(t => t.Subtasks)
             .Where(t => t.ProjectId == projectId && t.ParentTaskId == null);  // chỉ task gốc
 
         if (!string.IsNullOrWhiteSpace(request.Search))
@@ -77,19 +97,40 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
 
         var totalCount = await query.CountAsync(ct);
 
+        // Tie-break bằng Id: DueDate/Name/Priority/Status đều không duy nhất, nên thiếu nó
+        // thì hai lần gọi cùng một trang có thể trả về thứ tự khác nhau và làm task nhảy
+        // trang khi người dùng bấm qua lại.
         query = (request.SortBy?.ToLowerInvariant(), request.IsDescending) switch
         {
-            ("name", false)     => query.OrderBy(t => t.Name),
-            ("name", true)      => query.OrderByDescending(t => t.Name),
-            ("priority", false) => query.OrderBy(t => t.Priority),
-            ("priority", true)  => query.OrderByDescending(t => t.Priority),
-            ("status", false)   => query.OrderBy(t => t.Status),
-            ("status", true)    => query.OrderByDescending(t => t.Status),
-            (_, true)           => query.OrderByDescending(t => t.DueDate),
-            _                   => query.OrderBy(t => t.DueDate)
+            ("name", false)     => query.OrderBy(t => t.Name).ThenBy(t => t.Id),
+            ("name", true)      => query.OrderByDescending(t => t.Name).ThenBy(t => t.Id),
+            ("priority", false) => query.OrderBy(t => t.Priority).ThenBy(t => t.Id),
+            ("priority", true)  => query.OrderByDescending(t => t.Priority).ThenBy(t => t.Id),
+            ("status", false)   => query.OrderBy(t => t.Status).ThenBy(t => t.Id),
+            ("status", true)    => query.OrderByDescending(t => t.Status).ThenBy(t => t.Id),
+            (_, true)           => query.OrderByDescending(t => t.DueDate).ThenBy(t => t.Id),
+            _                   => query.OrderBy(t => t.DueDate).ThenBy(t => t.Id)
         };
 
-        var items = await query.Skip(request.Skip).Take(request.PageSize).ToListAsync(ct);
+        var pageIds = await query
+            .Skip(request.Skip)
+            .Take(request.PageSize)
+            .Select(t => t.Id)
+            .ToListAsync(ct);
+
+        var loaded = await DbSet
+            .AsNoTracking()
+            .Include(t => t.Assignments).ThenInclude(a => a.Employee)
+            .Include(t => t.Subtasks)
+            .Include(t => t.Labels)
+            .AsSplitQuery()
+            .Where(t => pageIds.Contains(t.Id))
+            .ToListAsync(ct);
+
+        // Bước hai mất thứ tự (WHERE IN không giữ thứ tự) -> sắp lại theo đúng pageIds.
+        var byId = loaded.ToDictionary(t => t.Id);
+        var items = pageIds.Where(byId.ContainsKey).Select(id => byId[id]).ToList();
+
         return new PagedResult<TaskItem>
         {
             Items = items,
@@ -115,6 +156,7 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
             .AsNoTracking()
             .Include(t => t.Assignments).ThenInclude(a => a.Employee)
             .Include(t => t.Subtasks)
+            .Include(t => t.Labels)
             .AsSplitQuery()
             .Where(t => t.ProjectId == projectId && t.SprintId == null && t.ParentTaskId == null)
             .OrderBy(t => t.Priority)
@@ -126,6 +168,7 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
             .AsNoTracking()
             .Include(t => t.Assignments).ThenInclude(a => a.Employee)
             .Include(t => t.Subtasks)
+            .Include(t => t.Labels)
             .AsSplitQuery()
             .Where(t => t.ProjectId == projectId && t.ParentTaskId == null)
             .OrderBy(t => t.Priority)
@@ -137,6 +180,7 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
             .AsNoTracking()
             .Include(t => t.Assignments).ThenInclude(a => a.Employee)
             .Include(t => t.Subtasks)
+            .Include(t => t.Labels)
             .AsSplitQuery()
             .Where(t => t.SprintId == sprintId)
             .OrderBy(t => t.Priority)
@@ -164,6 +208,23 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
             .AsNoTracking()
             .Where(t => t.DueDate != null
                      && t.DueDate.Value.Date < today
+                     && t.Status != Status.Done)
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<TaskItem>> GetDueSoonOrOverdueWithTargetsAsync(
+        int horizonDays, CancellationToken ct = default)
+    {
+        var horizon = DateTime.UtcNow.Date.AddDays(horizonDays);
+
+        return await DbSet
+            .AsNoTracking()
+            // BẮT BUỘC cho InterestedEmployeeIds() — xem chú thích ở ITaskRepository.
+            .Include(t => t.Assignments)
+            .Include(t => t.Watchers)
+            .AsSplitQuery()
+            .Where(t => t.DueDate != null
+                     && t.DueDate.Value.Date <= horizon
                      && t.Status != Status.Done)
             .ToListAsync(ct);
     }

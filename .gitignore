@@ -486,3 +486,7 @@ $RECYCLE.BIN/
 # Postman
 .postman/
 backend/postman/environments/
+
+# File người dùng tải lên (ADR-035). Thư mục này nằm NGOÀI wwwroot có chủ đích và không
+# bao giờ được phục vụ tĩnh — cũng không bao giờ được commit.
+backend/src/PMS.API/App_Data/

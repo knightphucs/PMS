@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using PMS.Application.Common.Interfaces;
 using PMS.Application.Common.Models;
 using PMS.Domain.Entities;
+using PMS.Domain.Enums;
 
 namespace PMS.Infrastructure.Persistence.Repositories;
 
@@ -55,4 +56,23 @@ public class NotificationRepository : Repository<Notification>, INotificationRep
         => await DbSet
             .Where(n => n.EmployeeId == employeeId && !n.IsRead)
             .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<(Guid EmployeeId, Guid RelatedEntityId)>>
+        GetNotifiedPairsSinceAsync(
+            NotificationType type, DateTime since, IReadOnlyCollection<Guid> relatedEntityIds,
+            CancellationToken ct = default)
+    {
+        // Một query duy nhất cho toàn bộ tập ứng viên, không phải mỗi cặp một query.
+        var rows = await DbSet
+            .AsNoTracking()
+            .Where(n => n.Type == type
+                     && n.CreatedAt >= since
+                     && n.RelatedEntityId != null
+                     && relatedEntityIds.Contains(n.RelatedEntityId.Value))
+            .Select(n => new { n.EmployeeId, RelatedEntityId = n.RelatedEntityId!.Value })
+            .Distinct()
+            .ToListAsync(ct);
+
+        return rows.Select(r => (r.EmployeeId, r.RelatedEntityId)).ToList();
+    }
 }

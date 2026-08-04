@@ -12,6 +12,9 @@ public class LabelConfiguration : IEntityTypeConfiguration<Label>
         builder.HasKey(l => l.Id);
 
         builder.Property(l => l.Name).IsRequired().HasMaxLength(50);
+        builder.Property(l => l.Color).IsRequired().HasMaxLength(7)
+               .HasDefaultValue(Label.DefaultColor);
+
         builder.HasIndex(l => l.Name).IsUnique();
     }
 }
