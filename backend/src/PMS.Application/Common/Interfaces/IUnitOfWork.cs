@@ -13,7 +13,13 @@ public interface IUnitOfWork
     INotificationRepository Notifications { get; }
     ICommentRepository Comments { get; }
     IRepository<TaskAssignment> TaskAssignments { get; }
-    IRepository<ActivityLog> ActivityLogs { get; }
+    IActivityLogRepository ActivityLogs { get; }
+    IProjectTaskCounterRepository ProjectTaskCounters { get; }
+    ILabelRepository Labels { get; }
+    IWatcherRepository Watchers { get; }
+    ITaskLinkRepository TaskLinks { get; }
+    IAttachmentRepository Attachments { get; }
+    IPasswordResetTokenRepository PasswordResetTokens { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 

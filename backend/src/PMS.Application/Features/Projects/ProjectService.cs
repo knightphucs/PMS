@@ -14,14 +14,16 @@ public class ProjectService : IProjectService
     private readonly IUnitOfWork _uow;
     private readonly IProjectAuthorizationService _authz;
     private readonly ICurrentUserService _currentUser;
+    private readonly IActivityLogger _activityLog;
     private readonly ProjectMapper _mapper;
     private readonly ILogger<ProjectService> _logger;
 
-    public ProjectService(IUnitOfWork uow, IProjectAuthorizationService authz, ICurrentUserService currentUser, ProjectMapper mapper, ILogger<ProjectService> logger)
+    public ProjectService(IUnitOfWork uow, IProjectAuthorizationService authz, ICurrentUserService currentUser, IActivityLogger activityLog, ProjectMapper mapper, ILogger<ProjectService> logger)
     {
         _uow = uow;
         _authz = authz;
         _currentUser = currentUser;
+        _activityLog = activityLog;
         _mapper = mapper;
         _logger = logger;
     }
@@ -31,16 +33,48 @@ public class ProjectService : IProjectService
     {
         var project = Project.Create(
             request.Name, request.Description, request.ExpectedCompletionDate,
-            _currentUser.RequireEmployeeId());
+            _currentUser.RequireEmployeeId(),
+            await GenerateUniqueKeyAsync(request.Name, ct));
+
+        // Bộ đếm task đi cùng project trong CÙNG một SaveChanges: project không có bộ đếm
+        // là project không tạo được task nào (ADR-033). Cùng lý do ADR-007 gộp
+        // ProjectMember của người tạo vào đây thay vì mở transaction tường minh.
         await _uow.Projects.AddAsync(project, ct);
+        _uow.ProjectTaskCounters.Add(new ProjectTaskCounter { ProjectId = project.Id, NextNumber = 0 });
+
+        _activityLog.Log(nameof(Project), project.Id, ActivityAction.Created,
+            $"Tạo project '{project.Name}' ({project.Key})");
+
         await _uow.SaveChangesAsync(ct);
 
-        _logger.LogInformation("Tạo project {ProjectId} bởi {EmployeeId}",
-            project.Id, _currentUser.EmployeeId);
+        _logger.LogInformation("Tạo project {ProjectId} ({ProjectKey}) bởi {EmployeeId}",
+            project.Id, project.Key, _currentUser.EmployeeId);
 
         // Người tạo luôn là ProjectManager — Project.Create() tự chèn ProjectMember đó.
         return _mapper.ToSummary(project, RoleInProject.ProjectManager);
     }
+
+    /// <summary>
+    /// Mã gốc từ tên, thêm hậu tố số nếu đã có người dùng. Unique index trên
+    /// <c>Projects.Key</c> vẫn là chốt chặn cuối cho race giữa hai request đồng thời —
+    /// vòng lặp này chỉ để trường hợp thường không phải chạm tới nó.
+    /// </summary>
+    private async Task<string> GenerateUniqueKeyAsync(string name, CancellationToken ct)
+    {
+        var baseKey = ProjectKeyGenerator.FromName(name);
+
+        for (var attempt = 1; attempt <= MaxKeyAttempts; attempt++)
+        {
+            var candidate = ProjectKeyGenerator.WithSuffix(baseKey, attempt);
+            if (!await _uow.Projects.KeyExistsAsync(candidate, ct)) return candidate;
+        }
+
+        // Hết cách sinh mã đọc được — rơi về mã ngẫu nhiên thay vì ném lỗi vào mặt người
+        // dùng, vì họ không kiểm soát được thứ đang đụng độ.
+        return $"P{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
+    }
+
+    private const int MaxKeyAttempts = 50;
 
     public async Task<ProjectDetailResponse> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
@@ -76,6 +110,9 @@ public class ProjectService : IProjectService
         project.Description = request.Description.Trim();
         project.ExpectedCompletionDate = request.ExpectedCompletionDate;
 
+        _activityLog.Log(nameof(Project), id, ActivityAction.Updated,
+            $"Cập nhật thông tin project '{project.Name}'");
+
         await _uow.SaveChangesAsync(ct);
 
         _logger.LogInformation("Cập nhật project {ProjectId} bởi {EmployeeId}",
@@ -100,6 +137,11 @@ public class ProjectService : IProjectService
         foreach (var task in project.Tasks) _uow.Tasks.Remove(task);
         foreach (var sprint in project.Sprints) _uow.Sprints.Remove(sprint);
         _uow.Projects.Remove(project);
+
+        // Ghi log TRƯỚC SaveChanges để cùng một transaction với thay đổi nghiệp vụ (ADR-013).
+        // Bản thân ActivityLog không bị xóa theo — đó chính là lý do project dùng xóa mềm.
+        _activityLog.Log(nameof(Project), id, ActivityAction.Deleted,
+            $"Xóa project '{project.Name}' cùng {project.Tasks.Count} task và {project.Sprints.Count} sprint");
 
         await _uow.SaveChangesAsync(ct);
 

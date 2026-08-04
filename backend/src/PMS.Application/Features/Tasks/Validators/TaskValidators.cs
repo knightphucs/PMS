@@ -7,6 +7,7 @@ public class CreateTaskRequestValidator : AbstractValidator<CreateTaskRequest>
     public CreateTaskRequestValidator()
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);   // khớp TaskItemConfiguration
+        RuleFor(x => x.Description).MaximumLength(4000);      // nullable -> không NotEmpty
         RuleFor(x => x.ProjectId).NotEmpty();
         RuleFor(x => x.Priority).IsInEnum();
 
@@ -29,6 +30,7 @@ public class UpdateTaskRequestValidator : AbstractValidator<UpdateTaskRequest>
     public UpdateTaskRequestValidator()
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
+        RuleFor(x => x.Description).MaximumLength(4000);
         RuleFor(x => x.Priority).IsInEnum();
         RuleFor(x => x.RowVersion)
             .NotEmpty()

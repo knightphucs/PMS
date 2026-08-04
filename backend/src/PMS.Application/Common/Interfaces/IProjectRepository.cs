@@ -29,4 +29,18 @@ public interface IProjectRepository : IRepository<Project>
 
     /// <summary>Nạp kèm Tasks + Sprints — cần cho việc kiểm tra và cascade khi xóa project.</summary>
     Task<Project?> GetForDeletionAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Mã project đã có ai dùng chưa. <b>Bỏ qua global query filter</b>: mã của project đã
+    /// xóa mềm vẫn phải giữ chỗ, vì mã task <c>PMS-12</c> sinh ra từ nó đã phát tán ra
+    /// comment/URL/tài liệu ngoài hệ thống (ADR-033).
+    /// </summary>
+    Task<bool> KeyExistsAsync(string key, CancellationToken ct = default);
+
+    /// <summary>
+    /// Chỉ lấy mã project (<c>null</c> nếu không tồn tại) — dùng để ghép mã task
+    /// <c>PMS-12</c> ở tầng mapper. Projection một cột thay vì nạp cả entity: board/backlog
+    /// gọi nó một lần cho hàng chục thẻ nên không đáng nạp thừa (ADR-034).
+    /// </summary>
+    Task<string?> GetKeyAsync(Guid projectId, CancellationToken ct = default);
 }

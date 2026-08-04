@@ -1,23 +1,81 @@
+using PMS.Application.Features.Labels;
 using PMS.Domain.Entities;
 using Riok.Mapperly.Abstractions;
 
 namespace PMS.Application.Features.Tasks;
 
+/// <summary>
+/// 🔴 <b><c>ToSummary</c> và <c>ToDetail</c> viết TAY, không để Mapperly sinh</b> — cùng lý
+/// do <c>ProjectMapper.ToSummary</c> phải viết tay (ADR-032), nay áp cho mã task (ADR-034).
+/// <para>
+/// Mã hiển thị <c>PMS-12</c> cần <c>Project.Key</c>, mà <c>Project</c> không phải lúc nào
+/// cũng được <c>Include</c>. Đặt nó thành computed property trên <see cref="TaskItem"/> sẽ
+/// NRE ở mọi query board/backlog/paged, hoặc — tệ hơn — buộc mọi query đó phải nhớ thêm
+/// một <c>Include</c>. Đó đúng là lớp lỗi đã xảy ra hai lần trong dự án này
+/// (<c>SubtaskProgress</c> luôn trả 0 vì thiếu Include; <c>Assignee.Employee</c> NRE).
+/// </para>
+/// <para>
+/// Bắt <c>projectKey</c> làm tham số bắt buộc thì trình biên dịch chặn ngay tại call site,
+/// không cần ai phải nhớ. Service lấy key một lần cho cả request rồi truyền xuống.
+/// </para>
+/// </summary>
 [Mapper]
 public partial class TaskMapper
 {
 #pragma warning disable RMG020 // Source member is not mapped to any target member
-    [MapProperty(nameof(TaskItem.Assignments), nameof(TaskSummaryResponse.Assignees))]
-    public partial TaskSummaryResponse ToSummary(TaskItem task);
-
     [MapProperty(nameof(TaskAssignment.Employee.Name), nameof(TaskCardAssignee.EmployeeName))]
     public partial TaskCardAssignee ToCardAssignee(TaskAssignment assignment);
 
-    [MapProperty(nameof(TaskItem.Assignments), nameof(TaskDetailResponse.Assignees))]
-    [MapProperty("Reporter.Name", nameof(TaskDetailResponse.ReporterName))]
-    public partial TaskDetailResponse ToDetail(TaskItem task);
-
     [MapProperty(nameof(TaskAssignment.Employee.Name), nameof(TaskAssigneeResponse.EmployeeName))]
     public partial TaskAssigneeResponse ToAssigneeResponse(TaskAssignment assignment);
+
+    public partial LabelResponse ToLabelResponse(Label label);
 #pragma warning restore RMG020 // Source member is not mapped to any target member
+
+    /// <summary>Ghép mã hiển thị. Một chỗ duy nhất định dạng — xem chú thích của lớp.</summary>
+    public static string FormatCode(string projectKey, int number) => $"{projectKey}-{number}";
+
+    public TaskSummaryResponse ToSummary(TaskItem task, string projectKey) => new(
+        task.Id,
+        task.Number,
+        FormatCode(projectKey, task.Number),
+        task.Name,
+        task.Status,
+        task.Priority,
+        task.DueDate,
+        task.IsOverdue,
+        task.SprintId,
+        task.ParentTaskId,
+        task.SubtaskProgress,
+        task.Assignments.Select(ToCardAssignee).ToList(),
+        task.Labels.Select(ToLabelResponse).ToList());
+
+    /// <param name="currentEmployeeId">
+    /// Người đang hỏi — quyết định <c>IsWatching</c>. Bắt buộc vì giá trị này phụ thuộc
+    /// người gọi chứ không phải entity; để mặc định sẽ ra <c>false</c> im lặng cho mọi người.
+    /// </param>
+    public TaskDetailResponse ToDetail(TaskItem task, string projectKey, Guid currentEmployeeId) => new(
+        task.Id,
+        task.Number,
+        FormatCode(projectKey, task.Number),
+        task.Name,
+        task.Description,
+        task.Status,
+        task.Priority,
+        task.DueDate,
+        task.IsOverdue,
+        task.ProjectId,
+        projectKey,
+        task.SprintId,
+        task.ParentTaskId,
+        task.ReporterId,
+        task.Reporter.Name,
+        task.Assignments.Select(ToAssigneeResponse).ToList(),
+        // Subtask cùng project nên dùng lại đúng projectKey — subtask KHÔNG bao giờ nằm
+        // ở project khác (TaskItem.AddSubtask gán ProjectId của cha cho con).
+        task.Subtasks.Select(s => ToSummary(s, projectKey)).ToList(),
+        task.Labels.Select(ToLabelResponse).ToList(),
+        task.Watchers.Any(w => w.EmployeeId == currentEmployeeId),
+        task.SubtaskProgress,
+        task.RowVersion);
 }

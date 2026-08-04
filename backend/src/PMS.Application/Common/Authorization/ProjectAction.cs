@@ -28,5 +28,25 @@ public enum ProjectAction
     /// action riêng: chúng phụ thuộc dữ liệu per-row (ai là tác giả) nên nằm trong
     /// CommentService, đúng "ranh giới còn lại" của ADR-019.
     /// </summary>
-    CreateComment
+    CreateComment,
+
+    /// <summary>
+    /// Tải file đính kèm lên Task/Project (ADR-035). Soi gương <see cref="CreateComment"/>:
+    /// PM/Member ghi được, Viewer chỉ đọc. XÓA không có action riêng — nó là luật per-row
+    /// (người tải lên HOẶC PM), nằm trong AttachmentService đúng khuôn ADR-026.
+    /// </summary>
+    UploadAttachment,
+
+    /// <summary>
+    /// Đăng ký/hủy theo dõi task (ADR-036). Là action RIÊNG chứ không dùng lại
+    /// <see cref="View"/>, dù cả ba vai trò đều được: <see cref="View"/> không bao giờ
+    /// được phép cho qua một thao tác GHI, kể cả thao tác chỉ ghi cho chính mình.
+    /// </summary>
+    Watch,
+
+    /// <summary>Gắn/gỡ nhãn trên task — phạm vi project, không ảnh hưởng chéo (ADR-037).</summary>
+    ManageTaskLabels,
+
+    /// <summary>Tạo/xóa liên kết giữa hai task (ADR-038) — người làm việc mới biết phụ thuộc.</summary>
+    ManageTaskLinks
 }
