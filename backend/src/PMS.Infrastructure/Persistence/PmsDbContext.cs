@@ -22,6 +22,9 @@ public class PmsDbContext : DbContext
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Attachment> Attachments => Set<Attachment>();
+    public DbSet<ProjectTaskCounter> ProjectTaskCounters => Set<ProjectTaskCounter>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -34,7 +34,7 @@ public class TaskAssignmentServiceTests
         _uow.TaskAssignments.Returns(_assignmentRepo);
         _currentUser.EmployeeId.Returns(_actorId);
 
-        _project = Project.Create("PMS", "Mô tả", DateTime.UtcNow.AddDays(30), _pmId);
+        _project = Project.Create("PMS", "Mô tả", DateTime.UtcNow.AddDays(30), _pmId, "PMS");
         foreach (var m in _project.Members)
             m.Employee = new Employee { Id = m.EmployeeId, Name = "PM", Email = "pm@pms.test" };
 

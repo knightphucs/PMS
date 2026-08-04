@@ -1,0 +1,27 @@
+$kind: http-request
+name: Unwatch task (me)
+description: "Tự bỏ theo dõi. Cũng idempotent — bỏ khi vốn không theo dõi vẫn 200."
+url: "{{api_url}}/tasks/:task_id/watchers/me"
+method: DELETE
+pathVariables:
+  - key: task_id
+    value: 8DD5602C-EB76-4E72-BFF4-707011B0E6AF
+    description: Task liên quan
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1785500010000

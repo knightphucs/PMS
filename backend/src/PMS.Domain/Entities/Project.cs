@@ -6,6 +6,15 @@ namespace PMS.Domain.Entities;
 public class Project : BaseEntity, ISoftDeletable
 {
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Mã ngắn viết hoa của project (<c>PMS</c>, <c>KHO</c>…) — nửa đầu của mã task
+    /// <c>PMS-12</c>. Duy nhất toàn hệ thống, KHÔNG tái sử dụng kể cả khi project bị xóa
+    /// mềm: mã task đã phát tán ra comment/URL/tài liệu ngoài (ADR-033).
+    /// Sinh tự động từ tên bằng <c>ProjectKeyGenerator</c>, người dùng không nhập.
+    /// </summary>
+    public string Key { get; set; } = string.Empty;
+
     public string Description { get; set; } = string.Empty;
     public DateTime ExpectedCompletionDate { get; set; }
     public Status Status { get; private set; } = Status.ToDo;
@@ -86,12 +95,14 @@ public class Project : BaseEntity, ISoftDeletable
                 "Project phải luôn còn ít nhất một Project Manager đang hoạt động.");
     }
 
-    public static Project Create(string name, string description, DateTime expectedCompletionDate, Guid creatorId)
+    public static Project Create(
+        string name, string description, DateTime expectedCompletionDate, Guid creatorId, string key)
     {
         var project = new Project
         {
             Id = Guid.NewGuid(),
             Name = name.Trim(),
+            Key = key.Trim().ToUpperInvariant(),
             Description = description.Trim(),
             ExpectedCompletionDate = expectedCompletionDate
         };

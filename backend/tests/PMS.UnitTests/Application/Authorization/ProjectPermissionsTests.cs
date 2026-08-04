@@ -24,9 +24,10 @@ public class ProjectPermissionsTests
     [InlineData(ProjectAction.ManageMembers,  RoleInProject.ProjectManager, true)]
     [InlineData(ProjectAction.ManageMembers,  RoleInProject.Member,         false)]
     [InlineData(ProjectAction.ManageMembers,  RoleInProject.Viewer,         false)]
-    // ViewStatistics — PM + Viewer
+    // ViewStatistics — cả ba vai trò (ADR-039). Member được thêm vào 2026-08-03: thống kê
+    // là tổng hợp của dữ liệu Member vốn đã đọc được qua /board, không phải đặc quyền.
     [InlineData(ProjectAction.ViewStatistics, RoleInProject.ProjectManager, true)]
-    [InlineData(ProjectAction.ViewStatistics, RoleInProject.Member,         false)]
+    [InlineData(ProjectAction.ViewStatistics, RoleInProject.Member,         true)]
     [InlineData(ProjectAction.ViewStatistics, RoleInProject.Viewer,         true)]
     // CreateTask / UpdateTask / DeleteTask — chỉ PM (seq-01)
     [InlineData(ProjectAction.CreateTask,      RoleInProject.ProjectManager, true)]
@@ -50,6 +51,25 @@ public class ProjectPermissionsTests
     [InlineData(ProjectAction.SelfAssign,      RoleInProject.ProjectManager, true)]
     [InlineData(ProjectAction.SelfAssign,      RoleInProject.Member,         true)]
     [InlineData(ProjectAction.SelfAssign,      RoleInProject.Viewer,         false)]
+    // CreateComment — PM + Member, Viewer chỉ đọc (ADR-026)
+    [InlineData(ProjectAction.CreateComment,   RoleInProject.ProjectManager, true)]
+    [InlineData(ProjectAction.CreateComment,   RoleInProject.Member,         true)]
+    [InlineData(ProjectAction.CreateComment,   RoleInProject.Viewer,         false)]
+    // UploadAttachment — soi gương CreateComment (ADR-035)
+    [InlineData(ProjectAction.UploadAttachment,  RoleInProject.ProjectManager, true)]
+    [InlineData(ProjectAction.UploadAttachment,  RoleInProject.Member,         true)]
+    [InlineData(ProjectAction.UploadAttachment,  RoleInProject.Viewer,         false)]
+    // ManageTaskLabels / ManageTaskLinks — PM + Member (ADR-037/038)
+    [InlineData(ProjectAction.ManageTaskLabels,  RoleInProject.ProjectManager, true)]
+    [InlineData(ProjectAction.ManageTaskLabels,  RoleInProject.Member,         true)]
+    [InlineData(ProjectAction.ManageTaskLabels,  RoleInProject.Viewer,         false)]
+    [InlineData(ProjectAction.ManageTaskLinks,   RoleInProject.ProjectManager, true)]
+    [InlineData(ProjectAction.ManageTaskLinks,   RoleInProject.Member,         true)]
+    [InlineData(ProjectAction.ManageTaskLinks,   RoleInProject.Viewer,         false)]
+    // Watch — cả Viewer, vì nó chỉ ảnh hưởng hộp thông báo của chính người đó (ADR-036)
+    [InlineData(ProjectAction.Watch,             RoleInProject.ProjectManager, true)]
+    [InlineData(ProjectAction.Watch,             RoleInProject.Member,         true)]
+    [InlineData(ProjectAction.Watch,             RoleInProject.Viewer,         true)]
     public void IsAllowed_khop_voi_ma_tran_trong_tai_lieu(
         ProjectAction action, RoleInProject role, bool expected)
         => ProjectPermissions.IsAllowed(action, role).ShouldBe(expected);

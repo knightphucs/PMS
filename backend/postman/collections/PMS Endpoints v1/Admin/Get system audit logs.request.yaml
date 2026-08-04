@@ -1,0 +1,44 @@
+$kind: http-request
+url: "{{api_url}}/admin/audit-logs?Page=&PageSize=&SortBy=&SortDirection=&Search=&IsDescending=&Skip="
+method: GET
+queryParams:
+  - key: Page
+    value: ""
+    disabled: false
+    description: ""
+    $type: integer
+  - key: PageSize
+    value: ""
+    disabled: false
+    description: ""
+    $type: integer
+  - key: SortBy
+    value: ""
+    disabled: false
+    description: ""
+    $type: string
+  - key: SortDirection
+    value: ""
+    disabled: false
+    description: ""
+    $type: string
+  - key: Search
+    value: ""
+    disabled: false
+    description: ""
+    $type: string
+  - key: IsDescending
+    value: ""
+    disabled: false
+    description: ""
+    $type: boolean
+  - key: Skip
+    value: ""
+    disabled: false
+    description: ""
+    $type: integer
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1178426868470316

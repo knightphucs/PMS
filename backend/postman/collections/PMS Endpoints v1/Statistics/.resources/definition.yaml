@@ -1,0 +1,4 @@
+$kind: collection
+name: Statistics
+description: "Thống kê project cho Dashboard (ADR-039). Cả ba vai trò đều xem được kể từ 2026-08-03."
+order: 1785500025000

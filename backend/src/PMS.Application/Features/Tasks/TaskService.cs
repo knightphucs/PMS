@@ -39,6 +39,7 @@ public class TaskService : ITaskService
         {
             Id = Guid.NewGuid(),
             Name = request.Name.Trim(),
+            Description = Normalize(request.Description),
             ProjectId = request.ProjectId,
             ReporterId = _currentUser.RequireEmployeeId(),
             DueDate = request.DueDate,
@@ -62,20 +63,42 @@ public class TaskService : ITaskService
             parent.AddSubtask(task);
         }
 
-        await _uow.Tasks.AddAsync(task, ct);
+        // 🔴 Caller ĐẦU TIÊN của ExecuteInTransactionAsync kể từ ADR-007 — và là loại việc
+        // mà XML doc của chính nó đã dành chỗ sẵn: nghiệp vụ cần nhiều hơn một lượt ghi
+        // xuống DB mà vẫn phải nguyên tử.
+        //
+        // NextNumberAsync chạy `UPDATE … OUTPUT` giữ X lock trên hàng bộ đếm tới hết
+        // transaction. Nhờ đó hai người tạo task cùng lúc thì người thứ hai CHỜ một nhịp
+        // rồi nhận số kế tiếp, thay vì cả hai cùng đọc một giá trị rồi đụng unique index.
+        // Nằm ngoài transaction thì lock nhả ngay sau câu lệnh và bảo đảm biến mất.
+        await _uow.ExecuteInTransactionAsync(async () =>
+        {
+            task.AssignNumber(await _uow.ProjectTaskCounters.NextNumberAsync(request.ProjectId, ct));
 
-        _activityLog.Log(nameof(TaskItem), task.Id, ActivityAction.Created,
-            task.IsSubtask
-                ? $"Tạo subtask '{task.Name}' của task {task.ParentTaskId}"
-                : $"Tạo task '{task.Name}' (độ ưu tiên {task.Priority})");
+            await _uow.Tasks.AddAsync(task, ct);
 
-        await _uow.SaveChangesAsync(ct);
+            _activityLog.Log(nameof(TaskItem), task.Id, ActivityAction.Created,
+                task.IsSubtask
+                    ? $"Tạo subtask '{task.Name}' của task {task.ParentTaskId}"
+                    : $"Tạo task '{task.Name}' (độ ưu tiên {task.Priority})");
 
-        _logger.LogInformation("Tạo task {TaskId} trong project {ProjectId} bởi {EmployeeId}",
-            task.Id, task.ProjectId, _currentUser.EmployeeId);
+            await _uow.SaveChangesAsync(ct);
+        }, ct);
 
-        return _mapper.ToSummary(task);
+        var projectKey = await RequireProjectKeyAsync(request.ProjectId, ct);
+
+        _logger.LogInformation("Tạo task {TaskCode} ({TaskId}) trong project {ProjectId} bởi {EmployeeId}",
+            TaskMapper.FormatCode(projectKey, task.Number), task.Id, task.ProjectId, _currentUser.EmployeeId);
+
+        return _mapper.ToSummary(task, projectKey);
     }
+
+    /// <summary>
+    /// Chuỗi rỗng/toàn khoảng trắng lưu thành <c>null</c>, không lưu <c>""</c>: hai giá trị
+    /// cùng nghĩa "chưa có mô tả" mà khác biểu diễn thì frontend phải kiểm cả hai.
+    /// </summary>
+    private static string? Normalize(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     public async Task<TaskDetailResponse> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
@@ -84,7 +107,8 @@ public class TaskService : ITaskService
 
         await _authz.AuthorizeTaskAsync(task, ProjectAction.View, ct);
 
-        return _mapper.ToDetail(task);
+        // Project đã được GetWithDetailsAsync Include sẵn -> không tốn thêm round-trip.
+        return _mapper.ToDetail(task, task.Project.Key, _currentUser.RequireEmployeeId());
     }
 
     public async Task<PagedResult<TaskSummaryResponse>> GetByProjectAsync(
@@ -93,8 +117,9 @@ public class TaskService : ITaskService
         await _authz.AuthorizeAsync(projectId, ProjectAction.View, ct);
 
         var paged = await _uow.Tasks.GetPagedByProjectAsync(projectId, request, ct);
+        var projectKey = await RequireProjectKeyAsync(projectId, ct);
 
-        return paged.Map(_mapper.ToSummary);
+        return paged.Map(t => _mapper.ToSummary(t, projectKey));
     }
 
     public async Task<TaskDetailResponse> UpdateAsync(
@@ -109,6 +134,7 @@ public class TaskService : ITaskService
         _uow.SetConcurrencyToken(task, request.RowVersion);
 
         task.Name = request.Name.Trim();
+        task.Description = Normalize(request.Description);
         task.DueDate = request.DueDate;
         task.Priority = request.Priority;
 
@@ -120,7 +146,7 @@ public class TaskService : ITaskService
         _logger.LogInformation("Cập nhật task {TaskId} bởi {EmployeeId}",
             id, _currentUser.EmployeeId);
 
-        return _mapper.ToDetail(task);
+        return _mapper.ToDetail(task, task.Project.Key, _currentUser.RequireEmployeeId());
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
@@ -185,7 +211,7 @@ public class TaskService : ITaskService
         _logger.LogInformation("Chuyển task {TaskId} sang {Destination} bởi {EmployeeId}",
             id, destination, _currentUser.EmployeeId);
 
-        return _mapper.ToSummary(task);
+        return _mapper.ToSummary(task, await RequireProjectKeyAsync(task.ProjectId, ct));
     }
 
     public async Task<IReadOnlyList<TaskSummaryResponse>> GetBacklogAsync(
@@ -194,8 +220,9 @@ public class TaskService : ITaskService
         await _authz.AuthorizeAsync(projectId, ProjectAction.View, ct);
 
         var backlog = await _uow.Tasks.GetBacklogAsync(projectId, ct);
+        var projectKey = await RequireProjectKeyAsync(projectId, ct);
 
-        return backlog.Select(_mapper.ToSummary).ToList();
+        return backlog.Select(t => _mapper.ToSummary(t, projectKey)).ToList();
     }
 
     public async Task<BoardResponse> GetBoardAsync(
@@ -219,16 +246,29 @@ public class TaskService : ITaskService
             tasks = await _uow.Tasks.GetRootTasksByProjectAsync(projectId, ct);
         }
 
+        // Một lượt lấy key cho cả board, không phải mỗi thẻ một lượt (ADR-034).
+        var projectKey = await RequireProjectKeyAsync(projectId, ct);
+
         // Duyệt theo Enum.GetValues chứ không theo GroupBy dữ liệu: board phải luôn có đủ
         // 4 cột kể cả cột rỗng, nếu không frontend Kanban lại phải tự dựng cột thiếu.
         var columns = Enum.GetValues<Status>()
             .Select(status => new BoardColumn(
                 status,
-                tasks.Where(t => t.Status == status).Select(_mapper.ToSummary).ToList()))
+                tasks.Where(t => t.Status == status)
+                     .Select(t => _mapper.ToSummary(t, projectKey))
+                     .ToList()))
             .ToList();
 
         return new BoardResponse(projectId, sprintId, columns);
     }
+
+    /// <summary>
+    /// Mã project để ghép mã task. Ném 404 thay vì trả chuỗi rỗng: mã task rỗng
+    /// (<c>"-12"</c>) là một lỗi hiển thị im lặng, còn 404 thì lộ ra ngay.
+    /// </summary>
+    private async Task<string> RequireProjectKeyAsync(Guid projectId, CancellationToken ct)
+        => await _uow.Projects.GetKeyAsync(projectId, ct)
+           ?? throw new NotFoundException(nameof(Project), projectId);
 
     /// <summary>
     /// Sprint phải tồn tại và thuộc đúng project của task — nếu không sẽ tạo ra task nằm

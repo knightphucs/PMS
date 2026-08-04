@@ -78,6 +78,61 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.ToTable("ActivityLogs", (string)null);
                 });
 
+            modelBuilder.Entity("PMS.Domain.Entities.Attachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("StoredFileName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid?>("TaskId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UploaderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("StoredFileName")
+                        .IsUnique();
+
+                    b.HasIndex("TaskId");
+
+                    b.HasIndex("UploaderId");
+
+                    b.ToTable("Attachments", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Attachments_ExactlyOneOwner", "([TaskId] IS NOT NULL AND [ProjectId] IS NULL) OR ([TaskId] IS NULL AND [ProjectId] IS NOT NULL)");
+                        });
+                });
+
             modelBuilder.Entity("PMS.Domain.Entities.Comment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -161,6 +216,13 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(7)
+                        .HasColumnType("nvarchar(7)")
+                        .HasDefaultValue("#6B7280");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -216,7 +278,48 @@ namespace PMS.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("EmployeeId", "IsRead");
 
+                    b.HasIndex("RelatedEntityId", "Type");
+
                     b.ToTable("Notifications", (string)null);
+                });
+
+            modelBuilder.Entity("PMS.Domain.Entities.PasswordResetToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByIp")
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.ToTable("PasswordResetTokens", (string)null);
                 });
 
             modelBuilder.Entity("PMS.Domain.Entities.Project", b =>
@@ -243,6 +346,11 @@ namespace PMS.Infrastructure.Persistence.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -263,6 +371,9 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("IsDeleted");
+
+                    b.HasIndex("Key")
+                        .IsUnique();
 
                     b.ToTable("Projects", (string)null);
                 });
@@ -301,6 +412,21 @@ namespace PMS.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("ProjectMembers", (string)null);
+                });
+
+            modelBuilder.Entity("PMS.Domain.Entities.ProjectTaskCounter", b =>
+                {
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("NextNumber")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.HasKey("ProjectId");
+
+                    b.ToTable("ProjectTaskCounters", (string)null);
                 });
 
             modelBuilder.Entity("PMS.Domain.Entities.RefreshToken", b =>
@@ -436,6 +562,10 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("Description")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
                     b.Property<DateTime?>("DueDate")
                         .HasColumnType("datetime2");
 
@@ -448,6 +578,9 @@ namespace PMS.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("int");
 
                     b.Property<Guid?>("ParentTaskId")
                         .HasColumnType("uniqueidentifier");
@@ -487,6 +620,9 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.HasIndex("ReporterId");
 
                     b.HasIndex("SprintId");
+
+                    b.HasIndex("ProjectId", "Number")
+                        .IsUnique();
 
                     b.ToTable("Tasks", (string)null);
                 });
@@ -565,6 +701,31 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Navigation("Employee");
                 });
 
+            modelBuilder.Entity("PMS.Domain.Entities.Attachment", b =>
+                {
+                    b.HasOne("PMS.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("PMS.Domain.Entities.TaskItem", "Task")
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("PMS.Domain.Entities.Employee", "Uploader")
+                        .WithMany()
+                        .HasForeignKey("UploaderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+
+                    b.Navigation("Task");
+
+                    b.Navigation("Uploader");
+                });
+
             modelBuilder.Entity("PMS.Domain.Entities.Comment", b =>
                 {
                     b.HasOne("PMS.Domain.Entities.Employee", "Author")
@@ -595,6 +756,17 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Navigation("Recipient");
                 });
 
+            modelBuilder.Entity("PMS.Domain.Entities.PasswordResetToken", b =>
+                {
+                    b.HasOne("PMS.Domain.Entities.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
             modelBuilder.Entity("PMS.Domain.Entities.ProjectMember", b =>
                 {
                     b.HasOne("PMS.Domain.Entities.Employee", "Employee")
@@ -610,6 +782,17 @@ namespace PMS.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Employee");
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("PMS.Domain.Entities.ProjectTaskCounter", b =>
+                {
+                    b.HasOne("PMS.Domain.Entities.Project", "Project")
+                        .WithOne()
+                        .HasForeignKey("PMS.Domain.Entities.ProjectTaskCounter", "ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Project");
                 });

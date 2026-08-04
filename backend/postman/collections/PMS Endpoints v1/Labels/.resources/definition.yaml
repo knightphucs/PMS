@@ -1,0 +1,4 @@
+$kind: collection
+name: Labels
+description: "Nhãn TOÀN CỤC (ADR-037). Tạo = mọi user; gắn/gỡ trên task = PM/Member; sửa/xóa nhãn = CHỈ SystemAdmin, vì nó ảnh hưởng board của mọi project."
+order: 1785500000000

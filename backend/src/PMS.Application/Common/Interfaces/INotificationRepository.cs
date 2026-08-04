@@ -1,5 +1,6 @@
 using PMS.Application.Common.Models;
 using PMS.Domain.Entities;
+using PMS.Domain.Enums;
 
 namespace PMS.Application.Common.Interfaces;
 
@@ -32,4 +33,19 @@ public interface INotificationRepository : IRepository<Notification>
     /// </summary>
     Task<IReadOnlyList<Notification>> GetUnreadForRecipientAsync(
         Guid employeeId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Cặp <c>(EmployeeId, RelatedEntityId)</c> đã được thông báo loại
+    /// <paramref name="type"/> kể từ <paramref name="since"/> — dùng để khử trùng lặp cho
+    /// background job (ADR-040).
+    /// <para>
+    /// ⚠️ Đây là <b>ngoại lệ có ý thức</b> của luật "mọi method đọc phải nhận employeeId" ghi
+    /// ở đầu interface. Nó đọc ngang qua nhiều người nhận, nhưng KHÔNG phục vụ request nào
+    /// của người dùng — chỉ background job gọi, và nó chỉ trả về cặp id, không trả nội dung
+    /// thông báo. Ghi rõ ở đây để lần sau không ai tưởng luật kia đã bị nới lỏng.
+    /// </para>
+    /// </summary>
+    Task<IReadOnlyList<(Guid EmployeeId, Guid RelatedEntityId)>> GetNotifiedPairsSinceAsync(
+        NotificationType type, DateTime since, IReadOnlyCollection<Guid> relatedEntityIds,
+        CancellationToken ct = default);
 }

@@ -78,4 +78,19 @@ public class ProjectRepository : Repository<Project>, IProjectRepository
             .Include(p => p.Sprints)
             .AsSplitQuery()      // 2 collection Include -> tránh cartesian explosion
             .FirstOrDefaultAsync(p => p.Id == id, ct);
+
+    // IgnoreQueryFilters() là cố ý: unique index trên Projects.Key KHÔNG lọc theo IsDeleted,
+    // nên kiểm trùng mà bỏ sót project đã xóa mềm sẽ sinh ra một mã "trống" trên giấy tờ
+    // rồi vỡ ở tầng DB khi insert.
+    public async Task<bool> KeyExistsAsync(string key, CancellationToken ct = default)
+        => await DbSet
+            .IgnoreQueryFilters()
+            .AnyAsync(p => p.Key == key, ct);
+
+    public async Task<string?> GetKeyAsync(Guid projectId, CancellationToken ct = default)
+        => await DbSet
+            .AsNoTracking()
+            .Where(p => p.Id == projectId)
+            .Select(p => p.Key)
+            .FirstOrDefaultAsync(ct);
 }

@@ -11,6 +11,9 @@ public interface ITaskRepository : IRepository<TaskItem>
     /// <summary>Nạp kèm Assignments + Employee — dùng cho mọi thao tác gán/gỡ người.</summary>
     Task<TaskItem?> GetWithAssignmentsAsync(Guid id, CancellationToken ct = default);
 
+    /// <summary>Nạp kèm <c>Labels</c> có tracking — cần để thêm/bớt phần tử trong collection.</summary>
+    Task<TaskItem?> GetWithLabelsAsync(Guid id, CancellationToken ct = default);
+
     /// <summary>
     /// Nạp đúng những gì việc đổi trạng thái cần: Assignments (kiểm quyền theo ADR-017),
     /// Watchers (gửi thông báo) và Subtasks (để SubtaskProgress trong response không bị
@@ -39,5 +42,17 @@ public interface ITaskRepository : IRepository<TaskItem>
     Task<IReadOnlyList<TaskItem>> GetBySprintAsync(Guid sprintId, CancellationToken ct = default);
     Task<IReadOnlyList<TaskItem>> GetUnfinishedBlockersAsync(Guid taskId, CancellationToken ct = default);
     Task<IReadOnlyList<TaskItem>> GetOverdueAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Task sắp đến hạn (trong vòng <paramref name="horizonDays"/> ngày) hoặc đã quá hạn,
+    /// chưa <c>Done</c> — nạp kèm <c>Assignments</c> + <c>Watchers</c> cho background job.
+    /// <para>
+    /// 🔴 KHÔNG tái dùng <see cref="GetOverdueAsync"/> được: nó không <c>Include</c>
+    /// <c>Assignments</c>/<c>Watchers</c>, nên <c>InterestedEmployeeIds()</c> sẽ chỉ trả về
+    /// mỗi reporter và job âm thầm gửi thiếu người — không lỗi nào.
+    /// </para>
+    /// </summary>
+    Task<IReadOnlyList<TaskItem>> GetDueSoonOrOverdueWithTargetsAsync(
+        int horizonDays, CancellationToken ct = default);
     Task<int> CountActiveAssignedAsync(Guid projectId, Guid employeeId, CancellationToken ct = default);
 }

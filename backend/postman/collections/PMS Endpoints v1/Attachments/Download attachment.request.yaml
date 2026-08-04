@@ -1,0 +1,27 @@
+$kind: http-request
+name: Download attachment
+description: "Tải file về. LUÔN trả Content-Type: application/octet-stream (KHÔNG phải kiểu đã lưu) + X-Content-Type-Options: nosniff + Content-Disposition: attachment — ba thứ đi cùng nhau để triệt đường render inline payload HTML/SVG."
+url: "{{api_url}}/attachments/:attachment_id/download"
+method: GET
+pathVariables:
+  - key: attachment_id
+    value: A1B2C3D4-E5F6-4708-9A0B-1C2D3E4F5061
+    description: File đính kèm
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1785500020000

@@ -65,7 +65,10 @@ public class TaskStatusTransitionService : ITaskStatusTransitionService
             "Đổi trạng thái task {TaskId}: {Previous} -> {Target} bởi {ActorId} (role {Role})",
             taskId, previous, request.Target, actorId, role);
 
-        return _mapper.ToSummary(task);
+        var projectKey = await _uow.Projects.GetKeyAsync(task.ProjectId, ct)
+            ?? throw new NotFoundException(nameof(Project), task.ProjectId);
+
+        return _mapper.ToSummary(task, projectKey);
     }
 
     /// <summary>

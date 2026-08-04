@@ -1,0 +1,34 @@
+$kind: http-request
+name: Update label (SystemAdmin)
+description: "CHỈ SystemAdmin — người khác nhận 403. Color bắt buộc dạng #RRGGBB."
+url: "{{api_url}}/labels/:label_id"
+method: PUT
+pathVariables:
+  - key: label_id
+    value: A1B2C3D4-E5F6-4708-9A0B-1C2D3E4F5061
+    description: Nhãn
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: |-
+    {
+        "name": "urgent",
+        "color": "#DC2626"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1785500003000

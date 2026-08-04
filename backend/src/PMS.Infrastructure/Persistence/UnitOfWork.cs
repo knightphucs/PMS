@@ -16,9 +16,15 @@ public class UnitOfWork : IUnitOfWork
     private ISprintRepository? _sprints;
     private IProjectMemberRepository? _projectMembers;
     private IRepository<TaskAssignment>? _taskAssignments;
-    private IRepository<ActivityLog>? _activityLogs;
+    private IActivityLogRepository? _activityLogs;
+    private ILabelRepository? _labels;
+    private IWatcherRepository? _watchers;
+    private ITaskLinkRepository? _taskLinks;
+    private IAttachmentRepository? _attachments;
+    private IPasswordResetTokenRepository? _passwordResetTokens;
     private INotificationRepository? _notifications;
     private ICommentRepository? _comments;
+    private IProjectTaskCounterRepository? _projectTaskCounters;
 
     public UnitOfWork(PmsDbContext context) => _context = context;
 
@@ -29,9 +35,15 @@ public class UnitOfWork : IUnitOfWork
     public ISprintRepository Sprints => _sprints ??= new SprintRepository(_context);
     public IProjectMemberRepository ProjectMembers => _projectMembers ??= new ProjectMemberRepository(_context);
     public IRepository<TaskAssignment> TaskAssignments => _taskAssignments ??= new Repository<TaskAssignment>(_context);
-    public IRepository<ActivityLog> ActivityLogs => _activityLogs ??= new Repository<ActivityLog>(_context);
+    public IActivityLogRepository ActivityLogs => _activityLogs ??= new ActivityLogRepository(_context);
+    public ILabelRepository Labels => _labels ??= new LabelRepository(_context);
+    public IWatcherRepository Watchers => _watchers ??= new WatcherRepository(_context);
+    public ITaskLinkRepository TaskLinks => _taskLinks ??= new TaskLinkRepository(_context);
+    public IAttachmentRepository Attachments => _attachments ??= new AttachmentRepository(_context);
+    public IPasswordResetTokenRepository PasswordResetTokens => _passwordResetTokens ??= new PasswordResetTokenRepository(_context);
     public INotificationRepository Notifications => _notifications ??= new NotificationRepository(_context);
     public ICommentRepository Comments => _comments ??= new CommentRepository(_context);
+    public IProjectTaskCounterRepository ProjectTaskCounters => _projectTaskCounters ??= new ProjectTaskCounterRepository(_context);
 
     public Task<int> SaveChangesAsync(CancellationToken ct = default) => _context.SaveChangesAsync(ct);
 
