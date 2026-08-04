@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using PMS.Application.Common.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PMS.Application.Common.Models;
 using PMS.Application.Features.Admin;
@@ -7,7 +8,7 @@ namespace PMS.API.Controllers;
 
 [ApiController]
 [Route("api/v1/admin/employees")]
-[Authorize(Policy = "require-system-admin")]
+[Authorize(Policy = SystemPermissions.EmployeesManage)]
 public class AdminEmployeesController : ControllerBase
 {
     private readonly IEmployeeAdminService _service;

@@ -18,6 +18,16 @@ export interface CommentResponse {
 
 export interface CreateCommentRequest {
   content: string;
+  /**
+   * Người được nhắc tên (@mention) — client gửi ID, **không** để server đoán từ chuỗi.
+   *
+   * 🔴 Tên hiển thị không phải định danh (trùng tên, đổi tên, `@abc` có thể chỉ là một
+   * đoạn email). Client vốn đã biết chính xác id vì nó lấy từ ô gợi ý người dùng vừa chọn.
+   * Server chỉ **lọc** lại: giữ đúng người là thành viên đang hoạt động của dự án.
+   *
+   * Bỏ trống thì không ai được nhắc — hành vi cũ giữ nguyên.
+   */
+  mentionedEmployeeIds?: string[];
 }
 
 /**

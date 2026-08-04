@@ -1,39 +1,51 @@
 'use client';
 
 import {
-  BarChart3Icon,
   BellIcon,
   FolderKanbanIcon,
-  KanbanSquareIcon,
-  ListTodoIcon,
   MailIcon,
-  UsersIcon,
+  ShieldCheckIcon,
   type LucideIcon,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+import {
+  SYSTEM_PERMISSIONS,
+  hasPermission,
+  type SystemPermission,
+} from '@/lib/auth/system-permissions';
 import { useMyInvitations } from '@/lib/hooks/use-members';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/store/auth-store';
 
 interface NavItem {
   label: string;
   icon: LucideIcon;
-  href?: string;
+  href: string;
   /** Khóa để tra số đếm ở `SidebarNav` — bản thân NAV_GROUPS là hằng, không giữ state. */
   badge?: 'invitations';
+  /** Chỉ hiện khi người dùng có quyền tầng 1 này (ADR-045). */
+  permission?: SystemPermission;
 }
 
 /**
- * Điều hướng chính.
+ * Điều hướng chính. **Mọi mục ở đây đều dẫn tới một trang có thật.**
  *
- * Các mục chưa làm được hiển thị ở trạng thái **vô hiệu hóa kèm nhãn "Sắp có"**, không
- * phải link hỏng. Đây là đảo lại quyết định trước đó ("chưa làm thì đừng hiện") — lý do
- * cũ vẫn đúng ở phần *link trỏ tới trang không tồn tại thì tệ hơn không có link*, nhưng
- * nó không áp cho mục bị vô hiệu hóa: không bấm được thì không dẫn đi đâu cả.
+ * Trước 2026-08-04 danh sách này có bốn mục vô hiệu hóa kèm nhãn "Sắp có". Nay bỏ hẳn cơ
+ * chế đó, vì hai nhóm mục ấy hóa ra là hai chuyện khác nhau:
  *
- * Đổi lại được hai thứ: người dùng thấy được phạm vi sản phẩm thay vì tưởng ứng dụng chỉ
- * có một trang, và thanh điều hướng không còn trông trống trải vì chỉ có mỗi một mục.
+ * • **Nhân sự / Thống kê** — chỉ là chưa làm. Nay đã có trang thật, nên chúng thành link.
+ *
+ * • **Bảng Kanban / Backlog** — 🔴 KHÔNG BAO GIỜ đặt được ở đây, kể cả khi màn hình đã
+ *   xong từ lâu: cả hai thuộc phạm vi MỘT project (`/projects/{id}/board`) mà `AppShell`
+ *   không biết project nào đang mở — nó nằm TRÊN segment `[id]`. Giữ chúng với nhãn "Sắp
+ *   có" là hứa một thứ sẽ không bao giờ tới. Đã gỡ hẳn; đường vào là tab của trang chi
+ *   tiết dự án. Và đừng nhớ "project vừa mở" vào store để lách: giá trị đó nói dối ngay
+ *   khi người dùng mở hai tab trình duyệt.
+ *
+ * Kết quả: không còn nhánh render cho mục không có `href`, và `href` thành bắt buộc trong
+ * kiểu `NavItem` — sai sót tương lai bị chặn ở tầng kiểu chứ không bằng kỷ luật.
  */
 const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
   {
@@ -41,27 +53,27 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     items: [
       { label: 'Dự án', icon: FolderKanbanIcon, href: '/projects' },
       { label: 'Lời mời', icon: MailIcon, href: '/invitations', badge: 'invitations' },
-      // ⚠️ Hai mục này KHÔNG thể có `href`, kể cả sau khi màn hình đã làm xong: cả hai
-      // thuộc phạm vi MỘT project (`/projects/{id}/board`) mà app-shell không biết
-      // project nào đang mở — nó nằm trên segment `[id]`. Vào Board/Backlog qua tab của
-      // trang chi tiết dự án. Đừng nhớ "project vừa mở" vào store: giá trị đó nói dối
-      // ngay khi người dùng mở hai tab trình duyệt.
-      { label: 'Bảng Kanban', icon: KanbanSquareIcon },
-      { label: 'Backlog', icon: ListTodoIcon },
     ],
   },
   {
     title: 'Khác',
     items: [
       { label: 'Thông báo', icon: BellIcon, href: '/notifications' },
-      { label: 'Nhân sự', icon: UsersIcon },
-      { label: 'Thống kê', icon: BarChart3Icon },
+      // Gác bằng QUYỀN chứ không bằng `systemRole === 'SystemAdmin'` (ADR-045): quyền đổi
+      // được bằng dữ liệu ở /admin/roles, còn vai trò nay chỉ là định danh.
+      {
+        label: 'Quản trị',
+        icon: ShieldCheckIcon,
+        href: '/admin/employees',
+        permission: SYSTEM_PERMISSIONS.employeesManage,
+      },
     ],
   },
 ];
 
 export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const user = useAuthStore((s) => s.user);
 
   // Sidebar nằm trong `AppShell` nên KHÔNG bị unmount khi đổi trang — query này mount đúng
   // một lần cho cả phiên, và `useMyInvitations` dùng chung khóa với trang /invitations nên
@@ -79,24 +91,12 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
             {group.title}
           </p>
 
-          {group.items.map(({ label, icon: Icon, href, badge }) => {
+          {group.items.map(({ label, icon: Icon, href, badge, permission }) => {
             const count = badge ? badgeCounts[badge] : 0;
 
-            if (!href) {
-              return (
-                <span
-                  key={label}
-                  aria-disabled="true"
-                  className="text-muted-foreground/50 flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2 text-sm"
-                >
-                  <Icon className="size-4 shrink-0" />
-                  <span className="flex-1">{label}</span>
-                  <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px] font-medium">
-                    Sắp có
-                  </span>
-                </span>
-              );
-            }
+            // Ẩn hẳn thay vì vô hiệu hóa: một mục xám không bấm được chỉ khiến người dùng
+            // tự hỏi mình đang thiếu gì, mà câu trả lời thì họ không tự tra được.
+            if (permission && !hasPermission(user, permission)) return null;
 
             const active = pathname === href || pathname.startsWith(`${href}/`);
 

@@ -33,7 +33,7 @@ public class ProjectRepository : Repository<Project>, IProjectRepository
 
         var totalCount = await query.CountAsync(ct);
 
-        query = (request.SortBy?.ToLowerInvariant(), request.IsDescending) switch
+        var ordered = (request.SortBy?.ToLowerInvariant(), request.IsDescending) switch
         {
             ("name", false)   => query.OrderBy(p => p.Name),
             ("name", true)    => query.OrderByDescending(p => p.Name),
@@ -42,6 +42,12 @@ public class ProjectRepository : Repository<Project>, IProjectRepository
             (_, true)         => query.OrderByDescending(p => p.ExpectedCompletionDate),
             _                 => query.OrderBy(p => p.ExpectedCompletionDate)
         };
+
+        // Tie-break theo Id: thiếu nó thì hai bản ghi có cùng khóa sắp xếp (cùng tên, cùng
+        // CreatedAt, cùng trạng thái) có thứ tự KHÔNG xác định giữa hai truy vấn, nên phân
+        // trang có thể trả trùng một dòng ở trang này và bỏ sót nó ở trang kia. Lỗi chỉ lộ
+        // khi dữ liệu đủ nhiều và đúng lúc — tức là ở production chứ không phải lúc dev.
+        query = ordered.ThenBy(p => p.Id);
 
         // Lấy kèm vai trò của chính employee trong từng project. `First` an toàn vì mệnh
         // đề Where phía trên đã bảo đảm có đúng một ProjectMember Accepted khớp

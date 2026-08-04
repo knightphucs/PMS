@@ -5,46 +5,72 @@
 > Mục đích: đảm bảo tính nhất quán xuyên suốt quá trình phát triển, và làm tài liệu
 > tham chiếu cho báo cáo thực tập tốt nghiệp.
 >
-> Cập nhật lần cuối: 2026-08-03 (phiên Frontend — Lời mời, chi tiết Task, Notification bell)
+> Cập nhật lần cuối: 2026-08-04 (phiên Phân quyền permission — nhóm Admin, Thống kê, mật khẩu, vá nợ backend)
 
 > ## 🧭 Bắt đầu phiên mới ở đây
-> **Trạng thái: BACKEND ĐÃ XONG (419 test, 0 warning). Frontend nay có 10 màn** — 6 màn của
-> phiên trước, cộng **"Lời mời của tôi"**, **Notification bell + trang thông báo**, và
-> **chi tiết Task** (màn phức tạp nhất của sản phẩm, 7 khối).
+> **Trạng thái: KHÔNG CÒN MÀN HÌNH NÀO ⬜ trong lộ trình ban đầu.** 489 test backend
+> (232 unit + 257 integration) + 79 test frontend, build 0 warning **và nay có
+> `TreatWarningsAsErrors`** nên con số đó là một điều kiện chứ không còn là một quan sát.
 >
-> **Hai luồng từng hở nay đã khép kín:** mời thành viên (mời → thấy thông báo → có chỗ bấm
-> Chấp nhận) và làm việc trên một task.
+> Phiên 2026-08-04 làm sáu việc: đổi mô hình phân quyền tầng 1 sang **claim `permission` lấy
+> từ DB**, dựng **nhóm Quản trị 4 màn**, **tab Thống kê**, **hai màn mật khẩu**, vá **nợ
+> backend**, và sửa một lỗi chạm tới mọi màn hình.
 >
-> ### ➡️ Phiên tiếp theo — vẫn toàn bộ là frontend, không gì bị chặn
-> 1. **Dashboard thống kê (Recharts)** — API + `useProjectStatistics` đã có; `recharts`
->    **chưa cài** (`npm i recharts`).
-> 2. **Quên / đặt lại mật khẩu** — 2 trang, tầng dữ liệu đã có. ⚠️ `forgot-password` LUÔN
->    trả 204 kể cả email không tồn tại → UI chỉ được hiện MỘT thông điệp duy nhất (ADR-041).
-> 3. **Nhóm Admin** — để riêng một phiên, nhóm người dùng khác hẳn. Phải viết tầng dữ liệu
->    `AdminEmployees` trước (chưa có gì); audit log thì đã có sẵn hook.
-> 4. **Search toàn cục** — vẫn ⬜ và **vẫn chưa có API**. ⚠️ `?search=` được model binder
->    nhận trên mọi danh sách nhưng **chỉ `Employee` và `Notification` thực sự dùng tới** —
->    project/task/sprint/comment nhận rồi bỏ qua, đừng dựng UI lọc dựa vào nó.
+> ### 🔑 Bốn điều của phiên này phải biết trước khi đụng vào code
+> - **Phân quyền tầng 1 nay là DỮ LIỆU, không phải code** (ADR-045). Năm mã trong danh mục
+>   **ĐÓNG** ở `SystemPermissions.cs`, lưu ở hai bảng seed bằng `HasData`, sửa được ở
+>   `/admin/roles`. Tên policy **chính là** mã quyền; `require-system-admin` và
+>   `can-create-project` đã **xóa hẳn**. Tầng 2 (`ProjectPermissions`) **không đổi một dòng**
+>   và không bao giờ được đưa vào token.
+> - 🔴 **Thêm quyền mới cần ĐỦ BA bước**: `const` trong `SystemPermissions` → `HasData` trong
+>   `PermissionConfiguration` → `dotnet ef migrations add`. Quên bước 3 thì
+>   `has-pending-model-changes` đỏ; quên bước 2 thì test khóa danh mục đỏ. **Hàng permission
+>   là SCHEMA, không phải data** — đừng chuyển sang `DbSeeder`, nó không chạy ở môi trường
+>   test và cả suite sẽ đỏ.
+> - 🔴 **Mọi cột `DateTime` có `ValueConverter`** đóng dấu `Kind=Utc` lúc đọc (ADR-046b). Hệ
+>   quả bắt buộc nhớ: **EF KHÔNG dịch được `.Date` trên cột đã chuyển đổi** — nó ném lúc chạy
+>   thành HTTP 500. Lọc theo ngày phải so thẳng với mốc nửa đêm (`DueDate < today`).
+> - 🔴 **`min-width:auto` của grid/flex item** là lớp lỗi bố cục đã cắn **ba lần** trong một
+>   phiên (dialog Task tràn chữ, board lệch 8px, thống kê lệch 104px). Và **`break-words`
+>   KHÔNG sửa được nó**: `overflow-wrap` cho phép ngắt để khỏi tràn nhưng **không làm giảm
+>   min-content**. Cách sửa gốc là `min-w-0` (+ `grid-cols-[minmax(0,1fr)]` khi con lại là
+>   grid item).
 >
-> ### 🔑 Ba điều của phiên chi tiết-Task cần biết trước khi đụng vào code
+> ### ➡️ Phiên tiếp theo — chọn một trong ba, không cái nào chặn cái nào
+> 1. **Vòng đời Sprint** — hạng mục cuối còn lại của backend tầng 3 (ba cái kia đã xong,
+>    ADR-048). ⚠️ Cần một **quyết định sản phẩm** trước khi gõ code: *task chưa xong đi đâu
+>    khi đóng sprint?* — về Backlog, sang sprint kế, hay hỏi người dùng lúc đóng như Jira.
+>    Nhiều câu trả lời đều bảo vệ được, nên **chốt và viết ADR riêng trước**. Chi tiết §1 mục E.
+> 2. **Nhóm báo cáo kiểu Jira** — backlog insight, velocity, report, timeline. Phiên riêng.
+> 3. **Áp kỹ thuật DB** — trigger, stored procedure, view, index. Phiên riêng. *(Xa hơn:
+>    Elasticsearch cho Search toàn cục, Redis cho cache + rate limit phân tán.)*
+>
+> ### 🪤 Ba cái bẫy mới, đã trả giá — đừng phát hiện lại
+> - **`AuthController.Me()` dựng DTO từ CLAIM chứ không đọc DB.** Thêm trường vào
+>   `EmployeeDto` mà chỉ nối dây ở `AuthService` thì `/auth/login` và `/auth/me` trả **hai
+>   câu trả lời khác nhau**, và không gì bắt được lúc biên dịch.
+> - **`#pragma warning disable` phải nằm TRƯỚC attribute** — span chẩn đoán bắt đầu ở danh
+>   sách attribute, đặt xen giữa làm 15 cảnh báo quay lại.
+> - **Lưu quyền ở `/admin/roles` tự đăng xuất chính admin đang bấm.** Đúng hợp đồng bảo mật
+>   (thu hồi mọi phiên của vai trò đó), banner đã nói rõ — đừng "sửa".
+>
+> ### 📌 Ba đính chính với tài liệu cũ
+> - **`?search=` KHÔNG phải "chỉ Employee + Notification"** — 5/6 repository vẫn luôn lọc
+>   thật; chỉ `ActivityLogRepository` là không, và nay đã sửa. Điều còn đúng: nó chỉ lọc
+>   **một trường** mỗi endpoint nên không thay được search toàn cục.
+> - **Không thiếu 7 index khóa ngoại** — đã kiểm `sys.indexes` trên DB thật, 6/7 đã có do EF
+>   tự sinh theo quy ước. Chỉ index ghép `(DueDate, Status)` là thật sự thiếu.
+> - **`GET /projects/{id}/statistics` từng hỏng 500 ở MỌI lần gọi** suốt từ ngày viết
+>   (2026-08-03) tới 2026-08-04, trong khi tài liệu ghi ✅ — vì chưa có test nào gọi tới.
+>
+> ### 🔑 Ba điều của phiên chi tiết-Task vẫn còn hiệu lực
 > - **`PUT /tasks/{id}` là GHI ĐÈ TOÀN PHẦN, không phải PATCH** (ADR-044). Trường nào không
->   gửi thì thành `null`. Đây là một lỗi **đã sống thật**: form sửa task chưa bao giờ gửi
->   `description`, nên sửa tên task là xóa trắng mô tả. Đã sửa, và mọi lệnh ghi của màn chi
->   tiết nay đi qua đúng một trục `useTaskFieldSave`.
+>   gửi thì thành `null`. Mọi lệnh ghi của màn chi tiết đi qua đúng một trục `useTaskFieldSave`.
 > - **Chi tiết Task có hai vỏ** (dialog chặn route + trang thật) dùng chung một
 >   `TaskDetailContent` — ADR-043. Tiền tố intercepting route là **`(.)`**, và
 >   `@modal/default.tsx` là **bắt buộc** (thiếu nó thì *board* 404).
-> - **Đừng gom 4 tab vào route group `(tabs)/`** — `useSelectedLayoutSegment()` sẽ trả
->   `'(tabs)'` và thanh tab mất trạng thái active, hỏng im lặng. Lý do đầy đủ ở ADR-043.
->
-> ### 🔑 Ba quyết định của phiên backend cần biết trước khi đụng vào code
-> - **`SystemAdmin` không có đặc quyền nghiệp vụ nào** (ADR-042). §10 từng ghi ngược lại —
->   một hành vi tài liệu mô tả nhưng code chưa từng có. Nay tài liệu đã sửa cho khớp code,
->   và có `SystemAdminScopeTests` chạy `[Theory]` trên 16 route giữ lại.
-> - **Mã task `PMS-12` do backend ghép sẵn** và trả trong `code` — frontend **đừng** tự nối
->   từ `projectKey` + `number` (ADR-034).
-> - **`LinkType.IsBlockedBy` không bao giờ được lưu xuống DB** — nó là giá trị chỉ dùng ở
->   đầu vào, backend tự chuẩn hóa về `Blocks` đảo chiều (ADR-038).
+> - **Đừng gom các tab vào route group `(tabs)/`** — `useSelectedLayoutSegment()` sẽ trả
+>   `'(tabs)'` và thanh tab mất trạng thái active, hỏng im lặng. Áp cho cả `/admin`.
 >
 > ⚠️ Trước khi làm Kanban hay đụng vào state machine của task: `docs/frontend-next-session.md`
 > §6 có **một đính chính quan trọng** — quy tắc chuyển trạng thái **KHÔNG PHẢI** "cột kề".
@@ -142,9 +168,9 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | Task — người đảm nhận trên thẻ board/backlog | ✅ | `TaskSummaryResponse.Assignees` (thêm 2026-08-02, **không migration**). Đồng thời sửa bug im lặng: ba query board/backlog thiếu `Include` nên `SubtaskProgress` LUÔN trả 0 |
 | Notification — API đọc | ✅ | `NotificationFeedService`/`NotificationsController` — danh sách có phân trang, đếm chưa đọc, đánh dấu một/tất cả. Ngoại lệ hợp lệ của ADR-006/019 — xem ADR-023 |
 | Activity Log — API đọc | ✅ | Xong 2026-08-03. `GET /tasks/{id}/activity` + `/projects/{id}/activity`. **Đồng thời sửa một lỗ hổng có sẵn:** `ProjectService` trước đó KHÔNG ghi `ActivityLog` dòng nào — tạo/sửa/xóa project đều không sinh log |
-| Nhật ký cấp hệ thống (SystemAdmin) | ✅ | Mới 2026-08-03. `GET /admin/audit-logs`, `entityType` cố định ở server (`Employee`/`Label`) — đối trọng của ADR-042 |
+| Nhật ký cấp hệ thống (SystemAdmin) | ✅ | `GET /admin/audit-logs`, `entityType` cố định ở server — nay là `Employee`/`Label`/**`RolePermission`** (ADR-045). `?search=` **thật sự lọc** từ 2026-08-04; trước đó bị nhận rồi bỏ qua im lặng (ADR-046) |
 | Employee management (ngoài Auth) | ✅ | `AdminEmployeesController` — khóa/mở tài khoản, cấp `SystemAdmin` — *bảng này từng ghi ⬜ dù đã code xong, đã sửa lại 2026-07-29* |
-| Thống kê / Dashboard — API | ✅ | Xong 2026-08-03. `GET /projects/{id}/statistics` — tổng hợp trong SQL, zero-fill đủ mọi giá trị enum. `Member` nay cũng xem được (ADR-039). *Màn hình Recharts vẫn ⬜* |
+| Thống kê / Dashboard — API | ✅ | `GET /projects/{id}/statistics` — tổng hợp trong SQL, zero-fill đủ mọi giá trị enum, `Member` cũng xem được (ADR-039). ⚠️ **Endpoint này trả 500 ở MỌI lần gọi từ ngày viết (2026-08-03) tới 2026-08-04** vì không có test nào chạm tới — xem ADR-046 |
 | Background job task quá hạn → `DueSoon` | ✅ | Xong 2026-08-03. `IDueDateNotifier` (nghiệp vụ, test được) + `DueDateNotificationWorker` (timer). Khử trùng lặp theo ngày UTC, không đăng ký ở môi trường Testing (ADR-040) |
 | Reset password | ✅ | Xong 2026-08-03 (ADR-041). `IEmailSender` giả lập cho Dev — không còn bị chặn bởi email service |
 | Frontend — nền tảng (scaffold, API client, Auth, Project CRUD) | ✅ | Next 15 + Tailwind 4 + shadcn/ui + TanStack Query + Zustand. Tầng API client xử lý JWT, single-flight refresh (ADR-030) và cả 4 hình dạng lỗi của backend. Đăng ký/đăng nhập/giữ phiên khi F5/đăng xuất + route guard. Project: danh sách phân trang + tìm kiếm + tạo + sửa (round-trip `RowVersion`, xử lý 409 bằng tải lại) + xóa (xử lý 409 còn task chưa xong) |
@@ -156,9 +182,11 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | Frontend — "Lời mời của tôi" | ✅ | Xong 2026-08-03. `app/(app)/invitations/`. **Luồng mời nay đã khép kín**: PM mời → người được mời thấy badge ở sidebar → chấp nhận → vào thẳng board |
 | Frontend — Notification bell + trang thông báo | ✅ | Xong 2026-08-03. Tầng dữ liệu notification viết mới trong phiên này (types/endpoints/hook/keys). Điều hướng bằng cặp `(relatedEntityKind, relatedEntityId)` (ADR-025), kèm trang phân giải `/tasks/{id}` vì DTO thông báo không mang `projectId` |
 | Frontend — **chi tiết Task** (7 khối) | ✅ | Xong 2026-08-03. Hai vỏ dùng chung một nội dung: dialog chặn route + trang thật (ADR-043). Mô tả sửa tại chỗ, subtask + tạo subtask, đính kèm (4 mã lỗi riêng), liên kết, người theo dõi, nhãn, `Bình luận \| Lịch sử` |
-| Frontend — Dashboard (Recharts) | ⬜ | Không bị chặn — API và hook `useProjectStatistics` đã có. `recharts` **chưa cài** |
-| Frontend — Quên/đặt lại mật khẩu | ⬜ | Không bị chặn — tầng dữ liệu đã có từ 2026-08-03 |
-| Frontend — Admin (nhân sự / nhãn toàn cục / audit log) | ⬜ | Cố ý để riêng một phiên (nhóm người dùng khác hẳn). Tầng dữ liệu `AdminEmployees` **chưa có**; audit log thì đã có sẵn hook |
+| Frontend — Dashboard (Recharts) | ✅ | Xong 2026-08-04. Tab thứ 5 của dự án. Màu chia ba nhóm theo VIỆC (trạng thái / tuần tự / phân đoạn), chỉ nhóm phải-phân-biệt mới chạy validator — ADR-047. Thẻ số và thanh mức cố ý KHÔNG phải biểu đồ |
+| Frontend — Quên/đặt lại mật khẩu | ✅ | Xong 2026-08-04. `forgot-password` hiện **một thông điệp duy nhất** cho mọi kết quả (ADR-041) — đã kiểm bằng email thật và email bịa, ra cùng một chữ |
+| Frontend — Admin (nhân sự / nhãn / audit log / **phân quyền**) | ✅ | Xong 2026-08-04. **Bốn** màn dưới `/admin`, gác bằng PERMISSION chứ không bằng `systemRole` (ADR-045). Tầng dữ liệu `AdminEmployees` viết mới trong phiên này |
+| **Authorization — claim `permission` lưu DB** | ✅ | Mới 2026-08-04 (ADR-045). Hai bảng `Permission` + `RolePermission` seed bằng `HasData`, policy đăng ký bằng vòng lặp trên danh mục ĐÓNG, quản trị ở `/admin/roles`. Tầng 2 không sửa một dòng |
+| **Frontend — nhóm Admin (4 màn)** | ✅ | Mới 2026-08-04. Nhân sự · Phân quyền · Nhãn toàn cục · Nhật ký hệ thống |
 | Real-time (SignalR) | ⬜ | Có chủ đích — chỉ làm sau khi core CRUD ổn định (xem §6) |
 
 ### Lộ trình các phiên tiếp theo
@@ -178,40 +206,30 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | — | **Attachment** (ngoài kế hoạch ban đầu) | ✅ 2026-08-03 | ADR-035. Chuyển từ §14 Nhóm B lên core theo yêu cầu |
 | — | **Chốt vai trò `SystemAdmin`** | ✅ 2026-08-03 | ADR-042 |
 | ~~7~~ | ~~Frontend — Lời mời + chi tiết Task + Notification bell~~ | ✅ 2026-08-03 | ADR-043/044. Kèm sửa lỗi mất mô tả ở `PUT /tasks/{id}` |
-| **8** | **Frontend — Dashboard (Recharts) + Quên/đặt lại mật khẩu** | ⬜ **Việc tiếp theo** | Không bị chặn. Cần `npm i recharts` |
-| 9 | **Frontend — nhóm Admin** | ⬜ | Phiên riêng. Phải viết tầng dữ liệu `AdminEmployees` trước (list phân trang + khóa/mở + đổi `SystemRole`) |
-| **A** | **Authorization — thêm claim kiểu Permission** | ⬜ **mới đề xuất 2026-08-04** | Chưa chốt. Chạm vào ADR-006/015/019/042 — xem khối bên dưới trước khi code |
-| 10 | **Real-time (SignalR)** | ⬜ | Theo §6, chỉ làm sau khi core CRUD **và** frontend đã ổn định |
+| ~~8~~ | ~~Frontend — Dashboard (Recharts) + Quên/đặt lại mật khẩu~~ | ✅ 2026-08-04 | ADR-047 |
+| ~~9~~ | ~~Frontend — nhóm Admin~~ | ✅ 2026-08-04 | **Bốn** màn, không phải ba: thêm màn Phân quyền |
+| ~~A~~ | ~~Authorization — claim kiểu Permission~~ | ✅ 2026-08-04 | ADR-045. Đã chốt cả bốn điểm căng trước khi gõ code |
+| — | **Vá nợ backend + lệch múi giờ** | ✅ 2026-08-04 | ADR-046 / 046b. Kèm sửa endpoint thống kê hỏng 500 từ ngày viết |
+| — | **Backend tầng 3 — ba trên bốn** | ✅ 2026-08-04 | ADR-048. `Project.Status` có đường ghi · `GET /employees?search=` · @mention (server lọc id, đã mutation test) |
+| **9b** | **Frontend — ba tính năng ADR-048 + ba lỗ hổng UI** | ⬜ **Việc tiếp theo** | Backend xong 2026-08-04 nhưng **frontend chưa dựng gì**: đổi `Project.Status`, ô tra nhân viên khi mời, @mention. Cộng ba chỗ "bấm vào không thấy gì" phát hiện 2026-08-05 — chi tiết ở "Việc còn dang dở" mục B |
+| **10** | **Vòng đời Sprint** | ⬜ | Hạng mục cuối của tầng 3. Cần một **quyết định sản phẩm** trước khi code (*task chưa xong đi đâu khi đóng sprint?*) → **viết ADR riêng trước**. Chi tiết ở "Việc còn dang dở" mục E |
+| 11 | **Nhóm báo cáo kiểu Jira** | ⬜ | Backlog insight · velocity · report · timeline. **Phiên riêng** — yêu cầu 2026-08-04 |
+| 12 | **Áp kỹ thuật DB** | ⬜ | Trigger · stored procedure · view · index. **Phiên riêng** — yêu cầu 2026-08-04 |
+| 13 | **Real-time (SignalR)** | ⬜ | Theo §6, chỉ làm sau khi core CRUD **và** frontend đã ổn định |
+| 14 | **Elasticsearch + Redis** | ⬜ | Định hướng xa. Elasticsearch là lời giải thật cho "Search toàn cục"; Redis cho cache + rate limit phân tán |
 
-#### ⚠️ Hạng mục A — claim kiểu Permission: bốn điểm căng phải chốt TRƯỚC khi gõ code
+#### ✅ Hạng mục A đã chốt và đã làm — xem ADR-045
 
-Đề xuất (2026-08-04): đưa quyền vào JWT dưới dạng claim `permission` thay vì chỉ mang
-`SystemRole`. Ghi lại đây **chưa phải một ADR** — nó là danh sách câu hỏi, vì thiết kế hiện
-tại có bốn chỗ sẽ vỡ nếu áp dụng máy móc.
+Khối "bốn điểm căng phải chốt trước khi gõ code" từng nằm ở đây đã hoàn thành nhiệm vụ của
+nó: cả bốn câu hỏi đều được trả lời **trước** khi viết dòng code đầu tiên, và câu trả lời
+nằm trong ADR-045 (§15). Tóm tắt để khỏi phải lật:
 
-1. 🔴 **Quyền tầng 2 KHÔNG nhét vào token được, và đây là điểm chí mạng.** Một người có vai
-   trò **khác nhau ở từng project** (`ProjectMember.RoleInProject`). Nhét quyền per-project
-   vào claim nghĩa là token phình theo số project, và tệ hơn: **nó cũ đi ngay khi PM đổi vai
-   trò của ai đó**. Hiện tại đổi vai trò có hiệu lực **tức thì** vì mỗi request đọc lại từ
-   `ProjectMember`; chuyển sang claim là chấp nhận độ trễ tối đa bằng tuổi access token
-   (15 phút) — trong đó có cả ca "vừa gỡ một người khỏi project mà họ vẫn ghi được".
-   Tiền lệ đã có trong dự án: ADR-015 phải **thu hồi refresh token** khi khóa tài khoản,
-   đúng vì lý do này.
-2. **Quyền tầng 1 thì hợp.** `SystemAdmin` là toàn cục, số lượng ít, đổi hiếm — claim
-   `permission` cho nhóm admin (`employees:lock`, `labels:manage`, `audit:read`) là đúng
-   chỗ, và nó thay được policy `require-system-admin` đang hard-code theo vai trò.
-3. **Đừng để nó mở lại god mode mà ADR-042 vừa đóng.** Cám dỗ tự nhiên của mô hình
-   permission là thêm `projects:read:all`. Nếu làm, phải rà **mọi** query lọc theo membership
-   (danh sách project, board, backlog, thành viên…), nếu không sẽ ra trạng thái mâu thuẫn:
-   admin mở được `GET /projects/{id}` nhưng danh sách vẫn trống.
-4. **Frontend có một bản sao phải đồng bộ.** `lib/tasks/permissions.ts` soi gương
-   `ProjectPermissions.cs`. Nếu nguồn sự thật chuyển sang claim thì bản sao đó phải đọc
-   claim — **hoặc** giữ nguyên và chấp nhận hai mô hình song song, là thứ chắc chắn lệch.
-
-**Khuyến nghị để cân nhắc:** mô hình **lai** — claim `permission` cho quyền **hệ thống**
-(tầng 1), giữ nguyên `ProjectPermissions` đọc DB cho quyền **project-scoped** (tầng 2). Giữ
-được tính tức thì của việc đổi vai trò, mà vẫn có được thứ mô hình permission thực sự cho:
-tách quyền admin ra khỏi một enum vai trò cứng.
+| | Đã chốt |
+|---|---|
+| (a) Quyền project-scoped vào claim? | **KHÔNG.** Mô hình lai — tầng 2 giữ nguyên đọc DB mỗi request, không sửa một dòng |
+| (b) Đặt tên & thay policy? | `resource:action`, 5 mã, nguồn là hai **bảng DB** seed bằng `HasData`; tên policy == mã quyền; hai policy cũ xóa hẳn |
+| (c) Chống god mode? | Danh mục **ĐÓNG** + `SystemPermissionsCatalogTests` với 4 phép kiểm độc lập, đã mutation test |
+| (d) Bản sao ở frontend? | `lib/tasks/permissions.ts` **không đổi** (tầng 2); tầng 1 là file mới đọc `EmployeeDto.permissions`. FE không giải mã JWT |
 
 **Tiến độ, nói thẳng (cập nhật 2026-08-03):** rủi ro của phiên trước — "frontend bị backend
 chặn" — **đã gỡ hết**. Không còn một màn hình nào phải chờ API.
@@ -252,31 +270,80 @@ tương ứng sẽ cần ngay. Nhưng phải biết là **đang có sẵn** đ�
 
 | Thứ đã có | Ở đâu | Màn hình sẽ dùng |
 |---|---|---|
-| `useProjectStatistics` + `types/statistics.ts` | `lib/hooks/use-statistics.ts` | **Dashboard** — chưa có màn. `byStatus`/`byPriority` đã zero-fill đủ mọi giá trị enum |
-| `forgotPassword`, `resetPassword` + DTO | `lib/api/endpoints/auth.ts`, `types/auth.ts` | **Quên / đặt lại mật khẩu** — chưa có màn |
-| `useSystemAuditLogs` + `systemAuditKeys` + `SystemAuditLogResponse` | `lib/hooks/use-activity.ts` | **Admin: audit log** — chưa có màn. Đây là phần admin DUY NHẤT đã có tầng dữ liệu |
+| ~~`useProjectStatistics`~~ | — | ✅ đã dùng ở tab **Thống kê** (2026-08-04) |
+| ~~`forgotPassword` / `resetPassword`~~ | — | ✅ đã dùng ở hai màn mật khẩu (2026-08-04) |
+| ~~`useSystemAuditLogs`~~ | — | ✅ đã dùng ở **/admin/audit-logs** (2026-08-04) |
+| ~~`useCreateLabel` / `useUpdateLabel` / `useDeleteLabel`~~ | — | ✅ đã dùng ở **/admin/labels** (2026-08-04) |
 | `useProjectActivity` | `lib/hooks/use-activity.ts` | Tab **lịch sử của project** (chi tiết Task đã dùng bản của task, chưa ai dùng bản project) |
 | `useProjectAttachments`, `useUploadProjectAttachment` | `lib/hooks/use-attachments.ts` | Đính kèm ở cấp **project** (cấp task đã dùng rồi) |
-| `useCreateLabel` / `useUpdateLabel` / `useDeleteLabel` | `lib/hooks/use-labels.ts` | **Admin: nhãn toàn cục**. ⚠️ sửa/xóa chỉ `SystemAdmin` (ADR-037) |
+| `getCurrentUser` (`GET /auth/me`) | `lib/api/endpoints/auth.ts` | Chưa ai gọi — phiên khôi phục bằng `/auth/refresh`. ⚠️ Nếu về sau dùng tới thì nhớ nó dựng DTO **từ claim**, không đọc DB (ADR-045) |
 | `listProjectTasks` (phân trang, `sortBy` name/priority/status) | `endpoints/tasks.ts` | Màn **danh sách task** dạng bảng. Nay đã có một người dùng: `useProjectTaskOptions` (ô chọn task khi tạo liên kết) |
 | `mayFailUnpredictably(status)` | `lib/tasks/status-transitions.ts` | Đã dùng ở `task-status-control.tsx` để soạn thông điệp riêng cho nước đi có thể 409 |
 
-⚠️ **`AdminEmployeesController` vẫn CHƯA có gì ở frontend** — không types, không endpoints,
-không hook. Phiên Admin phải viết tầng dữ liệu đó trước: `GET /admin/employees` (PagedRequest,
-`search` khớp Name **hoặc** Email và **thực sự hoạt động** ở endpoint này), `POST {id}/lock`
-(body `{reason}`, 204), `POST {id}/unlock` (204), `PUT {id}/system-role` (body `{role}`, 204).
-Bất biến "≥1 admin chưa khóa" trả **409**; tự khóa/tự đổi vai trò mình trả **400**.
+✅ **`AdminEmployees` nay đã có đủ tầng dữ liệu** (viết mới 2026-08-04): `types/admin.ts`,
+`lib/api/endpoints/admin.ts`, `lib/hooks/use-admin.ts`, `adminEmployeeKeys` +
+`rolePermissionKeys` trong `keys.ts`. Đã **kiểm chứng trên trình duyệt** rằng `search` ở
+`GET /admin/employees` thật sự chạy (tìm ra 1 trong 9 tài khoản bằng một phần email) — nó là
+một trong hai endpoint hiếm hoi như vậy, đừng đem khuôn này áp sang project/task/sprint.
 
 #### B. Màn hình chưa làm — không màn nào bị chặn
 
-1. **Dashboard thống kê** — hook đã có, chỉ cần `npm i recharts`. Vừa.
-2. **Quên / đặt lại mật khẩu** — 2 trang. ⚠️ `forgot-password` LUÔN trả 204, UI chỉ được hiện
-   một thông điệp duy nhất (ADR-041). Nhỏ.
-3. **Admin: nhân sự + nhãn toàn cục + audit log** — phiên riêng, xem mục A. Vừa.
-4. **Search toàn cục** — ⬜ và **vẫn chưa có API**. ⚠️ `PagedRequest.Search` được binder nhận
-   ở mọi danh sách nhưng **chỉ `EmployeeRepository` và `NotificationRepository` dùng tới**;
-   project/task/sprint/comment/audit-log nhận rồi **bỏ qua im lặng**. Đừng dựng UI lọc dựa
-   vào nó (đây là lý do ô chọn task khi tạo liên kết lọc ở client, trần 100 task).
+~~1. Dashboard thống kê~~ · ~~2. Quên/đặt lại mật khẩu~~ · ~~3. Nhóm Admin~~ — **cả ba đã
+xong 2026-08-04.** Không còn màn hình nào trong lộ trình ban đầu ở trạng thái ⬜.
+
+**Còn lại:**
+
+1. 🆕 **Ba tính năng backend đã xong mà frontend chưa có gì (ADR-048, 2026-08-04).** Không
+   bị chặn, không cần quyết định nào — chỉ là chưa dựng. Ghi ra đây vì cả ba đều **vô hình**
+   nếu chỉ nhìn UI: backend có đường đi, người dùng không có nút.
+
+   | Backend đã có | Frontend hiện tại |
+   |---|---|
+   | `POST /projects/{id}/complete` + `/reopen` (PM-only) | Không nút nào — `Project.Status` **không đổi được từ UI**, dù nó nằm trong DTO và là khóa `sortBy`. `reopen` trả **409** nếu project chưa `Done` |
+   | `GET /employees?search=` (mọi người đã đăng nhập) | Ô mời thành viên vẫn bắt gõ **đúng email** bằng tay. Từ khóa **≥ 2 ký tự**, ngắn hơn trả **400** |
+   | `mentionedEmployeeIds` trong comment | `types/comment.ts` đã có trường, **chưa có ô chọn**. Client **gửi id**; server **không** parse `@tên` từ nội dung |
+
+2. 🆕 **Ba chỗ "bấm vào không thấy gì" — rà giao diện 2026-08-05.**
+
+   a. 🔴 **Nút "Mở trang riêng" trong dialog chi tiết Task là một no-op.**
+      `components/tasks/task-detail-header.tsx` dùng `<Link>` trỏ tới
+      `/projects/{id}/tasks/{taskId}` — nhưng khi dialog đang mở, **URL hiện tại đã đúng là
+      chuỗi đó** (intercepting route `(.)` giữ nguyên đường dẫn, ADR-043). Soft navigation
+      tới chính URL đang đứng không đổi router state, nên dialog ở nguyên đó.
+      Sửa bằng **điều hướng cứng** (`<a href>` thường, hoặc `window.location.assign`):
+      intercepting route **chỉ** áp cho soft navigation, một lần tải trang đầy đủ sẽ render
+      trang thật. Đây là cái bẫy cấu trúc của ADR-043, không phải lỗi cẩu thả.
+
+   b. **Không có trang hồ sơ cá nhân.** `UserMenu` chỉ có mục Đăng xuất; không route nào
+      trong `app/`. ⚠️ Và backend **chưa có đường sửa hồ sơ**: `AuthController` chỉ có
+      `GET /auth/me`, không có `PUT /employees/me`, không có đổi mật khẩu khi đã đăng nhập
+      (chỉ `forgot-password` qua email). Trang **chỉ đọc** làm được ngay; muốn sửa được thì
+      phải làm backend trước — và nhớ `/auth/me` **dựng DTO từ CLAIM chứ không đọc DB**, nên
+      đổi tên sẽ không hiện ra cho tới khi token được làm mới. Đó là một quyết định cần
+      **ADR riêng**, không phải chi tiết cài đặt.
+
+   c. **Sidebar chỉ còn 4 mục** và không phản ánh phạm vi sản phẩm khi đang ở trong một dự án.
+      🔴 **Đính chính một khẳng định SAI trong `components/layout/sidebar.tsx`:** comment ở đó
+      nói `AppShell` "không biết project nào đang mở vì nó nằm TRÊN segment `[id]`".
+      Không đúng với client component — `SidebarNav` **đã** gọi `usePathname()`, mà hàm đó
+      trả **toàn bộ** đường dẫn kể cả `[id]`. Rút id bằng regex trên pathname là hợp lệ và
+      **không** dính rủi ro "hai tab nói dối" mà comment lo: đó là rủi ro của **store**, còn
+      URL thì vốn đã thuộc về từng tab. Hướng đúng: một khối theo **ngữ cảnh dự án** hiện khi
+      pathname khớp `/projects/{id}/*` (Bảng · Backlog · Sprint · Thống kê · Thành viên) cộng
+      danh sách dự án gần đây. Sửa luôn comment đó, đừng để nguyên một lý do sai.
+
+3. **Search toàn cục** — ⬜ và **vẫn chưa có API**.
+
+   ⚠️ **Đính chính quan trọng (2026-08-04).** Tài liệu này từng ghi "chỉ `EmployeeRepository`
+   và `NotificationRepository` dùng tới `?search=`" — **SAI**. Đã kiểm từng repository:
+   **5/6 vẫn luôn lọc thật** (Employee theo Name/Email, Notification và Comment theo
+   Content, Task và Project theo Name). Repository DUY NHẤT bỏ qua là `ActivityLogRepository`
+   — và nó đã được sửa 2026-08-04 (ADR-046), nên **hiện KHÔNG còn ngoại lệ nào**.
+
+   Điều còn đúng: `?search=` chỉ lọc **một trường** ở phần lớn endpoint (Task chỉ theo `Name`,
+   không theo mã `PMS-12` hay `Description`; Project chỉ theo `Name`, không theo `Key`), nên
+   nó **không thay thế được** một chức năng tìm kiếm toàn cục thật sự. Lời giải đúng cho mục
+   này là Elasticsearch (hạng mục 14 trong lộ trình), không phải nới `?search=`.
 
 #### C. Nợ kỹ thuật đã biết
 
@@ -290,10 +357,16 @@ Bất biến "≥1 admin chưa khóa" trả **409**; tự khóa/tự đổi vai 
 - **Nhãn vẫn là dữ liệu TOÀN CỤC** (ADR-037). Ô chọn nhãn ở chi tiết Task vì vậy liệt kê nhãn
   của cả hệ thống, không lọc theo project — đúng thiết kế hiện tại, nhưng sẽ khó dùng khi số
   nhãn tăng. Cách sửa gốc (`Label.ProjectId`) đã ghi ở ADR-037.
-- **`ProjectMembers.CreatedAt` của dữ liệu cũ là `0001-01-01`** — cùng nguyên nhân với
-  `Tasks.CreatedAt` ở ADR-033 (migration thêm cột với `defaultValue`). Nó lộ ra ở dòng "Được
-  mời ngày …" của trang Lời mời. Frontend đã chặn ở tầng hiển thị (`isSentinelDate` trong
-  `lib/format.ts` trả `—` cho mọi mốc trước năm 1900); **chưa** backfill ở DB.
+- **`ProjectMembers.CreatedAt` VÀ `Employees.CreatedAt` của dữ liệu cũ là `0001-01-01`** —
+  cùng nguyên nhân với `Tasks.CreatedAt` ở ADR-033 (migration thêm cột với `defaultValue`).
+  Trước đây chỉ ghi `ProjectMembers`; **bổ sung `Employees` 2026-08-04**, khi màn
+  `/admin/employees` hiện "—" ở cột Ngày tạo cho *mọi* dòng seed. Đã kiểm: bản ghi **mới**
+  (đăng ký thật) có `CreatedAt` đúng, nên `ApplyAuditFields` không hỏng — đây thuần túy là nợ
+  dữ liệu của DB dev, và một lần seed lại từ đầu sẽ ra đúng. Frontend đã chặn ở tầng hiển thị
+  (`isSentinelDate` trả `—` cho mọi mốc trước năm 1900); **chưa** backfill ở DB.
+- **Màu nhãn của dữ liệu cũ đều là `#6B7280`** — cùng hình dạng: migration thêm cột `Color`
+  với giá trị mặc định, còn `DbSeeder` thì đặt năm màu khác nhau nên DB seed lại từ đầu sẽ
+  đúng. Đã sửa dữ liệu dev bằng chính màn `/admin/labels` vừa dựng.
 - **Sprint không có `RowVersion`** → sửa đồng thời là last-write-wins, không có tín hiệu.
   Đừng dựng UI cảnh báo stale cho sprint.
 - **`invalidateQueries(projectDataKeys.all)` hơi rộng**: chuyển task sang sprint cũng làm
@@ -303,6 +376,69 @@ Bất biến "≥1 admin chưa khóa" trả **409**; tự khóa/tự đổi vai 
   draw.io Desktop). Lệnh ở `docs/uml/README.md`.
 - Hai file `backend/postman/.../Login|Logout.request.yaml` đang có thay đổi **chưa commit**
   — chỉ là đổi ký tự xuống dòng do công cụ Postman sinh ra, không phải thay đổi nội dung.
+
+#### E. Backend tầng 3 — **ba trên bốn đã xong**, còn lại vòng đời Sprint
+
+✅ **Đã làm 2026-08-04:**
+
+1. **`Project.Status` nay đổi được** — `POST /projects/{id}/complete` + `/reopen`, PM-only,
+   có ActivityLog và thông báo cho thành viên. Trước đó `Project.Complete()` có đúng MỘT
+   caller trong toàn bộ solution (`DbSeeder`), nên mọi project tạo qua API vĩnh viễn ở `ToDo`
+   trong khi `Status` vẫn nằm trong DTO và vẫn là khóa `sortBy` — một **trường chết đội lốt
+   tính năng**. `Complete()` idempotent; `Reopen()` đưa về `InProgress` chứ không về `ToDo`
+   (project từng chạy tới Done thì công việc đã diễn ra) và trả **409** nếu chưa Done.
+
+   > 🔴 Dùng `NotificationType.**ProjectStatusChanged**` chứ không phải `StatusChanged`:
+   > `RelatedEntityKind` được SUY RA từ `Type` (ADR-025), và `StatusChanged` suy ra `Task` —
+   > dùng nhầm sẽ khiến chuông điều hướng tới `/tasks/{projectId}`, một id không tồn tại.
+   > Đây đúng là loại lệch mà việc suy ra (thay vì lưu hai cột) sinh ra để chặn.
+
+2. **`GET /employees?search=`** — tra nhân viên cho ô gợi ý khi mời thành viên, mở cho mọi
+   người đã đăng nhập. Trước đó chỉ có `GET /admin/employees` sau quyền `employees:manage`,
+   nên PM bình thường phải gõ **đúng email** bằng tay.
+
+   > 🔴 Ba ràng buộc là **lý do nó được phép tồn tại**, không phải chi tiết cài đặt: từ khóa
+   > **≥ 2 ký tự** (một ký tự khớp phần lớn danh bạ, lặp 26 lần là có toàn bộ), **trần kết
+   > quả cứng ở server** (không nhận từ client), và DTO **chỉ ba trường** — không
+   > `systemRole`, không `isLocked`. Có test khẳng định trên **JSON thô**, vì deserialize vào
+   > record sẽ âm thầm bỏ qua trường thừa và test vẫn xanh. Chỉ trả người chưa bị khóa.
+
+3. **@mention trong comment** — client gửi `mentionedEmployeeIds`, server **không parse
+   `@tên`** từ nội dung (tên hiển thị không phải định danh: trùng tên, đổi tên, `@abc` có thể
+   chỉ là một mẩu email).
+
+   > 🔴 **Nhưng server BẮT BUỘC lọc lại.** Id do client gửi, nên không lọc nghĩa là bất kỳ ai
+   > cũng bắn được thông báo tới bất kỳ ai bằng cách nhét id lạ vào body — người nhận sẽ thấy
+   > tên một task thuộc dự án họ không có quyền mở. Vừa rò rỉ, vừa là kênh quấy rối. Chỉ giữ
+   > thành viên `Accepted`. Người được nhắc bị loại khỏi lượt `CommentAdded` để không nhận
+   > hai thông báo cho cùng một hành động. **Đã mutation test**: bỏ bộ lọc làm 2 test đỏ.
+   >
+   > Nhắc tên người ngoài dự án vẫn trả **thành công** (bình luận hợp lệ, chỉ phần nhắc tên
+   > bị lọc bỏ) — trả 400 sẽ tiết lộ "id này có tồn tại nhưng không thuộc dự án", tức lại là
+   > rò rỉ.
+
+⬜ **Còn lại đúng một mục — vòng đời Sprint.**
+
+`Sprint` không có trường trạng thái nào; `IsActive` suy từ ngày. Không có start / complete /
+đẩy task chưa xong sang sprint kế — tức **vòng lặp Scrum cốt lõi**.
+
+Cắt ra khỏi phiên 2026-08-04 **có ý thức**, không phải bỏ quên: nó cần cột `Sprint.Status` +
+migration, và trước đó cần một **quyết định sản phẩm** mà nhiều câu trả lời đều bảo vệ được —
+*task chưa xong đi đâu khi đóng sprint?* (về Backlog · sang sprint kế · hỏi người dùng lúc
+đóng, như Jira). Đó là lựa chọn của người sở hữu sản phẩm chứ không phải của người viết code,
+nên **phải chốt và viết ADR riêng trước khi gõ dòng đầu tiên**.
+
+⚠️ **Phụ thuộc:** hạng mục "velocity" của nhóm báo cáo kiểu Jira **cần cái này trước** —
+không có mốc "đóng sprint" thì không có gì để đo tốc độ theo.
+
+📌 **Hai món nợ khác, ghi rõ chứ không im lặng:**
+- **`AuthService` không ghi một dòng `ActivityLog` nào.** Đăng ký, đăng xuất và **đặt lại mật
+  khẩu** đều nằm ngoài nhật ký kiểm toán, chỉ có Serilog dạng văn bản. Với một hệ thống làm
+  báo cáo thực tập ngân hàng thì đây là bề mặt đáng ghi nhất mà lại chưa phủ. `ActivityAction`
+  cũng chưa có member nào cho nhóm này.
+- **`RMG020` bị tắt ở CẢ 11 mapper.** Đó đúng là analyzer sẽ bắt một field entity mới không
+  tới được DTO — tức đúng lớp lỗi mà dự án đã gặp nhiều lần. Bật lại từng mapper một là việc
+  của một phiên dọn dẹp riêng.
 
 #### D. Chưa kiểm chứng bằng tay
 
@@ -622,7 +758,7 @@ tổng hợp kết quả...).
 ## 6. Kiến trúc Frontend
 
 **Stack:** Next.js 15 (App Router, TypeScript) + TailwindCSS 4 + shadcn/ui + TanStack Query 5
-+ Zustand 5 + react-hook-form + Zod 4 + `@dnd-kit` (Kanban) + Vitest *(+ Recharts khi làm Dashboard)*
++ Zustand 5 + react-hook-form + Zod 4 + `@dnd-kit` (Kanban) + **Recharts 3** (Thống kê) + Vitest
 
 > Từ 2026-07-31 mục này mô tả **hiện trạng**, không còn là dự kiến. Năm quyết định nền
 > tảng nằm ở ADR-027 → ADR-032 (§15).
@@ -701,11 +837,45 @@ nên chúng **miễn nhiễm CSRF**; cookie chỉ đi tới 4 endpoint auth nh�
 - ✅ **Notification bell** (góc header) + trang `/notifications` có lọc `Tất cả | Chưa đọc`.
   Điều hướng bằng cặp `(relatedEntityKind, relatedEntityId)` (ADR-025); thông báo loại Task
   đi qua trang phân giải `/tasks/{taskId}` vì DTO thông báo không mang `projectId`
-- ⬜ Trang quản lý Nhân sự + phân quyền theo từng Project
-- ⬜ **Thanh Search/Filter** toàn cục: tìm task theo tên, người phụ trách, status, deadline
-- ⬜ Dashboard thống kê (Recharts): tỷ lệ hoàn thành, task theo nhân sự, task quá hạn
+- ✅ **Quên / đặt lại mật khẩu** — `forgot-password` hiện đúng MỘT thông điệp cho mọi kết quả
+  (ADR-041); `reset-password` đọc token từ query, mọi lỗi token là cùng một 400, thành công
+  thì luôn về `/login` vì mọi phiên đã bị thu hồi
+- ✅ **Tab Thống kê** của dự án (Recharts) — ba nhóm màu theo VIỆC, thẻ số và thanh mức cố ý
+  không phải biểu đồ (ADR-047). Cả ba vai trò xem được (ADR-039)
+- ✅ **Nhóm Quản trị** (`/admin`, bốn tab) — Nhân sự · Phân quyền · Nhãn toàn cục · Nhật ký
+  hệ thống. Gác bằng **quyền** chứ không bằng `systemRole` (ADR-045)
+- ⬜ **Thanh Search/Filter** toàn cục: tìm task theo tên, người phụ trách, status, deadline.
+  ⚠️ Chưa có API, và `?search=` hiện tại chỉ lọc MỘT trường ở mỗi endpoint nên không thay
+  thế được — lời giải đúng là Elasticsearch (§1, hạng mục 14)
+
+> 🆕 **Sidebar không còn mục "Sắp có" nào** (2026-08-04). Bốn mục vô hiệu hóa trước đây hóa
+> ra là hai chuyện khác nhau: *Nhân sự*/*Thống kê* chỉ là chưa làm (nay đã có trang thật),
+> còn **Bảng Kanban / Backlog thì KHÔNG BAO GIỜ đặt được ở sidebar** — cả hai thuộc phạm vi
+> MỘT project mà `AppShell` không biết, vì nó nằm TRÊN segment `[id]`. Giữ chúng với nhãn
+> "Sắp có" là hứa một thứ sẽ không bao giờ tới, nên đã gỡ hẳn; đường vào là tab của trang
+> chi tiết dự án. `href` nay là **bắt buộc** trong kiểu `NavItem`, tức sai sót tương lai bị
+> chặn ở tầng kiểu chứ không bằng kỷ luật.
+>
+> ⚠️ Và đừng "sửa" bằng cách nhớ *project vừa mở* vào store: giá trị đó nói dối ngay khi
+> người dùng mở hai tab trình duyệt.
 
 **Quy ước ẩn/hiện nút theo quyền** (§10 là nguồn luật, đây là cách áp dụng):
+
+> 🔴 **HAI TẦNG, HAI FILE, KHÔNG CHỒNG LẤN** (ADR-045) — nhầm hai cái này là dựng lại đúng
+> mô hình cũ ở nửa client:
+>
+> | | Tầng 1 — `lib/auth/system-permissions.ts` | Tầng 2 — `lib/tasks/permissions.ts` |
+> |---|---|---|
+> | Phạm vi | Toàn hệ thống | Theo từng project |
+> | Nguồn | `EmployeeDto.permissions` | `RoleInProject` của tôi trong project đó |
+> | Soi gương | `SystemPermissions.cs` | `ProjectPermissions.cs` |
+> | Đổi bằng | Màn `/admin/roles` (dữ liệu) | Đổi vai trò thành viên |
+>
+> Frontend **KHÔNG giải mã JWT** — quyền tới qua thân phản hồi. `hasPermission()` đọc
+> `undefined` thành "không có quyền nào" (fail-closed): một tab đang mở lúc backend được
+> deploy giữ `employee` cũ không có trường đó cho tới lần refresh kế, và trong 15 phút ấy
+> token của họ cũng chưa có claim nên ẩn nút mới là đúng.
+
 - Đọc `RoleInProject` từ API thành viên. **Đừng đoán quyền từ mã lỗi** — người ngoài
   project nhận **404** chứ không phải 403 (ADR-006/019), nên 404 không nói gì về quyền.
 - UI **không bao giờ** hiển thị "bạn không có quyền" cho 404; phải xử lý như "không tìm thấy".
@@ -830,13 +1000,35 @@ Dùng `ASPNETCORE_ENVIRONMENT` để switch giữa các file `appsettings.{Envir
 
 ## 9. Data Seeding (cho Demo & Testing)
 
-Để tránh phải nhập tay dữ liệu lúc demo/bảo vệ, chuẩn bị sẵn:
-- **Seed data** qua EF Core `HasData()` hoặc script riêng, chạy khi migration:
-  - 1 tài khoản `SystemAdmin` mẫu
-  - 3-5 Project mẫu với đầy đủ Sprint, Task ở nhiều Status khác nhau (bao gồm cả task quá hạn để demo Notification)
-  - 5-10 Employee mẫu với các `RoleInProject` khác nhau (PM/Member/Viewer) để demo phân quyền
-  - Vài Comment và ActivityLog mẫu để demo tính năng cộng tác
-- Có thể tách riêng `DbSeeder` class, chạy 1 lần khi `dotnet run` ở môi trường Development
+> ⚠️ **Đính chính 2026-08-04.** Mục này từng viết "seed qua `HasData()` **hoặc** script
+> riêng" như thể hai cách thay thế được cho nhau. Chúng **không** thay thế được, và ranh giới
+> giữa chúng là một quyết định kiến trúc chứ không phải sở thích:
+>
+> | | `HasData` | `DbSeeder` |
+> |---|---|---|
+> | Chạy khi | Mỗi lần `Migrate()` — **mọi** môi trường, kể cả Testing | Chỉ khi `dotnet run` ở **Development** |
+> | Dùng cho | Dữ liệu là **một phần của schema** | Dữ liệu **demo** |
+> | Ví dụ | `Permissions` + `RolePermissions` (ADR-045) | 6 nhân sự, 3 project, 14 task |
+>
+> Đặt nhầm chỗ **không** cho ra một lỗi rõ ràng: `PmsWebApplicationFactory` chỉ chạy
+> `EnsureDeleted + Migrate` nên `DbSeeder` không bao giờ chạy trong test. Seed dữ liệu
+> schema-level ở đó nghĩa là mọi policy trả 403 và **cả suite tích hợp đỏ cùng lúc** — hàng
+> chục test chẳng liên quan gì tới thứ vừa đổi.
+
+**Dữ liệu demo — `DbSeeder.cs`, chạy một lần lúc `dotnet run` ở Development**
+(guard: bỏ qua nếu DB đã có Employee):
+- 6 nhân sự, trong đó 1 `SystemAdmin` (`admin@pms.local`) — mật khẩu chung `Password123!`
+- 3 project với Sprint, 14 task ở nhiều Status (có task quá hạn để demo Notification), 3
+  subtask, 2 task ở Backlog
+- Đủ ba `RoleInProject` (PM/Member/Viewer) cùng **một lời mời `Pending`** để demo luồng mời
+- Nhãn, TaskLink, phân công, người theo dõi, Comment, ActivityLog, Notification mẫu
+
+**Dữ liệu schema — `HasData` trong `IEntityTypeConfiguration`:** danh mục quyền và ánh xạ
+vai trò → quyền (ADR-045). Thêm một mã quyền là **ba bước**: `const` → `HasData` → migration.
+
+⚠️ **Nợ dữ liệu của DB dev đã seed từ lâu** (không phải lỗi code — seed lại từ đầu sẽ đúng):
+`Employees.CreatedAt` và `ProjectMembers.CreatedAt` là `0001-01-01`, màu nhãn đều là màu mặc
+định. Cùng nguyên nhân: migration thêm cột với `defaultValue`. Xem §1 mục C.
 
 ---
 
@@ -851,13 +1043,42 @@ Dùng `ASPNETCORE_ENVIRONMENT` để switch giữa các file `appsettings.{Envir
 | Password hash bằng BCrypt (work factor 11), không lưu plaintext | ✅ Đã có (`BCryptPasswordHasher`) |
 | Rate limiting cho endpoint đăng nhập (chống brute-force) | ✅ Đã có (`[EnableRateLimiting("login")]`) |
 | HTTPS bắt buộc (`app.UseHttpsRedirection()`) | ✅ Đã có |
-| Khóa/mở tài khoản, cấp `SystemAdmin` role cho người khác | ✅ Đã có — `AdminEmployeesController`, policy `RequireSystemAdmin`. Khóa/đổi role đều thu hồi toàn bộ refresh token. Bất biến: luôn còn ≥1 SystemAdmin chưa bị khóa |
+| Khóa/mở tài khoản, cấp `SystemAdmin` role cho người khác | ✅ Đã có — `AdminEmployeesController`, gác bằng quyền `employees:manage` (ADR-045; trước 2026-08-04 là policy `require-system-admin`). Khóa/đổi role đều thu hồi toàn bộ refresh token. Bất biến: luôn còn ≥1 SystemAdmin chưa bị khóa |
 | Quên mật khẩu / Reset password qua token hết hạn 30 phút | ✅ Đã có (2026-08-03, ADR-041) — `PasswordResetToken` (hash SHA-256, dùng một lần), `POST /auth/forgot-password` **luôn 204**, `POST /auth/reset-password` gộp mọi lỗi vào một 400. Đổi mật khẩu thu hồi toàn bộ refresh token. `IEmailSender` có bản giả lập ghi Serilog cho Dev, `NullEmailSender` cho môi trường khác |
 > 📌 Mục Reset password từng là ⬜ suốt nhiều phiên vì "chờ email service". Cách gỡ:
 > `IEmailSender` là một abstraction hai method — cắm SMTP thật sau này chỉ là đổi một dòng
 > đăng ký DI, còn nghiệp vụ token thì không phải chờ gì cả.
 
 ### Authorization — mô hình 2 tầng
+
+> 🆕 **Cập nhật 2026-08-04 (ADR-045).** Tầng 1 nay chạy bằng **claim `permission` lấy từ hai
+> bảng DB** (`Permission` + `RolePermission`), quản trị được ở `/admin/roles`. Tầng 2 **không
+> đổi gì cả** — vẫn đọc `ProjectMember.RoleInProject` tươi mỗi request, vì một người có vai
+> trò khác nhau ở từng project và đổi vai trò phải có hiệu lực tức thì.
+>
+> **Danh mục ĐÓNG, năm mã** (`PMS.Application/Common/Authorization/SystemPermissions.cs`):
+>
+> | Mã | Gác gì | Mặc định |
+> |---|---|---|
+> | `employees:manage` | `AdminEmployeesController` (list / lock / unlock / system-role) | SystemAdmin |
+> | `audit:read` | `AdminAuditController` | SystemAdmin |
+> | `labels:manage` | `PUT`/`DELETE /labels/{id}` (KHÔNG gác `POST`, ADR-037) | SystemAdmin |
+> | `projects:create` | `POST /Projects` | **SystemAdmin + User** |
+> | `roles:manage` | `AdminPermissionsController` | SystemAdmin |
+>
+> **Vai trò `SystemRole` nay chỉ là ĐỊNH DANH**, không còn là trục phân quyền — nó quyết định
+> người này nhận tập quyền nào, chứ bản thân nó không cho phép điều gì. Hai policy cũ
+> (`require-system-admin`, `can-create-project`) đã bị **xóa hẳn**; tên policy nay chính là
+> mã quyền.
+>
+> ⚠️ **Đổi quyền không tức thì:** quyền đi trong JWT nên có hiệu lực ở token kế tiếp — tối đa
+> 15 phút, và thao tác lưu thu hồi refresh token của mọi người mang vai trò đó (kể cả người
+> đang bấm nút). Bất biến: `SystemAdmin` luôn giữ `roles:manage`, gỡ là **409**.
+>
+> 🔴 **Không mã nào được mang phạm vi project.** `projects:create` là ngoại lệ duy nhất và
+> hợp lệ (lúc tạo thì chưa có project để tra membership). `SystemPermissionsCatalogTests`
+> khóa điều này bằng bốn phép kiểm độc lập — đã mutation test.
+
 **Tầng 1 — System Role** (gắn với tài khoản, không đổi theo project):
 - `SystemAdmin`: quản trị **hệ thống** — khóa/mở tài khoản, cấp `SystemRole`, quản lý nhãn
   toàn cục, đọc nhật ký cấp hệ thống. **KHÔNG có bất kỳ đặc quyền nghiệp vụ nào**: không
@@ -878,9 +1099,12 @@ Dùng `ASPNETCORE_ENVIRONMENT` để switch giữa các file `appsettings.{Envir
   tạo Project mới** — khi tạo, hệ thống tự động insert `ProjectMember(EmployeeId=creator,
   RoleInProject=ProjectManager)`, người tạo tự động trở thành PM của project đó.
 
-  > 📌 Quyền tạo project được thiết kế qua 1 policy riêng (`CanCreateProject`), không
-  > hardcode "mọi User đều được" — mặc định áp dụng cho mọi User, nhưng cho phép đổi
-  > logic sau này (ví dụ giới hạn chỉ vài người) mà không cần sửa schema.
+  > 📌 Quyền tạo project đi qua một policy riêng chứ không hardcode "mọi User đều được".
+  > **Cập nhật 2026-08-04:** policy đó nay là `projects:create` lấy từ bảng
+  > `RolePermissions` (ADR-045) — nghĩa là mong muốn ban đầu "đổi logic sau này mà không
+  > cần sửa schema" nay còn mạnh hơn: đổi được **bằng dữ liệu**, ngay trên `/admin/roles`,
+  > không cần sửa code lẫn deploy lại. Trước đó policy `can-create-project` chỉ là
+  > `RequireAuthenticatedUser()` — một no-op.
 
 **Tầng 2 — Project Role** (gắn theo từng `ProjectMember`, 1 người có thể khác role ở
 project khác nhau):
@@ -911,11 +1135,30 @@ project khác nhau):
 - **Integration Test** (xUnit + Shouldly): test API endpoint end-to-end trên SQL Server
   thật, database riêng `PmsTestDb` — xem ADR-010 (§15) về lý do không dùng EF InMemory/SQLite
 
-### Hiện trạng (2026-08-03, sau phiên Backend hoàn chỉnh)
+### Hiện trạng (2026-08-04, sau phiên Phân quyền permission)
 
-**419 test pass** — 220 unit + 199 integration, clean build 0 warning.
-*(+95 so với phiên trước: quyền mở rộng 15, mã task 7, TaskLinkGraph 8, bốn API chi tiết
-Task 16, Attachment 15, đặt lại mật khẩu 8, job quét hạn 5, `SystemAdminScopeTests` 21.)*
+**489 test pass** — 232 unit + 257 integration, build 0 warning **và nay có
+`TreatWarningsAsErrors`** (`backend/Directory.Build.props`), nên "0 warning" từ một quan sát
+đã thành một điều kiện.
+*(+70 so với phiên trước: `SystemPermissionsCatalogTests` 6, `RolePermissionAdminServiceTests`
+6, `PermissionSeedTests` 5, `RolePermissionAdminTests` 11, `PermissionClaimTests` 5,
+`StatisticsTests` 5, `LabelsTests` 7, `ActivityLogsTests` 6, `ProjectStatusTests` 6,
+`EmployeeLookupTests` 7, `CommentMentionTests` 5, cộng một dòng nới ở `SystemAdminScopeTests`.)*
+
+🆕 **Ba vùng trước đây KHÔNG có file test nào (10 route) nay đã có** — và việc viết chúng
+lập tức có lãi: `StatisticsTests` bắt được `GET /projects/{id}/statistics` **hỏng 500 từ ngày
+viết ra** ngay ở lần chạy đầu tiên (ADR-046), còn `ActivityLogsTests` khóa lại bộ lọc
+`?search=` vốn bị nuốt im lặng.
+
+⚠️ **Bài học về cách viết khẳng định:** test cho bộ lọc phải có **cả hai chiều** — "từ khóa
+có thật thì số dòng GIẢM" *và* "từ khóa chắc chắn không tồn tại thì trang RỖNG". Thiếu vế
+thứ hai thì một bộ lọc luôn-khớp (tức không lọc gì) vẫn làm khẳng định thứ nhất xanh.
+
+⚠️ **Một khoảng trống test mới, ghi rõ:** không test nào so **chuỗi JSON thô** của một mốc
+thời gian. Đó là lý do lỗi lệch múi giờ ở ADR-046b sống sót — test so `DateTime` với
+`DateTime` thì `Kind` không ảnh hưởng tới toán tử so sánh nên mọi khẳng định đều xanh, trong
+khi trình duyệt lại đọc chuỗi. Khi một giá trị đi ra ngoài dưới dạng **chuỗi**, phải có ít
+nhất một test chạm vào chuỗi đó.
 
 ⚠️ **Một khoảng trống test có ý thức, ghi rõ để không ai tưởng đã được phủ:** phần
 **backfill** trong migration `AddTaskCodeDescriptionLabelColorAndAttachments` **không** được
@@ -1092,6 +1335,17 @@ Task + Sprint** khớp 1-1 với 18 endpoint. Ba điểm dễ vấp khi chạy t
 - **Advanced Search (JQL-like)**: query nâng cao kiểu `status=InProgress AND assignee=me`,
   thay vì chỉ filter theo field đơn giản
 
+### Nhóm B+ — đã có chủ trương, chờ phiên riêng *(chốt 2026-08-04)*
+
+Ba nhóm dưới đây không phải "nice-to-have": chúng đã được quyết định là **sẽ làm**, chỉ là
+mỗi nhóm đủ lớn để chiếm trọn một phiên.
+
+| Nhóm | Nội dung | Ghi chú khi bắt đầu |
+|---|---|---|
+| **Báo cáo kiểu Jira** | Backlog insight · velocity · report · timeline | Velocity cần **vòng đời Sprint** trước (§1 mục E, hạng mục 2) — không có mốc "đóng sprint" thì không có gì để đo tốc độ theo. Làm hạng mục đó trước |
+| **Kỹ thuật DB** | Trigger · stored procedure · view · index | ⚠️ Trigger đụng thẳng vào `ApplyAuditFields`/`ApplySoftDelete` của `PmsDbContext` và vào lệnh cấm bulk-update của ADR-024 — đọc cả hai trước khi viết trigger đầu tiên. View là chỗ hợp lý nhất để bắt đầu: các truy vấn tổng hợp ở `ProjectStatisticsRepository` là ứng viên sẵn |
+| **Elasticsearch + Redis** | Search toàn cục · cache + rate limit phân tán | Elasticsearch là **lời giải đúng** cho "Search toàn cục" (§1 mục B) — nới `?search=` không thay thế được vì nó chỉ lọc một trường mỗi endpoint. Redis: rate limit hiện là in-memory nên không đúng khi chạy nhiều instance |
+
 ### Nhóm C — nice-to-have, chỉ làm nếu còn dư thời gian
 - Dark mode
 - Export báo cáo PDF/Excel
@@ -1217,6 +1471,13 @@ CLI, xem `docs/uml/README.md`. Trước đây nguồn chỉ nằm trong thuộc 
 | 2026-08-03 | **(ADR-040)** Job quét hạn khử trùng lặp theo `(EmployeeId, Type, RelatedEntityId, ngày UTC)`; job KHÔNG gọi `IActivityLogger` lẫn `NotifyMany` | Cả hai đọc `ICurrentUserService` — một cái ném khi không có `HttpContext`, một cái "chạy đúng" do tình cờ — chi tiết bên dưới |
 | 2026-08-03 | **(ADR-041)** Reset password: `forgot-password` luôn 204, mọi lỗi token gộp thành một 400, `SerilogEmailSender` chỉ ở Dev/Testing | Phân biệt được phản hồi là biến endpoint thành công cụ dò email/token; log chứa token thô ở production là rò rỉ credential — chi tiết bên dưới |
 | 2026-08-03 | **(ADR-042)** `SystemAdmin` KHÔNG có đặc quyền nghiệp vụ nào, kể cả đọc; trách nhiệm giải trình chuyển sang `GET /admin/audit-logs` với `entityType` cố định ở server | §10 mô tả một ngoại lệ read-only mà code chưa từng có; sửa tài liệu cho khớp code thay vì ngược lại — chi tiết bên dưới |
+| 2026-08-03 | **(ADR-043)** Chi tiết Task có HAI vỏ dùng chung một `TaskDetailContent`: dialog chặn route `(.)` + trang thật | Trang riêng làm mất ngữ cảnh board; dialog thuần thì không chia sẻ link được và Back sai — chi tiết bên dưới |
+| 2026-08-03 | **(ADR-044)** `PUT /tasks/{id}` là ghi đè TOÀN PHẦN; màn chi tiết chỉ có đúng MỘT chỗ gọi nó (`useTaskFieldSave`) | Form sửa task chưa bao giờ gửi `description` nên đổi tên task là xóa trắng mô tả — lỗi đã sống thật — chi tiết bên dưới |
+| **2026-08-04** | **(ADR-045)** Phân quyền tầng 1 chuyển sang **claim `permission` lấy từ hai bảng DB** (`Permission` + `RolePermission`), quản trị qua UI; tầng 2 giữ nguyên đọc `ProjectMember` mỗi request | Vai trò trong claim không tách được quyền admin, mà quyền project-scoped thì không thể vào token: token phình theo số project và cũ đi ngay khi PM đổi vai trò — chi tiết bên dưới |
+| **2026-08-04** | **(ADR-046)** Kiểm kê nợ backend: 3 validator thiếu, `?search=` bị nuốt im lặng, `/health` luôn báo khỏe, `TreatWarningsAsErrors` chưa bật, và **`GET /projects/{id}/statistics` hỏng 500 từ ngày viết** | Lần thứ năm gặp cùng một hình dạng lỗi: *thứ cần kiểm chứng chưa có ai gọi tới* — chi tiết bên dưới |
+| **2026-08-04** | **(ADR-046b)** `ValueConverter` đóng dấu `Kind=Utc` cho MỌI cột `DateTime` lúc đọc, sửa ở tầng EF chứ không ở `JsonSerializerOptions` | `datetime2` không lưu Kind → JSON thiếu hậu tố → **mọi mốc thời gian lệch đúng bằng múi giờ**; giá trị `Unspecified` còn chảy vào `IsOverdue` và `DueDateNotifier` chứ không chỉ ra HTTP — chi tiết bên dưới |
+| **2026-08-04** | **(ADR-048)** `Project.Status` có đường ghi (`complete`/`reopen`, loại thông báo RIÊNG); `GET /employees?search=` mở cho mọi người nhưng ràng buộc 3 lớp; @mention do CLIENT gửi id còn SERVER lọc | Ba trường/luồng chết hoặc thiếu. Tái dùng `StatusChanged` cho project sẽ điều hướng sai; không lọc id @mention là cho bất kỳ ai bắn thông báo tới bất kỳ ai — chi tiết bên dưới |
+| **2026-08-04** | **(ADR-047)** Màu biểu đồ chia ba nhóm theo VIỆC (trạng thái / tuần tự / phân đoạn); chỉ nhóm thứ ba cần validator; thẻ số và thanh mức KHÔNG phải biểu đồ | Một bảng màu chung cho mọi biểu đồ là dùng màu để nói bốn thứ khác nhau; và thang có thứ tự vẽ bằng màu rời rạc là mời người đọc hiểu sai — chi tiết bên dưới |
 
 | | | |
 
@@ -2442,6 +2703,311 @@ phát hiện **năm lỗi thật** trong code đã build sạch và không test 
 nói lên điều gì về ràng buộc runtime (`ValueGeneratedNever`, mapping middleware, EF fixup).
 Từ nay khi một entity nằm chờ nhiều phiên trước lúc có service dùng tới, phải đối chiếu lại
 với ADR **trước** khi xây tầng trên, coi như một bước bắt buộc chứ không phải tùy hứng.
+
+#### Chi tiết ADR-045 → ADR-047 (phiên "phân quyền permission", 2026-08-04)
+
+#### ADR-045 (2026-08-04) — Phân quyền tầng 1 bằng claim `permission` lấy từ DB
+
+**Bối cảnh.** Trước phiên này quyền hệ thống chỉ là hai policy viết tay trong `Program.cs`:
+`require-system-admin` (kiểm `ClaimTypes.Role`) và `can-create-project` (một no-op). Hệ quả:
+không tách được "đọc nhật ký" khỏi "khóa tài khoản", và muốn đổi bất cứ gì cũng phải sửa
+code rồi deploy lại. Yêu cầu đặt ra là **admin phải quản lý được quyền của từng vai trò**.
+
+**Bốn điểm phải chốt trước khi gõ dòng code đầu tiên** — ghi lại nguyên văn vì chúng mới là
+nội dung thật của quyết định này:
+
+**(a) Quyền project-scoped KHÔNG vào token.** Đây là điểm chí mạng. Một người có vai trò
+**khác nhau ở từng project** (`ProjectMember.RoleInProject`). Nhét quyền per-project vào
+claim nghĩa là token phình tuyến tính theo số project, và tệ hơn: **nó cũ đi ngay khi PM đổi
+vai trò của ai đó**. Hiện tại đổi vai trò có hiệu lực **tức thì** vì
+`ProjectAuthorizationService` đọc lại `ProjectMember` mỗi request; chuyển sang claim là chấp
+nhận độ trễ tối đa bằng tuổi access token — trong đó có cả ca "vừa gỡ một người khỏi project
+mà họ vẫn ghi được". Tiền lệ đã có: ADR-015 phải thu hồi refresh token khi khóa tài khoản,
+đúng vì lý do này.
+
+→ **Mô hình LAI**: claim cho tầng 1, DB-mỗi-request cho tầng 2. `ProjectPermissions.cs` và
+`ProjectAuthorizationService.cs` **không sửa một dòng nào** trong cả phiên.
+
+**(b) Danh mục và cách thay policy.** Năm mã dạng `resource:action`:
+`employees:manage` · `audit:read` · `labels:manage` · `projects:create` · `roles:manage`.
+Nguồn sự thật là hai bảng `Permission` (danh mục) + `RolePermission` (vai trò → quyền), seed
+bằng **`HasData`**. Policy đăng ký bằng một vòng lặp trên danh mục, **tên policy == mã
+quyền**; hai tên cũ bị xóa hẳn.
+
+> 🔴 **`HasData` chứ KHÔNG phải `DbSeeder` — ba lý do độc lập, mỗi lý do đủ để quyết định:**
+> `PmsWebApplicationFactory` chỉ chạy `EnsureDeleted + Migrate` nên không gọi `DbSeeder`;
+> `DbSeeder` lại nằm trong nhánh `IsDevelopment()` còn test dùng env `Testing`; và nó còn
+> early-return khi DB đã có Employee. Không có hàng permission thì `projects:create` biến
+> mất và **gần như toàn bộ suite tích hợp đỏ** — hàng chục test chẳng liên quan gì tới quyền,
+> chỉ vì chúng gọi `CreateProjectAsync`. Hệ quả cần nhớ: **hàng permission nay là SCHEMA,
+> không phải data.**
+
+> 🔴 **`projects:create` phải cấp cho cả vai trò `User`.** §10 vốn ghi "mọi `User` đều có
+> quyền tạo Project mới", và policy cũ là no-op nên điều đó luôn đúng. Chỉ cấp cho admin là
+> đổi hành vi sản phẩm giấu trong một refactor.
+
+**(c) Chống mở lại god mode.** Cám dỗ tự nhiên của mô hình permission là thêm
+`projects:read:all`. Danh mục vì vậy là **ĐÓNG** và có `SystemPermissionsCatalogTests` khóa
+bằng bốn phép kiểm độc lập: `All` phải khớp một mảng literal viết trong test; mọi `const`
+phải nằm trong `All`; **không mã nào được mang phạm vi project** — ngoại lệ duy nhất
+`projects:create` phải được gọi **đích danh**; và định dạng `^[a-z-]+:[a-z-]+$`.
+
+> `projects:create` là ngoại lệ hợp lệ chứ không phải rò rỉ: lúc gọi endpoint đó **chưa có
+> project nào** để tra membership, nên không có tầng 2 nào để đi qua. Mọi động từ project
+> khác đều cần một project đã tồn tại.
+>
+> Đã **mutation test** chốt chặn này: thêm tạm `projects:read:all` vào danh mục làm **ba
+> test đỏ độc lập**, rồi hoàn nguyên.
+
+**(d) Frontend không giải mã JWT.** Cùng một nguồn DB ra hai mặt: **claim** cho server cưỡng
+chế, **`EmployeeDto.permissions`** cho UI gác nút. Client chưa từng có dòng nào đọc nội dung
+token (ADR-027) và thêm một bộ phân tích token ở đó là thêm một chỗ nữa để lệch.
+`lib/tasks/permissions.ts` (tầng 2) **không đổi**; tầng 1 là file mới
+`lib/auth/system-permissions.ts`. Hai file, hai tầng, không có mô hình song song.
+
+**Ba cái bẫy đã trả giá trong lúc làm:**
+
+1. 🔴 **`AuthController.Me()` dựng `EmployeeDto` từ CLAIM, không đọc DB.** Chỉ nối dây quyền
+   ở `AuthService` thì `/auth/login` trả quyền thật còn `/auth/me` trả mảng rỗng — hai câu
+   trả lời mâu thuẫn từ cùng một kiểu DTO, và người dùng thấy cái nào phụ thuộc vào việc họ
+   vừa đăng nhập hay vừa F5. **Không có gì bắt lỗi này lúc biên dịch.** Nay có test đối chiếu
+   thẳng hai endpoint.
+2. **`#pragma warning disable` phải nằm TRƯỚC attribute.** Span của chẩn đoán bắt đầu ở danh
+   sách attribute chứ không ở dòng khai báo method, nên đặt pragma xen giữa
+   `[MapperIgnoreTarget]` và method làm **15 cảnh báo RMG020 quay lại**.
+3. **Lưu quyền tự đăng xuất chính người đang thao tác.** Thu hồi refresh token của "mọi người
+   mang vai trò đó" bao gồm cả admin đang bấm nút. Đúng hợp đồng bảo mật, nhưng UI phải nói
+   thẳng — banner cảnh báo ghi rõ "kể cả phiên của chính bạn".
+
+**Thu hồi và giới hạn đã biết.** Đổi quyền một vai trò thu hồi mọi refresh token của người
+mang vai trò đó, kéo cửa sổ dùng quyền cũ từ 7 ngày (tuổi refresh token) xuống 15 phút (tuổi
+access token) — cùng cách xử lý và cùng lý do với ADR-015. Cửa sổ 15 phút đó **vẫn còn** và
+được nói thẳng trên UI. Cột `TokenVersion` kiểm mỗi request sẽ tức thì nhưng biến mọi request
+thành một lượt đọc DB, tức đảo ngược chính lý do đưa quyền vào token — ghi là giới hạn đã
+biết, **không xây dở dang**.
+
+**Bất biến chống tự khóa.** `SystemAdmin` luôn phải giữ `roles:manage` (409 nếu gỡ). Đây là
+quyền **tự phục hồi duy nhất**: mất nó thì màn phân quyền không vào được, `DbSeeder` không
+chạy ở production, `HasData` chỉ áp lúc migrate mới — phục hồi sẽ phải sửa bảng bằng tay
+trong SSMS. Bất biến giữ **tối thiểu đúng một mã**: bất biến quá rộng là cách một mô hình
+permission lặng lẽ trở lại thành mô hình role cứng.
+
+**Hai thứ cố ý KHÔNG làm:**
+- **Không cache** tập quyền. Query là seek trên khóa clustered trả ≤5 hàng; cache đánh đổi
+  một vấn đề hiệu năng chưa ai đo lấy một vấn đề bảo mật vô hình (admin gỡ quyền mà cache
+  vẫn phát), và ở nhiều instance thì việc vô hiệu hóa cache không còn cục bộ.
+- **Không thêm `Permissions` vào `ICurrentUserService`** — và còn **xóa `SystemRole` khỏi
+  đó**. Cưỡng chế 100% ở tầng policy; thêm một member không có người đọc là dựng lại đúng
+  hình dạng lỗi mà `ValidationFilter` tra `IValidator<IFormFile>` đã trả giá. Sau ADR-045
+  `SystemRole` ở đó còn **gây hiểu nhầm**: người đọc sẽ tưởng vai trò vẫn là trục phân quyền.
+
+> 📌 Ghi lại một khác biệt nhỏ để lần sau không tưởng là sót: `RolePermissions.SystemRole`
+> lưu dạng **chuỗi** (đọc được bằng mắt lúc điều tra), còn `Employees.SystemRole` lưu dạng
+> **int**. Vô hại vì không bao giờ có JOIN giữa hai cột đó.
+
+**Không thêm validator cho `RefreshTokenRequest`, và đó là quyết định.** Bản kiểm kê liệt kê
+nó là "thiếu". Đúng là không có, nhưng thêm vào sẽ là **code chết**: cả `/auth/refresh` lẫn
+`/auth/logout` đều dựng DTO đó **bên trong thân action** từ cookie, không phải tham số bind,
+nên `ValidationFilter` (duyệt action arguments) không bao giờ nhìn thấy. Hành vi đúng đã có
+sẵn và có test giữ (`Refresh_khong_co_cookie_tra_401`).
+
+---
+
+#### ADR-046 (2026-08-04) — Kiểm kê nợ backend: "0 warning" là ảnh chụp, không phải bất biến
+
+**Phát hiện lớn nhất, và không ai đi tìm nó:** `GET /projects/{id}/statistics` trả **500 ở
+MỌI lần gọi** kể từ commit tạo ra nó (`845de0a`, 2026-08-03). `.OrderByDescending(x =>
+x.Total)` đặt **sau** `.Select(...)` — EF không dịch được thứ tự trên property của một record
+vừa dựng trong projection. Endpoint được ghi ✅ "Xong 2026-08-03", **chưa từng có test nào
+chạm tới**, nên nó hỏng hoàn toàn suốt từ đó. Đây là **lần thứ năm** dự án gặp cùng một hình
+dạng lỗi (sau `ProjectService` không ghi ActivityLog, `ValidationFilter` không chạy cho
+upload, §10 mô tả quyền không tồn tại, CORS ghi ✅ mà chưa từng hoạt động):
+*thứ cần kiểm chứng chưa có ai gọi tới.*
+
+`StatisticsTests` — viết ra chính vì khoảng trống đó — bắt được nó ở **lần chạy đầu tiên**.
+
+**Đã sửa:**
+
+| Lỗ hổng | Vì sao nó lọt |
+|---|---|
+| `ActivityLogRepository` **nhận `?search=` rồi bỏ qua im lặng** ở cả 3 endpoint | Trả HTTP 200 kèm nguyên trang chưa lọc — client không có cách nào phát hiện. Là repository cuối cùng còn sót; 5 repo kia đều lọc thật |
+| Thiếu validator `CreateTaskLinkRequest` → `LinkType` không hợp lệ **được lưu xuống DB** | `ValidationFilter` bỏ qua im lặng khi không có `IValidator<T>`; không cảnh báo, không lỗi |
+| Thiếu validator `ChangeTaskStatusRequest` | Như trên — `{"target":99}` tới thẳng state machine |
+| `LabelService.CreateAsync` không ghi ActivityLog | Bất đối xứng vô tình với Update/Delete, và lệch đúng chỗ nguy hiểm: tạo nhãn là thao tác duy nhất trong nhóm mà **mọi user** làm được |
+| Thiếu tie-break `.ThenBy(Id)` ở Employee/Project/Notification | Hai bản ghi cùng khóa sắp xếp có thứ tự không xác định → phân trang trả trùng/sót dòng. Chỉ lộ khi dữ liệu đủ nhiều, tức ở production |
+| `/health` trả `Healthy` kể cả khi mất SQL | `AddHealthChecks()` trần không kiểm gì cả. Đứng sau load balancer thì đó là chủ động giữ một instance đã hỏng trong vòng nhận traffic. Đã kiểm thật bằng `docker stop pms-sqlserver` |
+| `TreatWarningsAsErrors` không bật ở project nào | "0 warning" trong tài liệu là quan sát một lần build, không phải điều kiện. Nay có `backend/Directory.Build.props` |
+
+**Hai đính chính so với bản kiểm kê ban đầu** — ghi lại để không ai đi tìm lại:
+
+1. Bản kiểm kê nói **thiếu 7 index khóa ngoại. SAI.** Đã kiểm `sys.indexes` trên database
+   thật: **6/7 đã có sẵn** do EF Core tự sinh index cho cột khóa ngoại theo quy ước. Chỉ
+   index **ghép** `(DueDate, Status)` là thật sự thiếu — không quy ước nào tạo hộ, và
+   `DueDateNotificationWorker` quét đúng hai cột đó ở mỗi nhịp timer. Các khai báo thừa đã
+   gỡ **cùng những comment nói sai mà chúng mang theo**.
+2. Bản kiểm kê nói thiếu validator `RefreshTokenRequest` — xem ADR-045, đó là code chết.
+
+> **Rút ra, bổ sung cho bài học 2026-07-30:** một bản kiểm kê tự động cũng là một *lời khai*,
+> và phải đối chiếu với hệ thống thật trước khi hành động theo nó. Hai trong bảy hạng mục
+> "thiếu" hóa ra là dương tính giả; làm theo mà không kiểm thì kết quả là code thừa cộng với
+> **comment khẳng định một điều sai** — tức là đúng thứ tài liệu này tồn tại để chống lại.
+
+---
+
+#### ADR-046b (2026-08-04) — Mọi mốc thời gian trong ứng dụng lệch đúng bằng múi giờ
+
+Ghi thành mục riêng vì nó không thuộc bản kiểm kê — nó lộ ra khi nhìn màn nhật ký hệ thống
+và thấy một thao tác **vừa mới làm** hiện là *"7 giờ trước"*.
+
+**Nguyên nhân.** `datetime2` của SQL Server **không lưu `DateTimeKind`**. Ghi một `DateTime`
+có `Kind = Utc` xuống rồi đọc lên thì nhận lại `Kind = Unspecified`, và `System.Text.Json`
+serialize giá trị Unspecified **không kèm hậu tố** — ra `"2026-08-04T14:15:06"` thay vì
+`"...Z"`. Trình duyệt hiểu chuỗi không hậu tố là **giờ địa phương**, nên mọi mốc lệch đi đúng
+bằng chênh múi giờ (+7 ở Việt Nam).
+
+**Phạm vi:** hạn hoàn thành, bình luận, thông báo, nhật ký hoạt động — gần như mọi màn hình.
+Chỉ `accessTokenExpiresAt` là đúng, vì giá trị đó không bao giờ đi qua EF.
+
+**Cách sửa:** một `ValueConverter` đóng dấu lại `Kind = Utc` **lúc đọc**, áp cho mọi cột
+`DateTime`/`DateTime?` trong `OnModelCreating`. Không migration, không dịch chuyển thời điểm
+nào — chỉ khôi phục thông tin mà tầng lưu trữ đánh rơi.
+
+> Đã loại phương án cấu hình `JsonSerializerOptions` ở tầng API: nó chỉ vá đường đi ra HTTP,
+> trong khi cùng giá trị `Unspecified` đó còn chảy vào so sánh nghiệp vụ (`IsOverdue`,
+> `DueDate < UtcNow`) và vào `DueDateNotifier`. Sửa ở tầng đọc là sửa một lần cho mọi người
+> tiêu thụ.
+
+🔴 **Hệ quả bắt buộc phải biết:** sau khi một cột có `ValueConverter`, **EF không dịch được
+`.Date` trên cột đó** — nó ném lúc chạy, thành HTTP 500. Bốn chỗ lọc theo hạn đã đổi sang so
+sánh thẳng với mốc nửa đêm (`DueDate < today`, tương đương về mặt toán học). Ai thêm truy vấn
+theo ngày sau này phải nhớ luật đó.
+
+> **Vì sao nó sống sót lâu như vậy:** không test nào so **chuỗi JSON thô** của một mốc thời
+> gian. Test so `DateTime` với `DateTime` thì `Kind` không ảnh hưởng tới toán tử so sánh, nên
+> mọi khẳng định đều xanh. Đáng chú ý hơn cả: comment ở `frontend/lib/format.ts:92-94` đã
+> **dự báo đúng lỗi này** ("nếu về sau có endpoint nào trả `DateTime` không hậu tố thì mọi
+> mốc lệch đi đúng bằng chênh múi giờ — kiểm chuỗi thô trước khi nghi ngờ hàm này"). Nó nằm
+> đó từ trước; chỉ là chưa ai đi kiểm chuỗi thô.
+
+---
+
+#### ADR-047 (2026-08-04) — Màu biểu đồ chia theo VIỆC nó làm, và hai lỗi chỉ thấy bằng mắt
+
+Màn thống kê không dùng bảng màu chung cho mọi biểu đồ, mà chia **ba nhóm token** theo đúng
+công việc của màu (`globals.css`):
+
+| Nhóm | Việc | Dùng ở đâu |
+|---|---|---|
+| `--viz-status-*` | **Trạng thái** — màu dành riêng, luôn kèm nhãn chữ | Biểu đồ theo trạng thái; dùng lại ngữ nghĩa của `status-tone.ts` để khớp với board |
+| `--viz-seq-*` | **Tuần tự** một sắc, nhạt → đậm | Độ ưu tiên (Highest…Lowest là thang CÓ THỨ TỰ, không phải danh mục ngang hàng) |
+| `--viz-load-*` | Ba phân đoạn phải phân biệt bằng màu | Biểu đồ khối lượng theo người |
+
+Chỉ nhóm thứ ba là bộ người đọc **buộc** phải phân biệt bằng màu, nên chỉ nó cần chạy
+validator — PASS toàn bộ ở cả hai chế độ. Chế độ sáng có cảnh báo tương phản < 3:1 ở màu xanh
+lá → **bắt buộc nhãn số hiện rõ**, nên mỗi hàng luôn in "x/y xong" thay vì chỉ tô màu. Bước
+màu chế độ tối là bộ **riêng** đã validate trên nền tối, không phải phép lật tự động.
+
+**Hai khối cố ý KHÔNG phải biểu đồ:** ba con số đầu trang là **thẻ số** (tỷ lệ hoàn thành là
+một **thanh mức**, không phải biểu đồ tròn hai lát); tiến độ sprint là **danh sách thanh
+mức**, vì mỗi sprint tính theo phạm vi riêng nên vẽ chung sẽ ngầm mời người đọc so chiều cao
+với nhau — tức mời họ đọc sai.
+
+🔴 **Hai lỗi validator không bắt được, vì nó kiểm màu chứ không kiểm bố cục:**
+
+1. Rãnh nền thanh mức ban đầu dùng bậc `--viz-seq-1`. Ở chế độ tối bậc đó đủ bão hòa để một
+   sprint **"0/2" hiện ra thanh xanh ĐẦY chiều ngang** — đọc thành đã xong 100%. Rãnh nền
+   phải trung tính (`--muted`); chỉ phần đã đầy mới được mang màu.
+2. Trang tràn ngang **104px** ở 375px. Nguyên nhân nằm ở **gốc layout dự án**, không ở trang
+   thống kê: `app/(app)/projects/[id]/layout.tsx` có một `div.grid` là grid item với
+   `min-width:auto`, nên bề rộng bị sàn hóa theo min-content của tab đang mở thay vì theo
+   viewport. Recharts `ResponsiveContainer` đo bề rộng của cha, nên nó và cái sàn đó nuôi
+   nhau thành một vòng nở ra không có điểm dừng. Sửa ở gốc layout — và điều đó **đồng thời
+   sửa luôn** lỗi tràn 8px của trang Board vốn đã được ghi nhận là "có sẵn từ trước".
+
+> **Rút ra:** quy trình màu là thứ **tính được**, nên phải chạy validator thay vì nhìn. Nhưng
+> validator chỉ kiểm màu — bố cục thì bắt buộc phải **mở ra nhìn**. Cả hai lỗi trên đều chỉ
+> hiện ra ở bước chụp màn hình, sau khi mọi phép kiểm màu đã xanh.
+
+---
+
+#### ADR-048 (2026-08-04) — Ba tính năng tầng 3, và ba ranh giới an ninh trong đó
+
+**1. `Project.Status` — cho một trường chết một đường ghi.** `Project.Complete()` có đúng
+một caller trong toàn bộ solution (`DbSeeder`), nên mọi project tạo qua API vĩnh viễn ở
+`ToDo` — trong khi `Status` vẫn nằm trong DTO và vẫn là khóa `sortBy` hợp lệ.
+
+Tách thành `POST /complete` + `/reopen` chứ **không** thêm một trường vào
+`UpdateProjectRequest`: `Status` là chuyển trạng thái có luật riêng (mở lại project chưa xong
+là vô nghĩa → 409), còn Update là ghi đè thông tin mô tả. Gộp lại thì mỗi lần sửa tên project
+cũng phải gửi kèm status, và quên gửi là đặt lại trạng thái — **đúng lỗi ADR-044 đã trả giá**
+với `description` của task. Cùng lý do đó, hai endpoint này **không cần `RowVersion`**
+(ADR-021).
+
+> 🔴 Phải thêm `NotificationType.**ProjectStatusChanged**` chứ không tái dùng `StatusChanged`.
+> `RelatedEntityKind` được **suy ra** từ `Type` (ADR-025) và `StatusChanged` suy ra `Task`,
+> nên tái dùng sẽ khiến chuông điều hướng tới `/tasks/{projectId}` — một id không tồn tại.
+> Đây chính là loại lệch mà việc suy-ra (thay vì lưu hai cột độc lập) sinh ra để chặn: nó
+> biến một lỗi thầm lặng thành một quyết định phải nghĩ.
+
+**2. `GET /employees?search=` — mở cho mọi người, nên ràng buộc LÀ tính năng.** Trước đó chỉ
+có `GET /admin/employees` sau quyền `employees:manage`, nên PM bình thường muốn mời ai vào dự
+án phải **gõ đúng địa chỉ email**.
+
+Ba ràng buộc, và cả ba đều là lý do endpoint được phép tồn tại chứ không phải chi tiết cài đặt:
+
+| Ràng buộc | Bỏ đi thì sao |
+|---|---|
+| Từ khóa **≥ 2 ký tự** (400 nếu ngắn hơn) | Một ký tự khớp phần lớn danh bạ; lặp 26 lần là có toàn bộ |
+| **Trần kết quả cứng ở server**, không nhận từ client | Client tự chọn `limit=10000` là mở lại đúng cánh cửa vừa khép |
+| DTO **chỉ 3 trường** (`id`, `name`, `email`) | Mỗi trường thêm vào là một mẩu thông tin nhân sự phát cho toàn công ty |
+
+Trả **400** chứ không phải danh sách rỗng khi từ khóa ngắn: rỗng khiến người dùng tưởng
+"không có ai tên vậy", trong khi thật ra họ mới gõ chưa đủ.
+
+> 📌 Test cho ràng buộc thứ ba khẳng định trên **JSON thô**, không deserialize vào record —
+> deserialize sẽ âm thầm bỏ qua mọi trường thừa và test vẫn xanh trong khi API vẫn đang rò rỉ.
+> Cùng lớp bài học với ADR-046b: khi một giá trị đi ra ngoài dưới dạng **chuỗi**, phải có ít
+> nhất một test chạm vào chuỗi đó.
+
+**3. @mention — client gửi ID, server LỌC.** Server cố ý **không parse `@tên`** từ nội dung:
+tên hiển thị không phải định danh (trùng tên, đổi tên, `@abc` có thể chỉ là một mẩu email).
+Client vốn đã biết chính xác id — nó lấy từ chính ô gợi ý người dùng vừa chọn.
+
+> 🔴 **Nhưng chính vì id do client gửi, server bắt buộc phải lọc lại.** Không lọc nghĩa là
+> bất kỳ ai cũng bắn được thông báo tới bất kỳ ai bằng cách nhét id lạ vào body, và người
+> nhận sẽ thấy **tên một task thuộc dự án họ không có quyền mở** — vừa là rò rỉ thông tin,
+> vừa là một kênh quấy rối. Chỉ giữ lại thành viên `Accepted` của đúng dự án đó.
+>
+> **Đã mutation test**: bỏ bộ lọc làm 2 test đỏ.
+
+Hai chi tiết nhỏ nhưng có chủ đích:
+- Người được nhắc **bị loại khỏi lượt `CommentAdded`** — hai thông báo cho cùng một hành động
+  là nhiễu, và cái cụ thể hơn ("bạn được nhắc tên") thắng.
+- Nhắc tên người ngoài dự án vẫn trả **thành công**. Bình luận là hợp lệ, chỉ phần nhắc tên
+  bị lọc bỏ; trả 400 ở đây sẽ tiết lộ "id này có tồn tại nhưng không thuộc dự án" — tức lại
+  là rò rỉ, chỉ đổi hình dạng.
+
+**Hạng mục thứ tư của tầng 3 — vòng đời Sprint — CHƯA làm**, và đó là quyết định chứ không
+phải bỏ sót: nó cần một lựa chọn sản phẩm (*task chưa xong đi đâu khi đóng sprint?*) mà nhiều
+câu trả lời đều bảo vệ được. Chi tiết và phụ thuộc ở §1 mục E.
+
+---
+
+#### Bài học 2026-08-04 — cùng một lớp lỗi bố cục, ba lần trong một phiên
+
+`min-width:auto` của grid/flex item xuất hiện **ba lần** trong phiên này, mỗi lần một triệu
+chứng khác nhau: chữ tràn khỏi dialog chi tiết Task, trang board lệch 8px, trang thống kê
+lệch 104px. Cả ba cùng một gốc — một item không có `min-w-0` nên nở theo nội dung dài nhất
+thay vì co về bề rộng khung.
+
+Kèm theo một cái bẫy phụ đáng nhớ: **`break-words` KHÔNG sửa được nó.**
+`overflow-wrap: break-word` cho phép ngắt để *khỏi tràn* nhưng **không làm giảm min-content**,
+nên track vẫn phồng và đoạn chữ vẫn không có bề rộng hữu hạn nào để ngắt theo. Cách sửa gốc
+là `min-w-0` (+ `grid-cols-[minmax(0,1fr)]` khi con lại là grid item).
+
+**Cách chẩn đoán, nên dùng lại:** duyệt ngược chuỗi tổ tiên và so `getBoundingClientRect()`
+của từng cấp với cha của nó — phần tử đầu tiên rộng hơn cha chính là chỗ rò rỉ. Nhanh hơn
+nhiều so với đoán từ class.
 
 > 📌 Cập nhật bảng này mỗi khi có quyết định kiến trúc mới hoặc thay đổi — đây sẽ là
 > phần rất hữu ích khi viết chương "Phân tích thiết kế" trong báo cáo tốt nghiệp.

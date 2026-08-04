@@ -41,7 +41,11 @@ export type NotificationType =
   | 'InvitationDeclined'
   | 'RoleChanged'
   | 'RemovedFromProject'
-  | 'MemberLeftProject';
+  | 'MemberLeftProject'
+  /** Dự án được đánh dấu hoàn thành hoặc mở lại — điều hướng tới Project, không phải Task. */
+  | 'ProjectStatusChanged'
+  /** Được nhắc tên (@mention) trong một bình luận. */
+  | 'Mentioned';
 
 /**
  * Loại liên kết giữa hai task.
@@ -71,7 +75,9 @@ export type ActivityAction =
   | 'CommentDeleted'
   | 'AccountLocked'
   | 'AccountUnlocked'
-  | 'SystemRoleChanged';
+  | 'SystemRoleChanged'
+  /** Đổi tập quyền của một vai trò hệ thống (ADR-045). `EntityType = "RolePermission"`. */
+  | 'PermissionsChanged';
 
 /**
  * Thứ tự hiển thị của Priority.
@@ -153,6 +159,8 @@ export const NOTIFICATION_TYPE_LABEL: Record<NotificationType, string> = {
   RoleChanged: 'Đổi vai trò',
   RemovedFromProject: 'Bị gỡ khỏi dự án',
   MemberLeftProject: 'Thành viên rời dự án',
+  ProjectStatusChanged: 'Dự án đổi trạng thái',
+  Mentioned: 'Được nhắc tên',
 };
 
 export const ACTIVITY_ACTION_LABEL: Record<ActivityAction, string> = {
@@ -173,4 +181,5 @@ export const ACTIVITY_ACTION_LABEL: Record<ActivityAction, string> = {
   AccountLocked: 'Khóa tài khoản',
   AccountUnlocked: 'Mở khóa tài khoản',
   SystemRoleChanged: 'Đổi quyền hệ thống',
+  PermissionsChanged: 'Đổi quyền của vai trò',
 };

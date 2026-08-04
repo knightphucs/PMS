@@ -1,63 +1,167 @@
 # Chuẩn bị cho phiên Frontend kế tiếp
 
 > Soạn ngày 2026-07-31, cuối phiên "Frontend — nền tảng".
-> **Cập nhật 2026-08-03** cuối phiên "Backend hoàn chỉnh" — xem §0 trước.
-> Đọc cùng `ARCHITECTURE.md` §6 và ADR-027 → ADR-042.
+> **Cập nhật 2026-08-05** — **đọc §0 trước**, rồi §0a; các mục bên dưới lỗi thời phần lớn.
+> Đọc cùng `ARCHITECTURE.md` §6 và ADR-027 → ADR-048.
 
 ---
 
-## 0. 🆕 Cập nhật 2026-08-03 (tối) — Lời mời + chi tiết Task + Notification bell đã xong
+## 0. 🆕 Cập nhật 2026-08-05 — việc cho phiên tới
 
-**Đọc mục này trước; §2, §3 và §4 bên dưới đã lỗi thời một phần.**
+**Đây là mục mới nhất. §0a bên dưới là bản của 2026-08-04, vẫn đúng nhưng chưa đủ.**
 
-### Còn lại đúng ba nhóm, không nhóm nào bị chặn
+### ⚠️ Đọc trước một dòng lệnh: kiểm nhánh
 
-| # | Việc | Tầng dữ liệu | Ghi chú |
-|---|---|---|---|
-| 1 | **Dashboard thống kê** | ✅ có sẵn (`useProjectStatistics`) | Phải `npm i recharts` — chưa cài. `byStatus`/`byPriority` đã zero-fill đủ mọi enum nên không cần tự vá cột thiếu |
-| 2 | **Quên / đặt lại mật khẩu** | ✅ có sẵn (`forgotPassword`/`resetPassword`) | 2 trang. ⚠️ `forgot-password` LUÔN 204 → **một** thông điệp duy nhất (ADR-041) |
-| 3 | **Nhóm Admin** (nhân sự · nhãn toàn cục · audit log) | ⚠️ **một nửa** | Audit log đã có `useSystemAuditLogs`; nhãn đã có `useCreateLabel/useUpdateLabel/useDeleteLabel`. **`AdminEmployees` chưa có gì** — phải tự viết |
-| — | Search toàn cục | ❌ **chưa có API** | Xem cảnh báo `?search=` bên dưới |
+Nhánh làm việc là **`module/authorization-permission`**, **không phải `main`** — `main` đi
+sau 8 commit. Chạy `git log --oneline -5` trước khi sửa bất cứ gì.
 
-**Hợp đồng `AdminEmployeesController` (đã tra sẵn, khỏi mở lại backend):**
-`GET /admin/employees` — PagedRequest, `search` khớp `Name` **hoặc** `Email` và **thực sự
-chạy** ở endpoint này; sort whitelist `name|email|role|locked`. Trả
-`PagedResult<EmployeeAdminResponse>` = `{id, name, email, systemRole, isLocked, lockedAt|null,
-lockReason|null, createdAt}`.
-`POST /admin/employees/{id}/lock` body `{reason}` (bắt buộc, ≤256) → **204** ·
-`POST /admin/employees/{id}/unlock` → **204** ·
-`PUT /admin/employees/{id}/system-role` body `{role}` → **204**.
-Tất cả gác bằng policy `require-system-admin` (403 với người khác).
-Mã lỗi cần thông điệp riêng: **409** "đây là SystemAdmin hoạt động cuối cùng" · **409** khóa
-tài khoản đã khóa / mở tài khoản không khóa · **400** tự khóa hoặc tự đổi vai trò của chính
-mình · **404** không tìm thấy.
+> Bài học 2026-08-05, trả giá thật: một phiên đã được giao đi sửa lỗi tràn ngang 8px ở
+> `/board` và **sửa lại thứ commit `894d7f0` đã sửa 22 giờ trước đó**, vì nó làm việc trên
+> một worktree tách từ `main`. Mô tả lỗi nghe hợp lý, mã nguồn trong tầm mắt cũng khớp — chỉ
+> có `git log` của nhánh kia là biết sự thật. **Kiểm lịch sử trước khi tin một mô tả lỗi.**
 
-### 🪤 Bốn cái bẫy MỚI của phiên chi tiết Task
+### Ba tính năng backend đã xong mà frontend CHƯA CÓ GÌ (ADR-048)
 
-1. 🔴 **`PUT /tasks/{id}` là GHI ĐÈ TOÀN PHẦN, không phải PATCH** (ADR-044). Trường nào không
-   gửi thì thành `null`. Lỗi này **đã sống thật**: form sửa task chưa bao giờ gửi
-   `description` nên đổi tên task là xóa trắng mô tả. Nay mọi lệnh ghi của màn chi tiết đi
-   qua đúng một trục `components/tasks/use-task-field-save.ts` — **đừng** thêm chỗ gọi
-   `useUpdateTask` thứ hai vào màn đó.
-2. 🔴 Trong trục đó, `patch.dueDate ?? current.dueDate` là **sai**. Hai trường nullable
-   (`dueDate`, `description`) cần phân biệt "không truyền" (`undefined`) với "truyền `null`";
-   dùng `??` thì thao tác **xóa** hạn/mô tả im lặng không có tác dụng.
-3. 🔴 **Khóa nút lưu khi `detail.isFetching`**, trong đó có lượt tải lại sau 409. Bấm Lưu lúc
-   đó là gửi lại đúng `rowVersion` đã chết → 409 vĩnh viễn.
-4. **`?search=` là một lời hứa hão ở hầu hết endpoint.** `PagedRequest.Search` được model
-   binder nhận ở **mọi** danh sách, nhưng chỉ `EmployeeRepository` và
-   `NotificationRepository` thực sự dùng; project/task/sprint/comment/audit-log nhận rồi **bỏ
-   qua im lặng**. Đây là lý do ô chọn task khi tạo liên kết lọc ở **client** (trần 100 task,
-   `useProjectTaskOptions`).
+Không bị chặn, không cần quyết định. Cả ba **vô hình nếu chỉ nhìn UI** — backend có đường
+đi, người dùng không có nút.
+
+| Backend đã có | Cần dựng | Bẫy |
+|---|---|---|
+| `POST /projects/{id}/complete` + `/reopen` | Nút đổi trạng thái dự án, PM-only | `reopen` trả **409** nếu project chưa `Done`; `reopen` đưa về `InProgress` **chứ không** về `ToDo` |
+| `GET /employees?search=` | Ô gợi ý khi mời thành viên | Từ khóa **≥ 2 ký tự**, ngắn hơn là **400**. DTO chỉ 3 trường — đừng trông chờ `systemRole`/`isLocked` |
+| `mentionedEmployeeIds` | Ô chọn @mention trong comment | Client **gửi id**; server **không** parse `@tên`. Nhắc người ngoài dự án vẫn trả **thành công**, phần nhắc bị lọc bỏ im lặng (trả 400 sẽ là rò rỉ) |
+
+### 🪤 Ba chỗ "bấm vào không thấy gì" — rà giao diện 2026-08-05
+
+1. 🔴 **Nút "Mở trang riêng" trong dialog chi tiết Task là một NO-OP.**
+   `components/tasks/task-detail-header.tsx` dùng `<Link>` trỏ tới
+   `/projects/{id}/tasks/{taskId}` — nhưng khi dialog đang mở, **URL hiện tại đã đúng là
+   chuỗi đó** (intercepting route `(.)` giữ nguyên đường dẫn, ADR-043). Bấm `<Link>` tới
+   chính URL đang đứng không đổi router state → dialog ở nguyên đó.
+
+   Sửa bằng **điều hướng cứng** — `<a href>` thường hoặc `window.location.assign()`, **không
+   phải** `next/link`. Intercepting route **chỉ** áp cho soft navigation; một lần tải trang
+   đầy đủ mới render trang thật.
+
+   > Đây là cái bẫy **cấu trúc** của ADR-043: hai vỏ dùng chung một URL là điều làm cho
+   > dialog chia sẻ link được — và cũng chính là điều làm cho "thoát ra trang thật" không
+   > thể là một soft navigation. Kiểm chứng đúng: mở dialog → bấm → dialog phải **biến mất**
+   > và thanh tab dự án phải **ẩn** (`showTabs === false` khi segment là `'tasks'`).
+
+2. **Không có trang hồ sơ cá nhân.** `UserMenu` chỉ có mục Đăng xuất; không route nào trong
+   `app/`. ⚠️ Backend cũng **chưa có đường sửa hồ sơ**: `AuthController` chỉ có `GET /auth/me`,
+   không `PUT /employees/me`, không đổi mật khẩu khi đã đăng nhập.
+
+   Trang **chỉ đọc** làm được ngay. Muốn sửa được thì phải làm backend trước — và nhớ
+   `/auth/me` **dựng DTO từ CLAIM chứ không đọc DB**, nên đổi tên sẽ **không hiện ra** cho
+   tới khi token được làm mới. Đó là quyết định cần **ADR riêng**, không phải chi tiết cài đặt.
+
+3. **Sidebar chỉ còn 4 mục**, không phản ánh phạm vi sản phẩm khi đang ở trong một dự án.
+
+   🔴 **Trong `components/layout/sidebar.tsx` có một khẳng định SAI, sửa luôn khi làm:**
+   comment ở đó nói `AppShell` "không biết project nào đang mở vì nó nằm TRÊN segment `[id]`".
+   Không đúng với client component — `SidebarNav` **đã** gọi `usePathname()`, mà hàm đó trả
+   **toàn bộ** đường dẫn kể cả `[id]`. Rút id bằng regex trên pathname là hợp lệ, và **không**
+   dính rủi ro "hai tab nói dối" mà comment lo: đó là rủi ro của **store**, còn URL vốn đã
+   thuộc về từng tab.
+
+   Hướng đúng: khối theo **ngữ cảnh dự án** hiện khi pathname khớp `/projects/{id}/*`
+   (Bảng · Backlog · Sprint · Thống kê · Thành viên), cộng danh sách dự án gần đây.
+
+### Cách chẩn đoán tràn ngang — dùng lại, nhanh hơn đoán từ class
+
+Đo `width: min-content` của **từng grid item** rồi so với bề rộng khả dụng của container:
+item nào có min-content lớn hơn chính là thứ sàn hóa track. Nhanh hơn nhiều so với duyệt
+`getBoundingClientRect()` từng cấp, vì nó chỉ thẳng ra **nguyên nhân** thay vì hậu quả.
+
+```js
+for (const child of container.children) {
+  const prev = child.style.width;
+  child.style.width = 'min-content';
+  console.log(child.className, child.getBoundingClientRect().width);
+  child.style.width = prev;
+}
+```
+
+Ví dụ thật (thanh tab dự án ở 375px): header `66.8` · **thanh tab `366.8`** · thân board
+`224` → thủ phạm là thanh tab, **không phải** cột Kanban như mô tả lỗi ban đầu nói. Con số
+`366.8` khớp chính xác tổng bề rộng 4 tab cộng gap — đó là bằng chứng, không phải suy đoán.
+
+⚠️ Và một `nav` **đã có** `overflow-x-auto` vẫn có thể là nguồn: `min-width` computed của
+chính nó là `0px`, nhưng `<div>` bọc ngoài là block thường với `min-width: auto` nên nó
+**khai báo hộ** trọn bề rộng nội tại lên cấp trên.
+
+---
+
+## 0a. Cập nhật 2026-08-04 — KHÔNG CÒN MÀN HÌNH NÀO ⬜
+
+**Đọc §0 trước mục này; §0b, §2, §3 và §4 bên dưới đã lỗi thời phần lớn.**
+
+Ba nhóm việc mà §0 cũ liệt kê — Dashboard, Quên/đặt lại mật khẩu, nhóm Admin — **đã xong
+hết**. Cộng thêm một nhóm không có trong danh sách đó: **màn Phân quyền** (`/admin/roles`),
+sinh ra từ mô hình permission mới (ADR-045).
+
+### Còn lại gì cho phiên sau
+
+| Việc | Trạng thái | Ghi chú |
+|---|---|---|
+| **Backend tầng 3** | ⬜ đã khảo sát, chưa làm | Bốn tính năng — chi tiết đầy đủ ở `ARCHITECTURE.md` §1 mục E. Nặng nhất: vòng đời Sprint (cần ADR riêng) |
+| **Báo cáo kiểu Jira** | ⬜ phiên riêng | Velocity **phụ thuộc** vòng đời Sprint — làm hạng mục kia trước |
+| **Kỹ thuật DB** | ⬜ phiên riêng | Trigger · stored procedure · view · index |
+| Search toàn cục | ⬜ vẫn chưa có API | Lời giải đúng là Elasticsearch, không phải nới `?search=` |
+
+### 🪤 Bốn cái bẫy MỚI của phiên 2026-08-04
+
+1. 🔴 **`min-width:auto` của grid/flex item** — cắn **ba lần trong một phiên**: chữ tràn khỏi
+   dialog chi tiết Task, board lệch 8px, thống kê lệch 104px ở 375px.
+
+   **`break-words` KHÔNG sửa được nó.** `overflow-wrap: break-word` cho phép ngắt để *khỏi
+   tràn* nhưng **không làm giảm min-content**, nên track vẫn phồng và đoạn chữ vẫn không có
+   bề rộng hữu hạn nào để ngắt theo. Sửa gốc: `min-w-0`, cộng
+   `grid-cols-[minmax(0,1fr)]` khi con lại là grid item.
+
+   **Cách chẩn đoán, nên dùng lại:** duyệt ngược chuỗi tổ tiên và so
+   `getBoundingClientRect().width` của từng cấp với cha của nó — phần tử đầu tiên rộng hơn
+   cha chính là chỗ rò rỉ. Nhanh hơn nhiều so với đoán từ class.
+
+2. 🔴 **HAI tầng quyền, HAI file, đừng nhầm** (ADR-045):
+   - `lib/auth/system-permissions.ts` — tầng 1, đọc `EmployeeDto.permissions`
+   - `lib/tasks/permissions.ts` — tầng 2, đọc `RoleInProject`, **không đổi gì trong phiên này**
+
+   Frontend **KHÔNG giải mã JWT**. `hasPermission()` đọc `undefined` thành "không quyền nào"
+   (fail-closed) — cần thiết vì tab đang mở lúc deploy giữ `employee` cũ không có trường đó.
+
+   Gác UI bằng **quyền**, không bằng `systemRole === 'SystemAdmin'`: vai trò nay chỉ là định
+   danh, quyền mới là thứ quyết định và nó đổi được bằng dữ liệu.
+
+3. 🔴 **shadcn v4 (Base UI) KHÔNG có `asChild`.** Nút-là-liên-kết thì gắn thẳng
+   `buttonVariants()` lên `<Link>`. Dropdown/trigger thì dùng prop `render={<Button …/>}`.
+
+4. **Rãnh nền thanh mức phải TRUNG TÍNH** (`--muted`), không phải một bậc của thang màu biểu
+   đồ. Đã thử `--viz-seq-1` và ở chế độ tối nó đủ bão hòa để một sprint **"0/2" hiện ra thanh
+   đầy chiều ngang** — đọc thành đã xong 100%. Chỉ phần đã đầy mới được mang màu.
+
+### 📌 Ba đính chính với những gì §0 cũ viết
+
+- **`?search=` KHÔNG phải "chỉ Employee + Notification"** — 5/6 repository vẫn luôn lọc thật;
+  chỉ `ActivityLogRepository` là không, và nay đã sửa (ADR-046). Nên **ô tìm ở màn nhật ký hệ
+  thống là hợp lệ** và đã dựng. Điều còn đúng: `?search=` chỉ lọc **một trường** mỗi endpoint
+  (Task chỉ theo `Name`, không theo mã `PMS-12`), nên nó không thay được search toàn cục.
+- **Tầng dữ liệu `AdminEmployees` nay đã có đủ** — `types/admin.ts`,
+  `lib/api/endpoints/admin.ts`, `lib/hooks/use-admin.ts`. Đã kiểm chứng trên trình duyệt rằng
+  `search` ở endpoint đó **thật sự chạy**.
+- **Hợp đồng `AdminEmployeesController` ghi ở §0 cũ vẫn đúng** và đã dùng nguyên vẹn; bốn mã
+  lỗi (409 admin cuối cùng · 409 trạng thái khóa · 400 tự thao tác lên mình · 404) đều có
+  thông điệp riêng ở UI.
 
 ### Đã hết hiệu lực — đừng làm lại
 
-- ~~"Lời mời của tôi" chưa có màn~~ → `app/(app)/invitations/page.tsx`
-- ~~Notification không có gì ở FE~~ → `types/notification.ts` + `endpoints/notifications.ts`
-  + `use-notifications.ts` + `notificationKeys`
-- ~~`permissions.ts` thiếu hàm cho action mới~~ → đã thêm `canManageLabels`,
-  `canManageTaskLinks`, `canUploadAttachment`, `canWatch`, `canDeleteAttachment`
-- ~~Tạo subtask chưa có giao diện~~ → `TaskFormDialog` nhận prop `parentTaskId`
+- ~~Dashboard chưa có màn~~ → `app/(app)/projects/[id]/statistics/page.tsx`, tab thứ 5
+- ~~Quên/đặt lại mật khẩu chưa có màn~~ → `app/(auth)/forgot-password/`, `reset-password/`
+- ~~Nhóm Admin chưa có màn~~ → `app/(app)/admin/` với **bốn** tab
+- ~~`AdminEmployees` chưa có tầng dữ liệu~~ → đã có
+- ~~Sidebar còn mục "Sắp có"~~ → đã gỡ hẳn; `href` nay bắt buộc trong `NavItem`
+- ~~`recharts` chưa cài~~ → đã cài, Recharts 3
 
 ---
 

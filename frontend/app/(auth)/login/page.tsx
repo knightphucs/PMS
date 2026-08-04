@@ -77,13 +77,21 @@ function LoginForm() {
             {...register('email')}
           />
 
-          <Field
-            label="Mật khẩu"
-            type="password"
-            autoComplete="current-password"
-            error={errors.password?.message}
-            {...register('password')}
-          />
+          <div className="grid gap-1.5">
+            <Field
+              label="Mật khẩu"
+              type="password"
+              autoComplete="current-password"
+              error={errors.password?.message}
+              {...register('password')}
+            />
+            <Link
+              href="/forgot-password"
+              className="text-muted-foreground justify-self-end text-sm underline-offset-4 hover:underline"
+            >
+              Quên mật khẩu?
+            </Link>
+          </div>
         </CardContent>
 
         <CardFooter className="mt-6 flex-col gap-4">

@@ -49,7 +49,20 @@ export default function ProjectDetailLayout({
 
   return (
     <>
-      <div className="grid gap-5">
+      {/*
+        🔴 `min-w-0` + cột tường minh `minmax(0,1fr)` — không phải trang trí.
+
+        Đây là gốc của MỌI tab dự án, và nó là grid item nên mặc định có
+        `min-width:auto`: bề rộng của nó bị sàn hóa theo min-content của nội dung tab đang
+        mở, thay vì theo viewport. Hệ quả đo được ở 375px: tab Bảng tràn ngang 8px, còn tab
+        Thống kê tràn 104px (Recharts `ResponsiveContainer` đo bề rộng của cha, nên nó và
+        cái sàn min-content nuôi nhau thành một vòng nở ra không có điểm dừng).
+
+        Sửa ở ĐÂY chứ không ở từng trang tab: mọi tab đều là con của grid này, nên vá từng
+        trang là bốn bản sao chắc chắn có lúc thiếu một. Cùng khuôn với
+        `components/tasks/task-section.tsx`.
+      */}
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-5">
         {overview.isError ? (
           <QueryError
             title="Không mở được dự án"

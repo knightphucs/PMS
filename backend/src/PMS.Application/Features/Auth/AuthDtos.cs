@@ -10,7 +10,26 @@ public record ForgotPasswordRequest(string Email);
 
 public record ResetPasswordRequest(string Token, string NewPassword, string ConfirmPassword);
 
-public record EmployeeDto(Guid Id, string Name, string Email, SystemRole SystemRole);
+public record EmployeeDto(Guid Id, string Name, string Email, SystemRole SystemRole)
+{
+    /// <summary>
+    /// Quyền tầng 1 của người dùng (ADR-045) — cùng tập với claim <c>permission</c> trong JWT,
+    /// cùng một nguồn là bảng <c>RolePermissions</c>.
+    /// <para>
+    /// Có mặt ở đây để frontend gác nút/menu mà <b>không phải giải mã JWT</b>: access token
+    /// nằm trong bộ nhớ Zustand và client chưa từng có một dòng nào đọc nội dung nó (ADR-027).
+    /// Thêm bộ phân tích token ở client là thêm chỗ thứ hai để lệch. Cưỡng chế thật vẫn 100%
+    /// ở server — đây chỉ để UI khỏi hiện nút chắc chắn sẽ nhận 403.
+    /// </para>
+    /// <para>
+    /// 🔴 Là property <c>init</c> có mặc định <c>[]</c>, KHÔNG phải tham số positional thứ 5:
+    /// Mapperly map từ <c>Employee</c> — thứ không có member nào tương ứng — nên tham số bắt
+    /// buộc sẽ làm mapper không biên dịch được. Mặc định rỗng cũng khiến "quên điền" cho ra
+    /// <b>không quyền nào</b> (fail-closed) thay vì NRE.
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<string> Permissions { get; init; } = [];
+}
 
 /// <summary>
 /// Hợp đồng NỘI BỘ giữa <see cref="IAuthService"/> và tầng API — có chứa refresh token.

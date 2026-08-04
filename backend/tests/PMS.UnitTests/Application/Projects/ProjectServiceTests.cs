@@ -20,6 +20,7 @@ public class ProjectServiceTests
     private readonly IProjectAuthorizationService _authz = Substitute.For<IProjectAuthorizationService>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly IActivityLogger _activityLog = Substitute.For<IActivityLogger>();
+    private readonly INotificationService _notifications = Substitute.For<INotificationService>();
     private readonly IProjectTaskCounterRepository _counterRepo = Substitute.For<IProjectTaskCounterRepository>();
 
     private readonly Guid _userId = Guid.NewGuid();
@@ -35,7 +36,7 @@ public class ProjectServiceTests
         _currentUser.EmployeeId.Returns(_userId);
 
         _sut = new ProjectService(
-            _uow, _authz, _currentUser, _activityLog,
+            _uow, _authz, _currentUser, _activityLog, _notifications,
             new ProjectMapper(),
             NullLogger<ProjectService>.Instance);
     }

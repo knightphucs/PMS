@@ -24,11 +24,25 @@ public class ActivityLogRepository : Repository<ActivityLog>, IActivityLogReposi
     /// buộc vì nhiều dòng log của cùng một thao tác được ghi trong CÙNG một
     /// <c>SaveChanges</c> nên có <c>CreatedAt</c> giống hệt nhau; thiếu nó thì thứ tự giữa
     /// hai lần gọi cùng một trang có thể khác nhau.
+    /// <para>
+    /// 🔴 <c>Search</c> lọc trên <c>Detail</c> — thêm 2026-08-04. Trước đó repository này
+    /// <b>nhận rồi bỏ qua im lặng</b> tham số đó ở cả ba endpoint dùng nó
+    /// (<c>/tasks/{id}/activity</c>, <c>/projects/{id}/activity</c>,
+    /// <c>/admin/audit-logs</c>): client gửi <c>?search=</c> và nhận về HTTP 200 kèm nguyên
+    /// trang CHƯA lọc — sai một cách không thể phát hiện từ phía client. Đây là repository
+    /// cuối cùng còn sót lại; 5 repository kia đều đã lọc thật.
+    /// </para>
     /// </summary>
     private static async Task<PagedResult<ActivityLog>> PageAsync(
         IQueryable<ActivityLog> query, PagedRequest request, CancellationToken ct)
     {
         query = query.AsNoTracking().Include(a => a.Employee);
+
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var keyword = request.Search.Trim();
+            query = query.Where(a => a.Detail.Contains(keyword));
+        }
 
         var totalCount = await query.CountAsync(ct);
 

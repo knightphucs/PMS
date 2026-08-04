@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using PMS.Application.Common.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PMS.Application.Common.Models;
 using PMS.Application.Features.ActivityLogs;
@@ -18,7 +19,7 @@ namespace PMS.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/v1/admin/audit-logs")]
-[Authorize(Policy = "require-system-admin")]
+[Authorize(Policy = SystemPermissions.AuditRead)]
 public class AdminAuditController : ControllerBase
 {
     private readonly IActivityLogService _activity;

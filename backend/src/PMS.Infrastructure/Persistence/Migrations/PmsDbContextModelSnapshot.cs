@@ -322,6 +322,49 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.ToTable("PasswordResetTokens", (string)null);
                 });
 
+            modelBuilder.Entity("PMS.Domain.Entities.Permission", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Code");
+
+                    b.ToTable("Permissions", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Code = "employees:manage",
+                            Description = "Quản lý nhân sự: xem danh sách, khóa/mở tài khoản, đổi vai trò hệ thống"
+                        },
+                        new
+                        {
+                            Code = "audit:read",
+                            Description = "Đọc nhật ký cấp hệ thống"
+                        },
+                        new
+                        {
+                            Code = "labels:manage",
+                            Description = "Sửa và xóa nhãn toàn cục (xóa nhãn gỡ chip khỏi board của mọi dự án)"
+                        },
+                        new
+                        {
+                            Code = "projects:create",
+                            Description = "Tạo dự án mới (người tạo tự động là Project Manager của dự án đó)"
+                        },
+                        new
+                        {
+                            Code = "roles:manage",
+                            Description = "Sửa quyền của từng vai trò hệ thống"
+                        });
+                });
+
             modelBuilder.Entity("PMS.Domain.Entities.Project", b =>
                 {
                     b.Property<Guid>("Id")
@@ -469,6 +512,55 @@ namespace PMS.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("RefreshTokens", (string)null);
+                });
+
+            modelBuilder.Entity("PMS.Domain.Entities.RolePermission", b =>
+                {
+                    b.Property<string>("SystemRole")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("PermissionCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("SystemRole", "PermissionCode");
+
+                    b.HasIndex("PermissionCode");
+
+                    b.ToTable("RolePermissions", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            SystemRole = "SystemAdmin",
+                            PermissionCode = "employees:manage"
+                        },
+                        new
+                        {
+                            SystemRole = "SystemAdmin",
+                            PermissionCode = "audit:read"
+                        },
+                        new
+                        {
+                            SystemRole = "SystemAdmin",
+                            PermissionCode = "labels:manage"
+                        },
+                        new
+                        {
+                            SystemRole = "SystemAdmin",
+                            PermissionCode = "roles:manage"
+                        },
+                        new
+                        {
+                            SystemRole = "SystemAdmin",
+                            PermissionCode = "projects:create"
+                        },
+                        new
+                        {
+                            SystemRole = "User",
+                            PermissionCode = "projects:create"
+                        });
                 });
 
             modelBuilder.Entity("PMS.Domain.Entities.Sprint", b =>
@@ -620,6 +712,8 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.HasIndex("ReporterId");
 
                     b.HasIndex("SprintId");
+
+                    b.HasIndex("DueDate", "Status");
 
                     b.HasIndex("ProjectId", "Number")
                         .IsUnique();
@@ -808,6 +902,17 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Navigation("Employee");
                 });
 
+            modelBuilder.Entity("PMS.Domain.Entities.RolePermission", b =>
+                {
+                    b.HasOne("PMS.Domain.Entities.Permission", "Permission")
+                        .WithMany("RolePermissions")
+                        .HasForeignKey("PermissionCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Permission");
+                });
+
             modelBuilder.Entity("PMS.Domain.Entities.Sprint", b =>
                 {
                     b.HasOne("PMS.Domain.Entities.Project", "Project")
@@ -926,6 +1031,11 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Navigation("TaskAssignments");
 
                     b.Navigation("Watching");
+                });
+
+            modelBuilder.Entity("PMS.Domain.Entities.Permission", b =>
+                {
+                    b.Navigation("RolePermissions");
                 });
 
             modelBuilder.Entity("PMS.Domain.Entities.Project", b =>
