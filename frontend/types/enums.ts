@@ -23,6 +23,57 @@ export type InvitationStatus = 'Pending' | 'Accepted' | 'Declined';
 export type RelatedEntityKind = 'None' | 'Project' | 'Task';
 
 /**
+ * Soi gương `PMS.Domain/Enums/NotificationType.cs`.
+ *
+ * ⚠️ Đừng dựng bảng `NotificationType → route` từ danh sách này. `RelatedEntityKind` là
+ * giá trị SUY RA từ chính `Type` ở phía backend (ADR-025) — dựng bảng thứ hai ở frontend
+ * là tạo ra một bản sao chắc chắn có lúc lệch. Điều hướng bằng cặp
+ * `(relatedEntityKind, relatedEntityId)`; enum này chỉ dùng để chọn icon và nhãn.
+ */
+export type NotificationType =
+  | 'TaskAssigned'
+  | 'TaskUnassigned'
+  | 'DueSoon'
+  | 'CommentAdded'
+  | 'StatusChanged'
+  | 'InvitedToProject'
+  | 'InvitationAccepted'
+  | 'InvitationDeclined'
+  | 'RoleChanged'
+  | 'RemovedFromProject'
+  | 'MemberLeftProject';
+
+/**
+ * Loại liên kết giữa hai task.
+ *
+ * ⚠️ `IsBlockedBy` **không bao giờ tồn tại trong DB** — backend chuẩn hóa nó thành `Blocks`
+ * đảo chiều lúc ghi (ADR-038). Nhưng nó VẪN xuất hiện ở hai nơi hợp lệ: khi client gửi lên
+ * (tiện cho UI "task này bị chặn bởi..."), và trong `TaskLinkResponse.linkType` khi xem từ
+ * đầu bị chặn.
+ */
+export type LinkType = 'Blocks' | 'IsBlockedBy' | 'RelatesTo' | 'Duplicates';
+
+/** Soi gương `PMS.Domain/Enums/ActivityAction.cs`. */
+export type ActivityAction =
+  | 'Created'
+  | 'Updated'
+  | 'Deleted'
+  | 'StatusChanged'
+  | 'MemberInvited'
+  | 'MemberJoined'
+  | 'MemberDeclined'
+  | 'MemberRoleChanged'
+  | 'MemberRemoved'
+  | 'Assigned'
+  | 'Unassigned'
+  | 'Commented'
+  | 'CommentUpdated'
+  | 'CommentDeleted'
+  | 'AccountLocked'
+  | 'AccountUnlocked'
+  | 'SystemRoleChanged';
+
+/**
  * Thứ tự hiển thị của Priority.
  *
  * Không suy ra được từ chuỗi, và thứ tự số phía backend thì NGƯỢC trực giác
@@ -72,4 +123,54 @@ export const INVITATION_STATUS_LABEL: Record<InvitationStatus, string> = {
   Pending: 'Chờ phản hồi',
   Accepted: 'Đã tham gia',
   Declined: 'Đã từ chối',
+};
+
+/**
+ * Nhãn đọc từ phía TASK ĐANG MỞ — `Blocks` nghĩa là "task này chặn task kia".
+ * `Record<LinkType, string>` chứ không phải object thường: thêm một `LinkType` mới mà quên
+ * cập nhật thì đỏ ngay lúc biên dịch (ADR-029).
+ */
+export const LINK_TYPE_LABEL: Record<LinkType, string> = {
+  Blocks: 'Đang chặn',
+  IsBlockedBy: 'Bị chặn bởi',
+  RelatesTo: 'Liên quan tới',
+  Duplicates: 'Trùng với',
+};
+
+/**
+ * Nhãn ngắn cho thông báo — dùng làm tiêu đề phụ, KHÔNG thay cho `content`.
+ * `content` do backend soạn sẵn (có tên người, tên task) và luôn là thứ hiển thị chính.
+ */
+export const NOTIFICATION_TYPE_LABEL: Record<NotificationType, string> = {
+  TaskAssigned: 'Được giao việc',
+  TaskUnassigned: 'Gỡ khỏi việc',
+  DueSoon: 'Sắp tới hạn',
+  CommentAdded: 'Bình luận mới',
+  StatusChanged: 'Đổi trạng thái',
+  InvitedToProject: 'Lời mời dự án',
+  InvitationAccepted: 'Chấp nhận lời mời',
+  InvitationDeclined: 'Từ chối lời mời',
+  RoleChanged: 'Đổi vai trò',
+  RemovedFromProject: 'Bị gỡ khỏi dự án',
+  MemberLeftProject: 'Thành viên rời dự án',
+};
+
+export const ACTIVITY_ACTION_LABEL: Record<ActivityAction, string> = {
+  Created: 'Tạo mới',
+  Updated: 'Cập nhật',
+  Deleted: 'Xóa',
+  StatusChanged: 'Đổi trạng thái',
+  MemberInvited: 'Mời thành viên',
+  MemberJoined: 'Tham gia dự án',
+  MemberDeclined: 'Từ chối lời mời',
+  MemberRoleChanged: 'Đổi vai trò',
+  MemberRemoved: 'Gỡ thành viên',
+  Assigned: 'Giao việc',
+  Unassigned: 'Gỡ khỏi việc',
+  Commented: 'Bình luận',
+  CommentUpdated: 'Sửa bình luận',
+  CommentDeleted: 'Xóa bình luận',
+  AccountLocked: 'Khóa tài khoản',
+  AccountUnlocked: 'Mở khóa tài khoản',
+  SystemRoleChanged: 'Đổi quyền hệ thống',
 };
