@@ -1,0 +1,27 @@
+$kind: http-request
+name: Watch task (me)
+description: "Tự theo dõi. Không có body. IDEMPOTENT — bấm hai lần trả 200 với cùng trạng thái. Trả { isWatching, watcherCount }."
+url: "{{api_url}}/tasks/:task_id/watchers/me"
+method: POST
+pathVariables:
+  - key: task_id
+    value: 8DD5602C-EB76-4E72-BFF4-707011B0E6AF
+    description: Task liên quan
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1785500009000

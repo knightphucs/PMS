@@ -1,0 +1,10 @@
+$kind: http-request
+name: List labels
+description: "Danh sách nhãn toàn cục, sắp theo tên."
+url: "{{api_url}}/labels"
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1785500001000

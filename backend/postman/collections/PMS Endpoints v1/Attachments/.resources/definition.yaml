@@ -1,0 +1,4 @@
+$kind: collection
+name: Attachments
+description: "File đính kèm cho Task/Project (ADR-035). Upload dùng multipart/form-data với TRƯỜNG TÊN \"file\" — đặt tên khác thì model binder không thấy gì và trả 400."
+order: 1785500015000

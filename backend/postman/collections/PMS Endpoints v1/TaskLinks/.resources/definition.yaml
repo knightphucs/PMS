@@ -1,0 +1,4 @@
+$kind: collection
+name: TaskLinks
+description: "Liên kết phụ thuộc giữa hai task (ADR-038). LƯU Ý: IsBlockedBy được CHUẨN HÓA thành Blocks đảo chiều lúc ghi, nên nó không bao giờ tồn tại trong DB."
+order: 1785500011000

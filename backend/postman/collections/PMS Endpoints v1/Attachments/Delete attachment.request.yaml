@@ -1,0 +1,27 @@
+$kind: http-request
+name: Delete attachment
+description: "Người TẢI LÊN hoặc ProjectManager. Member khác nhận 403 (khuôn ADR-026)."
+url: "{{api_url}}/attachments/:attachment_id"
+method: DELETE
+pathVariables:
+  - key: attachment_id
+    value: A1B2C3D4-E5F6-4708-9A0B-1C2D3E4F5061
+    description: File đính kèm
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1785500021000

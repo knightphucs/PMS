@@ -1,0 +1,35 @@
+$kind: http-request
+name: Upload to project
+description: "Tải file lên project (tài liệu chung: spec, hợp đồng...). Cùng bộ kiểm tra với upload task."
+url: "{{api_url}}/projects/:project_id/attachments"
+method: POST
+pathVariables:
+  - key: project_id
+    value: 2C1A5A6E-7F3B-4E10-9A44-4C1D2E5F6A70
+    description: Project liên quan
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: formdata
+  content:
+    - type: file
+      key: file
+      src: []
+      description: ""
+      disabled: false
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1785500017000
