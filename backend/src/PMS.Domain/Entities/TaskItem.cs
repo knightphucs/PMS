@@ -6,9 +6,32 @@ namespace PMS.Domain.Entities;
 public class TaskItem : BaseEntity, ISoftDeletable
 {
     public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
     public DateTime? DueDate { get; set; }
     public Status Status { get; private set; } = Status.ToDo;
     public Priority Priority { get; set; } = Priority.Medium;
+
+    /// <summary>
+    /// Số thứ tự của task TRONG project — nửa sau của mã hiển thị kiểu Jira (<c>PMS-12</c>).
+    /// <para>
+    /// <c>private set</c> có chủ đích: chỉ <see cref="AssignNumber"/> đặt được, và nó chỉ
+    /// được gọi đúng một lần trên đường tạo task. Số đã cấp thì không bao giờ đổi và không
+    /// bao giờ tái sử dụng — kể cả khi task bị xóa mềm — vì mã task xuất hiện trong comment,
+    /// URL và tài liệu bên ngoài hệ thống (ADR-033).
+    /// </para>
+    /// Mã đầy đủ KHÔNG được ghép ở đây: nó cần <c>Project.Key</c>, mà navigation
+    /// <see cref="Project"/> không phải lúc nào cũng được Include — một computed property
+    /// sẽ NRE ở mọi query board/backlog. Việc ghép nằm ở TaskMapper (ADR-034).
+    /// </summary>
+    public int Number { get; private set; }
+
+    /// <summary>Chỉ dùng trên đường tạo task, sau khi đã lấy số từ ProjectTaskCounters.</summary>
+    public void AssignNumber(int number)
+    {
+        if (number <= 0)
+            throw new DomainException("Số thứ tự task phải là số dương.");
+        Number = number;
+    }
 
     public byte[] RowVersion { get; set; } = null!;
 
