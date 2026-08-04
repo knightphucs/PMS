@@ -14,7 +14,7 @@ export function TaskDetailSkeleton({ variant }: { variant: 'page' | 'modal' }) {
       aria-busy="true"
       className={cn(
         'grid gap-6',
-        variant === 'page' ? 'lg:grid-cols-[minmax(0,1fr)_20rem]' : 'lg:grid-cols-[minmax(0,1fr)_18rem]',
+        variant === 'page' ? 'lg:grid-cols-[minmax(0,1fr)_20rem]' : 'lg:grid-cols-[minmax(0,1fr)_22rem]',
       )}
     >
       <span className="sr-only">Đang tải chi tiết task…</span>

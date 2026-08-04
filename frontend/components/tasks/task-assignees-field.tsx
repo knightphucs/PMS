@@ -37,29 +37,31 @@ export function TaskAssigneesField({
 
   return (
     <>
-      <div className="grid gap-2">
+      <div className="grid min-w-0 gap-2">
         {task.assignees.length === 0 ? (
           <span className="text-muted-foreground text-sm">Chưa giao cho ai</span>
         ) : (
-          <ul className="grid gap-1.5">
+          <ul className="grid min-w-0 gap-2">
             {task.assignees.map((assignee) => (
-              <li key={assignee.employeeId} className="flex items-center gap-2">
+              <li key={assignee.employeeId} className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-2">
                 <UserAvatar
                   id={assignee.employeeId}
                   name={assignee.employeeName}
                   size="sm"
                 />
-                <span className="min-w-0 flex-1 truncate text-[13px]">
-                  {assignee.employeeName}
-                  {assignee.employeeId === myEmployeeId ? (
-                    <span className="text-muted-foreground"> (bạn)</span>
-                  ) : null}
-                </span>
                 {/* `roleInTask` chỉ có ở DTO chi tiết, thẻ Kanban không mang theo — đây là
                     chỗ duy nhất hiển thị được nó. */}
-                <span className="text-muted-foreground shrink-0 text-xs">
-                  {ROLE_IN_TASK_LABEL[assignee.roleInTask]}
-                </span>
+                <div className="grid min-w-0 gap-0.5">
+                  <span className="break-words text-[13px] leading-5">
+                    {assignee.employeeName}
+                    {assignee.employeeId === myEmployeeId ? (
+                      <span className="text-muted-foreground"> (bạn)</span>
+                    ) : null}
+                  </span>
+                  <span className="text-muted-foreground text-xs">
+                    {ROLE_IN_TASK_LABEL[assignee.roleInTask]}
+                  </span>
+                </div>
               </li>
             ))}
           </ul>

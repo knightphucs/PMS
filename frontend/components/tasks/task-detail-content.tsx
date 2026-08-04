@@ -86,7 +86,7 @@ export function TaskDetailContent({
           'grid gap-6',
           variant === 'page'
             ? 'lg:grid-cols-[minmax(0,1fr)_20rem]'
-            : 'lg:grid-cols-[minmax(0,1fr)_18rem]',
+            : 'lg:grid-cols-[minmax(0,1fr)_22rem]',
         )}
       >
         {/*

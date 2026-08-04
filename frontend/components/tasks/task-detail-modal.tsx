@@ -47,12 +47,13 @@ export function TaskDetailModal({
         TaskDetailContent / TaskDescription / TaskComments / TaskDetailHeader); dòng này chặn
         nốt chỗ nào bị bỏ sót sau này.
 
-        `sm:max-w-3xl` (48rem) thay cho `5xl` (64rem): nội dung là hai cột 1fr + 18rem, và ở
-        64rem thì cột mô tả dài tới mức khó đọc. Nhớ sửa `task-detail-skeleton.tsx` cùng lúc.
+        `sm:max-w-5xl` (64rem) dành đủ chỗ cho hai cột khi xem task trên màn hình desktop.
+        Cột mô tả vẫn được giới hạn bởi layout nội dung, còn sidebar rộng hơn nên tên người
+        đảm nhận và vai trò không bị ép tràn. Nhớ sửa `task-detail-skeleton.tsx` cùng lúc.
       */}
       <DialogContent
         showCloseButton={false}
-        className="max-h-[85svh] overflow-x-hidden overflow-y-auto p-5 sm:max-w-3xl"
+        className="max-h-[85svh] overflow-x-hidden overflow-y-auto p-5 sm:max-w-5xl"
       >
         <TaskDetailContent
           projectId={projectId}
