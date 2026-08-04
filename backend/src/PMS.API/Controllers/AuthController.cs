@@ -74,6 +74,37 @@ public class AuthController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// 🔴 <b>LUÔN 204</b>, dù email có tồn tại hay không (ADR-041). Trả 404 cho email lạ là
+    /// biến endpoint này thành công cụ dò xem ai đã đăng ký hệ thống. Rate limit dùng chung
+    /// policy với <c>login</c> vì cùng là bề mặt tấn công theo email.
+    /// </summary>
+    [HttpPost("forgot-password"), AllowAnonymous, EnableRateLimiting("forgot-password")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest req, CancellationToken ct)
+    {
+        await _auth.ForgotPasswordAsync(req, ct);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Token sai / hết hạn / đã dùng đều trả CÙNG một 400 với cùng một thông điệp — phân
+    /// biệt được ba trường hợp là xác nhận cho kẻ tấn công rằng một token có thật.
+    /// </summary>
+    [HttpPost("reset-password"), AllowAnonymous, EnableRateLimiting("forgot-password")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResetPassword(ResetPasswordRequest req, CancellationToken ct)
+    {
+        await _auth.ResetPasswordAsync(req, ct);
+
+        // Mọi phiên đã bị thu hồi phía server; xóa luôn cookie ở đây để trình duyệt không
+        // giữ lại một refresh token nay đã chết.
+        ClearRefreshCookie();
+        return NoContent();
+    }
+
     [HttpGet("me"), Authorize]
     [ProducesResponseType(typeof(EmployeeDto), StatusCodes.Status200OK)]
     public ActionResult<EmployeeDto> Me()
