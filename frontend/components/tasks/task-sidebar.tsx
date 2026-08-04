@@ -150,7 +150,7 @@ export function TaskSidebar({
       </TaskFieldRow>
 
       <TaskFieldRow label="Người tạo">
-        <span className="flex items-center gap-2 text-[13px]">
+        <span className="flex min-w-0 items-center gap-2 text-[13px]">
           <UserAvatar id={task.reporterId} name={task.reporterName} size="sm" />
           <span className="truncate">{task.reporterName}</span>
         </span>

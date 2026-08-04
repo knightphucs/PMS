@@ -61,7 +61,9 @@ export function TaskDetailContent({
   const canEdit = canManageTasks(role);
 
   return (
-    <div className="grid gap-4">
+    // `min-w-0`: đây là grid item của `DialogContent` (cũng là grid). Không có nó thì
+    // `min-width:auto` mặc định cho phép nội dung phồng track và tràn ra ngoài popup.
+    <div className="grid min-w-0 gap-4">
       <TaskDetailHeader
         projectId={projectId}
         task={task}
@@ -84,10 +86,14 @@ export function TaskDetailContent({
           'grid gap-6',
           variant === 'page'
             ? 'lg:grid-cols-[minmax(0,1fr)_20rem]'
-            : 'lg:grid-cols-[minmax(0,1fr)_18rem]',
+            : 'lg:grid-cols-[minmax(0,1fr)_22rem]',
         )}
       >
-        <div className="grid gap-6">
+        {/*
+          Cột trái. `minmax(0,1fr)` phía trên chỉ ghìm được TRACK; các con của grid này lại
+          có `min-width:auto` của riêng chúng, nên vẫn cần `min-w-0` ở đây.
+        */}
+        <div className="grid min-w-0 gap-6">
           <TaskDescription
             description={task.description}
             canEdit={canEdit}

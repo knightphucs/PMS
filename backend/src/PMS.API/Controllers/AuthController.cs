@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
+using PMS.Application.Common.Authorization;
 using PMS.Application.Common.Exceptions;
 using PMS.Application.Features.Auth;
 using PMS.Domain.Enums;
@@ -114,7 +115,20 @@ public class AuthController : ControllerBase
         var name = User.FindFirstValue(ClaimTypes.Name)!;
         var role = Enum.Parse<SystemRole>(User.FindFirstValue(ClaimTypes.Role)!);
 
-        return Ok(new EmployeeDto(id, name, email, role));
+        // 🔴 Endpoint này dựng DTO từ CLAIM chứ không đọc DB — nên `Permissions` cũng PHẢI
+        // lấy từ claim. Chỉ nối dây ở AuthService thì /auth/login trả quyền thật còn /auth/me
+        // trả mảng rỗng: hai câu trả lời mâu thuẫn từ cùng một kiểu DTO, và người dùng thấy
+        // cái nào phụ thuộc vào việc họ vừa đăng nhập hay vừa F5. Không có gì bắt lỗi này
+        // lúc biên dịch — PermissionClaimTests khóa nó bằng một test đối chiếu hai endpoint.
+        //
+        // Lấy từ claim cũng ĐÚNG về mặt ngữ nghĩa: /auth/me mô tả phiên hiện tại, mà quyền
+        // của phiên hiện tại chính là quyền đã ký trong token, không phải quyền mới nhất
+        // trong DB (thứ chỉ có hiệu lực từ token kế tiếp).
+        var permissions = User.FindAll(SystemPermissions.ClaimType)
+                              .Select(c => c.Value)
+                              .ToArray();
+
+        return Ok(new EmployeeDto(id, name, email, role) { Permissions = permissions });
     }
 
     /// <summary>Đặt cookie refresh mới rồi lược refresh token khỏi thân phản hồi.</summary>

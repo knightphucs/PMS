@@ -29,6 +29,16 @@ public class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
         // ngoài hệ thống — cấp lại số đó cho task khác là làm sai lệch mọi tham chiếu cũ.
         builder.HasIndex(t => new { t.ProjectId, t.Number }).IsUnique();
 
+        // Index THẬT SỰ còn thiếu (thêm 2026-08-04). Mọi cột khóa ngoại khác trong dự án đã
+        // có index do EF Core tự sinh theo quy ước — đã kiểm bằng `sys.indexes` trên database
+        // thật, không suy đoán. Cái này khác: nó là index GHÉP trên hai cột thường, nên không
+        // quy ước nào tạo hộ.
+        //
+        // Vì sao cần: `DueDateNotificationWorker` quét theo hạn + trạng thái ở MỖI nhịp timer
+        // (ADR-040). Không có nó thì công việc nền quét toàn bộ bảng Tasks, đều đặn, mãi mãi
+        // — chi phí lớn dần theo dữ liệu mà không bao giờ có ai nhận ra vì nó chạy im lặng.
+        builder.HasIndex(t => new { t.DueDate, t.Status });
+
         builder.HasMany(t => t.Subtasks)
                .WithOne(t => t.ParentTask)
                .HasForeignKey(t => t.ParentTaskId)

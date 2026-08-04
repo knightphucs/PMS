@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using PMS.Application.Common.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PMS.Application.Features.Labels;
 
@@ -34,7 +35,7 @@ public class LabelsController : ControllerBase
     }
 
     [HttpPut("labels/{id:guid}")]
-    [Authorize(Policy = "require-system-admin")]
+    [Authorize(Policy = SystemPermissions.LabelsManage)]
     [ProducesResponseType(typeof(LabelResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -45,7 +46,7 @@ public class LabelsController : ControllerBase
         => Ok(await _labels.UpdateAsync(id, req, ct));
 
     [HttpDelete("labels/{id:guid}")]
-    [Authorize(Policy = "require-system-admin")]
+    [Authorize(Policy = SystemPermissions.LabelsManage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

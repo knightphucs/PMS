@@ -18,5 +18,8 @@ public enum ActivityAction
     CommentDeleted,
     AccountLocked,
     AccountUnlocked,
-    SystemRoleChanged
+    SystemRoleChanged,
+
+    /// <summary>Đổi tập quyền của một vai trò hệ thống (ADR-045).</summary>
+    PermissionsChanged
 }

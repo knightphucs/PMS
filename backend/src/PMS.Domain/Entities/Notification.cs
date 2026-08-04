@@ -45,13 +45,15 @@ public class Notification : BaseEntity
         or NotificationType.InvitationDeclined
         or NotificationType.RoleChanged
         or NotificationType.RemovedFromProject
-        or NotificationType.MemberLeftProject  => RelatedEntityKind.Project,
+        or NotificationType.MemberLeftProject
+        or NotificationType.ProjectStatusChanged => RelatedEntityKind.Project,
 
         NotificationType.TaskAssigned
         or NotificationType.TaskUnassigned
         or NotificationType.DueSoon
         or NotificationType.CommentAdded
-        or NotificationType.StatusChanged      => RelatedEntityKind.Task,
+        or NotificationType.StatusChanged
+        or NotificationType.Mentioned          => RelatedEntityKind.Task,
 
         _ => RelatedEntityKind.None
     };

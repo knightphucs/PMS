@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  BarChart3Icon,
   KanbanSquareIcon,
   ListTodoIcon,
   TimerIcon,
@@ -17,6 +18,8 @@ const TABS: { segment: string; label: string; icon: LucideIcon }[] = [
   { segment: 'backlog', label: 'Backlog', icon: ListTodoIcon },
   { segment: 'sprints', label: 'Sprint', icon: TimerIcon },
   { segment: 'members', label: 'Thành viên', icon: UsersIcon },
+  // Cả ba vai trò đều xem được (ADR-039) nên tab hiện với mọi thành viên, không gác.
+  { segment: 'statistics', label: 'Thống kê', icon: BarChart3Icon },
 ];
 
 /**

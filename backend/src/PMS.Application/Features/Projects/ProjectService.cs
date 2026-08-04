@@ -15,15 +15,17 @@ public class ProjectService : IProjectService
     private readonly IProjectAuthorizationService _authz;
     private readonly ICurrentUserService _currentUser;
     private readonly IActivityLogger _activityLog;
+    private readonly INotificationService _notifications;
     private readonly ProjectMapper _mapper;
     private readonly ILogger<ProjectService> _logger;
 
-    public ProjectService(IUnitOfWork uow, IProjectAuthorizationService authz, ICurrentUserService currentUser, IActivityLogger activityLog, ProjectMapper mapper, ILogger<ProjectService> logger)
+    public ProjectService(IUnitOfWork uow, IProjectAuthorizationService authz, ICurrentUserService currentUser, IActivityLogger activityLog, INotificationService notifications, ProjectMapper mapper, ILogger<ProjectService> logger)
     {
         _uow = uow;
         _authz = authz;
         _currentUser = currentUser;
         _activityLog = activityLog;
+        _notifications = notifications;
         _mapper = mapper;
         _logger = logger;
     }
@@ -117,6 +119,60 @@ public class ProjectService : IProjectService
 
         _logger.LogInformation("Cập nhật project {ProjectId} bởi {EmployeeId}",
             id, _currentUser.EmployeeId);
+
+        return _mapper.ToDetail(project);
+    }
+
+    public Task<ProjectDetailResponse> CompleteAsync(Guid id, CancellationToken ct = default)
+        => ChangeStatusAsync(id, complete: true, ct);
+
+    public Task<ProjectDetailResponse> ReopenAsync(Guid id, CancellationToken ct = default)
+        => ChangeStatusAsync(id, complete: false, ct);
+
+    private async Task<ProjectDetailResponse> ChangeStatusAsync(
+        Guid id, bool complete, CancellationToken ct)
+    {
+        await _authz.AuthorizeAsync(id, ProjectAction.Update, ct);
+
+        var project = await _uow.Projects.GetWithMembersAsync(id, ct)
+            ?? throw new NotFoundException(nameof(Project), id);
+
+        var before = project.Status;
+
+        // `Complete()` idempotent, `Reopen()` ném DomainException (-> 409) nếu chưa Done.
+        if (complete) project.Complete();
+        else project.Reopen();
+
+        if (project.Status == before) return _mapper.ToDetail(project);
+
+        _activityLog.Log(nameof(Project), id, ActivityAction.StatusChanged,
+            $"Đổi trạng thái project '{project.Name}': {before} -> {project.Status}");
+
+        // Báo cho MỌI thành viên đang hoạt động, trừ chính người thao tác. Đây là thay đổi
+        // ở cấp project nên nó ảnh hưởng tới việc của tất cả, khác các thông báo cấp task
+        // vốn chỉ tới người liên quan.
+        var actorId = _currentUser.RequireEmployeeId();
+        var recipients = project.Members
+            .Where(m => m.IsActive() && m.EmployeeId != actorId)
+            .Select(m => m.EmployeeId)
+            .ToList();
+
+        if (recipients.Count > 0)
+            // ⚠️ `ProjectStatusChanged` chứ KHÔNG phải `StatusChanged`: `RelatedEntityKind`
+            // được suy ra từ `Type` (ADR-025), và `StatusChanged` suy ra `Task` — dùng nó ở
+            // đây sẽ khiến chuông điều hướng tới `/tasks/{projectId}`, một id không tồn tại.
+            _notifications.NotifyMany(
+                recipients,
+                NotificationType.ProjectStatusChanged,
+                complete
+                    ? $"Dự án '{project.Name}' đã được đánh dấu hoàn thành."
+                    : $"Dự án '{project.Name}' đã được mở lại.",
+                id);
+
+        await _uow.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Đổi trạng thái project {ProjectId}: {Before} -> {After} bởi {EmployeeId}",
+            id, before, project.Status, actorId);
 
         return _mapper.ToDetail(project);
     }

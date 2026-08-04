@@ -20,6 +20,7 @@ public interface IUnitOfWork
     ITaskLinkRepository TaskLinks { get; }
     IAttachmentRepository Attachments { get; }
     IPasswordResetTokenRepository PasswordResetTokens { get; }
+    IPermissionRepository Permissions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 

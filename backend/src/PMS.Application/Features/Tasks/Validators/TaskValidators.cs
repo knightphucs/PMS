@@ -16,6 +16,20 @@ public class CreateTaskRequestValidator : AbstractValidator<CreateTaskRequest>
     }
 }
 
+/// <summary>
+/// 🔴 Thiếu validator này cho tới 2026-08-04. Vì <c>ValidationFilter</c> bỏ qua im lặng khi
+/// không có <c>IValidator&lt;T&gt;</c>, <c>PATCH /tasks/{id}/status</c> với
+/// <c>{"target": 99}</c> đi thẳng tới <c>task.ChangeStatus(request.Target)</c> mang một giá
+/// trị enum không tồn tại — state machine so sánh nó với mọi nhánh hợp lệ, không khớp cái
+/// nào, và ném ra lỗi nghiệp vụ khó hiểu thay vì một 400 nói rõ đầu vào sai.
+/// </summary>
+public class ChangeTaskStatusRequestValidator : AbstractValidator<ChangeTaskStatusRequest>
+{
+    public ChangeTaskStatusRequestValidator()
+        => RuleFor(x => x.Target)
+            .IsInEnum().WithMessage("Trạng thái đích không hợp lệ.");
+}
+
 public class AssignTaskRequestValidator : AbstractValidator<AssignTaskRequest>
 {
     public AssignTaskRequestValidator()

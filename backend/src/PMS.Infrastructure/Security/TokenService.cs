@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using PMS.Application.Common.Authorization;
 using PMS.Application.Common.Interfaces;
 using PMS.Domain.Entities;
 
@@ -21,19 +22,30 @@ public class TokenService : ITokenService
                 "Jwt:Secret phải dài tối thiểu 32 byte cho HMAC-SHA256.");
     }
 
-    public AccessTokenResult CreateAccessToken(Employee employee)
+    public AccessTokenResult CreateAccessToken(
+        Employee employee, IReadOnlyCollection<string> permissions)
     {
         var now = DateTime.UtcNow;
         var expiresAt = now.AddMinutes(_options.AccessTokenMinutes);
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
-            new Claim(JwtRegisteredClaimNames.Sub, employee.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, employee.Email),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new Claim(ClaimTypes.Name, employee.Name),
-            new Claim(ClaimTypes.Role, employee.SystemRole.ToString())
+            new(JwtRegisteredClaimNames.Sub, employee.Id.ToString()),
+            new(JwtRegisteredClaimNames.Email, employee.Email),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new(ClaimTypes.Name, employee.Name),
+
+            // ClaimTypes.Role Ở LẠI, nhưng vai trò của nó đã đổi: từ 2026-08-04 (ADR-045) nó
+            // là ĐỊNH DANH/HIỂN THỊ, không còn là trục phân quyền. Không policy nào đọc nó
+            // nữa — `require-system-admin` đã bị xóa. Người đọc còn lại: AuthController.Me()
+            // và menu người dùng ở frontend.
+            new(ClaimTypes.Role, employee.SystemRole.ToString())
         };
+
+        // MỖI quyền một claim, không phải một chuỗi ngăn cách bằng dấu cách: RequireClaim
+        // khớp tự nhiên trên claim lặp, còn chuỗi gộp thì bắt phải viết một
+        // IAuthorizationRequirement + handler riêng mà chẳng đổi lại được gì.
+        claims.AddRange(permissions.Select(p => new Claim(SystemPermissions.ClaimType, p)));
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Secret));
         var token = new JwtSecurityToken(

@@ -28,7 +28,36 @@ public class Project : BaseEntity, ISoftDeletable
 
     public bool IsCompleted() => Status == Status.Done;
 
-    public void Complete() => Status = Status.Done;
+    /// <summary>
+    /// Đánh dấu project đã hoàn thành.
+    /// <para>
+    /// ⚠️ Cho tới 2026-08-04, method này có đúng MỘT caller trong toàn bộ solution:
+    /// <c>DbSeeder</c>. Nghĩa là mọi project tạo qua API vĩnh viễn nằm ở <c>ToDo</c>, trong
+    /// khi <c>Status</c> vẫn được trả trong DTO và vẫn là khóa <c>sortBy</c> hợp lệ — một
+    /// trường chết đội lốt tính năng. Nay có <c>POST /projects/{id}/complete</c>.
+    /// </para>
+    /// </summary>
+    public void Complete()
+    {
+        // Idempotent chứ không ném: gọi lại trên project đã xong không phải một lỗi nghiệp
+        // vụ, chỉ là không có gì để làm. Khác `Employee.Lock()` — ở đó "khóa cái đã khóa"
+        // thường là dấu hiệu hai admin thao tác chồng nhau nên đáng báo.
+        if (Status == Status.Done) return;
+        Status = Status.Done;
+    }
+
+    /// <summary>
+    /// Mở lại một project đã hoàn thành. Đưa về <see cref="Status.InProgress"/> chứ KHÔNG về
+    /// <c>ToDo</c>: project từng chạy tới Done thì công việc đã diễn ra, quay về "chưa bắt
+    /// đầu" là ghi lại một điều không đúng sự thật.
+    /// </summary>
+    public void Reopen()
+    {
+        if (Status != Status.Done)
+            throw new DomainException("Chỉ mở lại được project đang ở trạng thái Hoàn thành.");
+
+        Status = Status.InProgress;
+    }
 
     public ICollection<ProjectMember> Members { get; set; } = [];
 

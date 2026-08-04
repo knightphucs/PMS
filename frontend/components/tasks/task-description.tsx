@@ -88,7 +88,11 @@ export function TaskDescription({
       ) : description ? (
         // `whitespace-pre-wrap`: mô tả là văn bản thuần, xuống dòng của người viết là
         // thông tin. Cố ý KHÔNG render markdown — không có gì làm sạch HTML ở đây.
-        <p className="text-sm leading-relaxed whitespace-pre-wrap">{description}</p>
+        //
+        // `break-words` là BẮT BUỘC đi kèm: `whitespace-pre-wrap` giữ nguyên mọi token dài,
+        // nên một URL dán vào đây sẽ đẩy rộng cả dialog chi tiết Task. Đây là lỗi đã thấy
+        // thật, không phải phòng xa.
+        <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">{description}</p>
       ) : (
         <p className="text-muted-foreground text-sm">
           {canEdit

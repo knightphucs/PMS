@@ -63,6 +63,15 @@ public class LabelService : ILabelService
         };
 
         await _uow.Labels.AddAsync(label, ct);
+
+        // 🔴 Thiếu dòng này cho tới 2026-08-04, trong khi Update/Delete đều có — một bất đối
+        // xứng vô tình chứ không phải quyết định. Và nó lệch đúng chỗ nguy hiểm nhất: TẠO
+        // nhãn là thao tác duy nhất trong nhóm mà **mọi user đăng nhập** đều làm được
+        // (`LabelsController` không gác `POST /labels`), nên đây là đường ghi vào không gian
+        // tên toàn cục mà nhật ký hệ thống không nhìn thấy ai đã dùng.
+        _activityLog.Log(nameof(Label), label.Id, ActivityAction.Created,
+            $"Tạo nhãn toàn cục '{name}' ({label.Color})");
+
         await _uow.SaveChangesAsync(ct);
 
         _logger.LogInformation("Tạo nhãn {LabelName} bởi {EmployeeId}", name, _currentUser.EmployeeId);

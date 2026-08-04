@@ -39,5 +39,26 @@ export const registerSchema = z
     path: ['confirmPassword'],
   });
 
+/**
+ * Quên mật khẩu — CHỈ kiểm định dạng email.
+ *
+ * Không có và sẽ không bao giờ có luật kiểu "email phải tồn tại": backend cố ý trả 204 cho
+ * mọi email (ADR-041) để endpoint này không thành công cụ dò xem ai đã đăng ký. Thêm một
+ * phép kiểm tồn tại ở client là dựng lại đúng kênh rò rỉ đó ở phía bên kia.
+ */
+export const forgotPasswordSchema = z.object({ email });
+
+export const resetPasswordSchema = z
+  .object({
+    newPassword: password,
+    confirmPassword: z.string().min(1, 'Vui lòng nhập lại mật khẩu.'),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: 'Mật khẩu nhập lại không khớp.',
+    path: ['confirmPassword'],
+  });
+
 export type LoginValues = z.infer<typeof loginSchema>;
 export type RegisterValues = z.infer<typeof registerSchema>;
+export type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;

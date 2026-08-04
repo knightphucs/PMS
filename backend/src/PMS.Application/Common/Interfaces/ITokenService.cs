@@ -7,7 +7,17 @@ public record RefreshTokenResult(string Token, DateTime ExpiresAt);
 
 public interface ITokenService
 {
-    AccessTokenResult CreateAccessToken(Employee employee);
+    /// <summary>
+    /// Ký access token cho <paramref name="employee"/>, mang sẵn tập quyền tầng 1 (ADR-045).
+    /// <para>
+    /// <paramref name="permissions"/> được TRUYỀN VÀO chứ không tự tra: đây là bộ mã hóa
+    /// thuần, nó ký thứ được bảo ký. Quyết định "người này có những quyền gì" là chuyện của
+    /// tầng Application (<c>AuthService.BuildTokensAsync</c>) — đẩy nó vào đây là kéo
+    /// <c>PmsDbContext</c> vào một component tuần tự hóa và làm nó không test được nếu không
+    /// có database.
+    /// </para>
+    /// </summary>
+    AccessTokenResult CreateAccessToken(Employee employee, IReadOnlyCollection<string> permissions);
     RefreshTokenResult CreateRefreshToken();
 
     /// <summary>

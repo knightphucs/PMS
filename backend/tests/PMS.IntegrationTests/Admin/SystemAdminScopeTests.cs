@@ -129,7 +129,18 @@ public class SystemAdminScopeTests : IntegrationTestBase
 
         log!.Items.ShouldNotContain(x => x.EntityId == projectId);
         log.Items.ShouldNotContain(x => x.EntityId == taskId);
-        log.Items.ShouldAllBe(x => x.EntityType == "Employee" || x.EntityType == "Label");
+
+        // "RolePermission" thêm 2026-08-04 (ADR-045): đổi tập quyền của một vai trò là thao
+        // tác nhạy cảm nhất hệ thống, để nó vô hình ở đây thì mâu thuẫn với chính lý do
+        // endpoint này tồn tại. Nó KHÔNG nới lỏng ranh giới của ADR-042 — vẫn không có
+        // Project/TaskItem, và bản thân dòng log đó không mang dữ liệu của project nào.
+        //
+        // ⚠️ Danh sách này phải khớp `ActivityLogService.SystemScopedEntityTypes`. DB dùng
+        // chung cả collection nên trang này có cả log do test class khác sinh ra.
+        log.Items.ShouldAllBe(x =>
+            x.EntityType == "Employee"
+         || x.EntityType == "Label"
+         || x.EntityType == "RolePermission");
     }
 
     [Fact]
