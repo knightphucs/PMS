@@ -60,6 +60,9 @@ public static class DependencyInjection
         services.AddScoped<IStatisticsService, StatisticsService>();
         services.AddScoped<IDueDateNotifier, DueDateNotifier>();
 
+        // Đợt 2026-08-04: phân quyền tầng 1 lưu trong DB (ADR-045).
+        services.AddScoped<IRolePermissionAdminService, RolePermissionAdminService>();
+
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
         return services;
     }

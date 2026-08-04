@@ -52,7 +52,7 @@ public class AuthService : IAuthService
 
         // Id sinh phía app (Guid.NewGuid) nên tạo được RefreshToken tham chiếu employee
         // ngay lập tức -> chỉ cần 1 lần SaveChanges, tự động nguyên tử, không cần transaction.
-        var (response, _) = BuildTokens(employee);
+        var (response, _) = await BuildTokensAsync(employee, ct);
         await _uow.SaveChangesAsync(ct);
 
         _logger.LogInformation("Đăng ký tài khoản mới: {EmployeeId}", employee.Id);
@@ -84,7 +84,7 @@ public class AuthService : IAuthService
                 "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên hệ thống.");
         }
 
-        var (response, _) = BuildTokens(employee);
+        var (response, _) = await BuildTokensAsync(employee, ct);
         await _uow.SaveChangesAsync(ct);
         return response;
     }
@@ -127,7 +127,7 @@ public class AuthService : IAuthService
             throw new UnauthorizedException("Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại.");
         }
 
-        var (response, newToken) = BuildTokens(employee);
+        var (response, newToken) = await BuildTokensAsync(employee, ct);
         stored.Revoke(newToken.Id);                    // rotation: token cũ chết ngay
         await _uow.SaveChangesAsync(ct);
 
@@ -234,9 +234,27 @@ public class AuthService : IAuthService
 
     // ---------- private ----------
 
-    private (AuthResponse Response, RefreshToken Entity) BuildTokens(Employee employee)
+    /// <summary>
+    /// Trục phát token duy nhất — đăng ký / đăng nhập / refresh đều đi qua đây.
+    /// <para>
+    /// Async từ 2026-08-04 (ADR-045) vì quyền tầng 1 nay nằm trong DB. Đọc quyền TƯƠI ở mỗi
+    /// lần phát là thứ làm cho "đổi quyền có hiệu lực sau tối đa 15 phút" thành sự thật thay
+    /// vì một lời hứa: <see cref="RefreshAsync"/> vốn đã tải lại <c>Employee</c> từ DB, nên
+    /// mỗi lượt refresh dựng lại tập quyền theo bảng <c>RolePermissions</c> hiện tại.
+    /// </para>
+    /// <para>
+    /// ⚠️ Ở <see cref="RegisterAsync"/>, lượt đọc này nằm TRƯỚC <c>SaveChangesAsync</c> duy
+    /// nhất của luồng đăng ký. An toàn: <c>Employee</c> mới còn nằm trong ChangeTracker chưa
+    /// lưu, còn truy vấn quyền không chạm <c>Employees</c> lẫn <c>RefreshTokens</c> nên
+    /// không có gì bị flush sớm hay đảo thứ tự.
+    /// </para>
+    /// </summary>
+    private async Task<(AuthResponse Response, RefreshToken Entity)> BuildTokensAsync(
+        Employee employee, CancellationToken ct)
     {
-        var access = _tokenService.CreateAccessToken(employee);
+        var permissions = await _uow.Permissions.GetCodesForRoleAsync(employee.SystemRole, ct);
+
+        var access = _tokenService.CreateAccessToken(employee, permissions);
         var refresh = _tokenService.CreateRefreshToken();
 
         var entity = new RefreshToken
@@ -252,7 +270,11 @@ public class AuthService : IAuthService
         // AddAsync không gọi await SaveChanges — chỉ đưa vào ChangeTracker.
         _uow.RefreshTokens.Add(entity);
 
-        return (new AuthResponse(access.Token, refresh.Token, access.ExpiresAt, _mapper.ToDto(employee)), entity);
+        return (new AuthResponse(
+            access.Token,
+            refresh.Token,
+            access.ExpiresAt,
+            _mapper.ToDto(employee) with { Permissions = permissions }), entity);
     }
 
     private async Task RevokeAllAsync(Guid employeeId, CancellationToken ct)

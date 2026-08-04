@@ -16,11 +16,15 @@ public class ActivityLogService : IActivityLogService
     /// <list type="bullet">
     /// <item><c>Employee</c> — khóa/mở tài khoản, đổi SystemRole.</item>
     /// <item><c>Label</c> — sửa/xóa nhãn toàn cục, thao tác chỉ SystemAdmin làm được (ADR-037).</item>
+    /// <item><c>RolePermission</c> — đổi tập quyền của một vai trò (ADR-045). Đây là thao tác
+    /// nhạy cảm nhất hệ thống; để nó vô hình ở đây thì mâu thuẫn với chính lý do
+    /// <c>AdminAuditController</c> tồn tại.</item>
     /// </list>
     /// Thêm <c>Project</c> hay <c>TaskItem</c> vào đây là mở lại đúng "god mode" mà ADR-042
     /// vừa đóng.
     /// </summary>
-    private static readonly string[] SystemScopedEntityTypes = [nameof(Employee), nameof(Label)];
+    private static readonly string[] SystemScopedEntityTypes =
+        [nameof(Employee), nameof(Label), nameof(RolePermission)];
 
     private readonly IUnitOfWork _uow;
     private readonly IProjectAuthorizationService _authz;
@@ -66,8 +70,8 @@ public class ActivityLogService : IActivityLogService
     {
         // Không gọi IProjectAuthorizationService: đây là dữ liệu cấp hệ thống, không thuộc
         // project nào — cùng loại ngoại lệ hợp lệ mà ADR-023 đã dành cho Notification.
-        // Chốt chặn là policy require-system-admin ở controller CỘNG danh sách entity type
-        // cố định phía trên.
+        // Chốt chặn là policy `audit:read` ở controller (ADR-045 — trước 2026-08-04 là
+        // `require-system-admin`) CỘNG danh sách entity type cố định phía trên.
         var paged = await _uow.ActivityLogs.GetPagedBySystemScopeAsync(
             SystemScopedEntityTypes, request, ct);
 

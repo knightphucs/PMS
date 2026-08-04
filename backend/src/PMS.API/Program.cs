@@ -15,6 +15,7 @@ using PMS.API.Filters;
 using PMS.API.Middleware;
 using PMS.API.Services;
 using PMS.Application;
+using PMS.Application.Common.Authorization;
 using PMS.Application.Common.Interfaces;
 using PMS.Domain.Enums;
 using PMS.Infrastructure;
@@ -81,13 +82,27 @@ builder.Services.AddOptions<JwtOptions>()
         "Jwt:AccessTokenMinutes phải trong khoảng 1–60.")
     .ValidateOnStart();
 
-builder.Services.AddAuthorizationBuilder()
-    .AddPolicy("can-create-project", policy => policy.RequireAuthenticatedUser())
-    .AddPolicy("require-system-admin", policy => policy.RequireClaim(ClaimTypes.Role, nameof(SystemRole.SystemAdmin)))
-    .SetFallbackPolicy(new AuthorizationPolicyBuilder()
-        .RequireAuthenticatedUser()
-        .Build());
-    
+// Phân quyền tầng 1 (ADR-045): MỘT policy cho mỗi mã quyền, TÊN POLICY == MÃ QUYỀN.
+//
+// Thay cho hai policy viết tay trước đây: `require-system-admin` (kiểm ClaimTypes.Role) và
+// `can-create-project` (RequireAuthenticatedUser — một no-op). Cả hai tên đã bị XÓA; đừng
+// thêm lại, và nếu grep còn thấy chúng ở đâu thì đó là một 500 đang chờ (tên policy lạ ném
+// InvalidOperationException lúc chạy chứ không phải lỗi biên dịch).
+//
+// Vòng lặp chứ không IAuthorizationPolicyProvider: với một danh mục ĐÓNG cỡ này, provider là
+// máy móc không đổi lại được gì, còn vòng lặp giữ toàn bộ ánh xạ nằm gọn trong một chỗ nhìn
+// thấy được.
+var authorization = builder.Services.AddAuthorizationBuilder();
+
+foreach (var permission in SystemPermissions.All)
+    authorization.AddPolicy(permission, policy =>
+        policy.RequireClaim(SystemPermissions.ClaimType, permission));
+
+authorization.SetFallbackPolicy(new AuthorizationPolicyBuilder()
+    .RequireAuthenticatedUser()
+    .Build());
+
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;

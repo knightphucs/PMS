@@ -1,5 +1,6 @@
 // PMS.API/Controllers/ProjectsController.cs
 using Microsoft.AspNetCore.Authorization;
+using PMS.Application.Common.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PMS.Application.Common.Models;
 using PMS.Application.Features.Projects;
@@ -15,7 +16,7 @@ public class ProjectsController : ControllerBase
     public ProjectsController(IProjectService projects) => _projects = projects;
 
     [HttpPost]
-    [Authorize(Policy = "can-create-project")]
+    [Authorize(Policy = SystemPermissions.ProjectsCreate)]
     [ProducesResponseType(typeof(ProjectSummaryResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ProjectSummaryResponse>> Create(
