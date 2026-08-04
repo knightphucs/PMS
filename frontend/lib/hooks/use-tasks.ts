@@ -8,6 +8,7 @@ import {
   deleteTask,
   getBacklog,
   getTask,
+  listProjectTasks,
   moveTaskToSprint,
   selfAssignTask,
   unassignTask,
@@ -34,6 +35,52 @@ export function useTask(projectId: string, taskId: string | null) {
     queryKey: taskKeys.detail(projectId, taskId ?? ''),
     queryFn: ({ signal }) => getTask(taskId!, signal),
     enabled: taskId !== null,
+    staleTime: 0,
+    gcTime: 0,
+  });
+}
+
+/** Số task tối đa nạp cho ô chọn — trùng trần `pageSize` mà backend kẹp lại (100). */
+export const TASK_OPTIONS_LIMIT = 100;
+
+/**
+ * Danh sách task để CHỌN (ô "liên kết tới task nào").
+ *
+ * ⚠️ Lọc ở phía CLIENT, không gửi `search` lên. `PagedRequest.Search` được model binder
+ * nhận nhưng `TaskRepository` **không dùng tới** — gửi lên chỉ tạo cảm giác đang lọc phía
+ * server trong khi thực ra không. Đổi lại phải chấp nhận trần 100 task; project vượt mức
+ * đó thì đây là chỗ cần một endpoint tìm kiếm thật (§B "Search toàn cục" vẫn còn ⬜).
+ *
+ * Khóa cache riêng, KHÔNG dùng `taskKeys.detail`: dữ liệu ở đây là `TaskSummaryResponse`
+ * (không có `rowVersion`) nên không có gì để gieo nhầm cho form sửa.
+ */
+export function useProjectTaskOptions(projectId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: [...taskKeys.all(projectId), 'options'],
+    queryFn: ({ signal }) =>
+      listProjectTasks(projectId, { page: 1, pageSize: TASK_OPTIONS_LIMIT }, signal),
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * Đọc GHÉ chi tiết task đang có trong cache — cho breadcrumb, nơi cần `code` chứ không
+ * cần một lượt tải riêng.
+ *
+ * `enabled: false` nên hook này KHÔNG BAO GIỜ tự fetch: nó chỉ quan sát khóa mà
+ * `TaskDetailContent` đã mount. Không có dữ liệu thì breadcrumb hiện nhãn chung.
+ *
+ * 🔴 `staleTime`/`gcTime: 0` PHẢI lặp lại ở đây. Trong TanStack v5, `gcTime` hiệu lực của
+ * một query là giá trị LỚN NHẤT trong các observer đang mount. Quên dòng đó là mục cache
+ * sống thêm 5 phút sau khi đóng dialog — dựng lại đúng bug `rowVersion` cũ → 409 vĩnh
+ * viễn mà `useTask` ở trên đang chặn.
+ */
+export function useTaskCached(projectId: string, taskId: string | null) {
+  return useQuery({
+    queryKey: taskKeys.detail(projectId, taskId ?? ''),
+    queryFn: ({ signal }) => getTask(taskId!, signal),
+    enabled: false,
     staleTime: 0,
     gcTime: 0,
   });

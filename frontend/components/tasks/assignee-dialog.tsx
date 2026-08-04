@@ -23,7 +23,13 @@ import { useAssignTask, useUnassignTask } from '@/lib/hooks/use-tasks';
 import { canManageTasks, canSelfAssign } from '@/lib/tasks/permissions';
 import { cn } from '@/lib/utils';
 import { ROLE_IN_PROJECT_LABEL, type RoleInProject } from '@/types/enums';
-import type { TaskSummaryResponse } from '@/types/task';
+
+/** Phần duy nhất của một task mà dialog này cần. */
+export interface TaskAssignable {
+  id: string;
+  name: string;
+  assignees: readonly { employeeId: string }[];
+}
 
 /**
  * Giao việc.
@@ -41,7 +47,14 @@ export function AssigneeDialog({
   onClose,
 }: {
   projectId: string;
-  task: TaskSummaryResponse | null;
+  /**
+   * Cố ý khai bằng HÌNH DẠNG tối thiểu chứ không phải `TaskSummaryResponse`: dialog chỉ
+   * đọc ba thứ dưới đây, và màn chi tiết task truyền vào `TaskDetailResponse` — nơi
+   * `assignees` là `TaskAssigneeResponse[]` (có thêm `roleInTask`/`assignedDate`) chứ
+   * không phải `TaskCardAssignee[]`. Ràng buộc theo tên kiểu sẽ bắt phải nặn dữ liệu chỉ
+   * để qua cửa trình biên dịch.
+   */
+  task: TaskAssignable | null;
   role: RoleInProject | null;
   myEmployeeId: string | null;
   onClose: () => void;
