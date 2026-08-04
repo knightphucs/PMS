@@ -104,6 +104,41 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.48 0.201 260);
+
+  /* ── Màu biểu đồ thống kê ────────────────────────────────────────────────────
+     Tách khỏi `--chart-1..5` mà shadcn để sẵn (một thang xám vô nghĩa) vì ba nhóm
+     dưới đây làm BA việc khác nhau, và trộn chúng là cách chắc chắn nhất để đọc sai:
+
+     • `--viz-status-*` — bảng màu TRẠNG THÁI, dùng lại đúng ngữ nghĩa của
+       `components/tasks/status-tone.ts` (xám = chưa bắt đầu, xanh lá = xong) để
+       biểu đồ khớp với board và badge. Là màu dành riêng, KHÔNG bao giờ mượn làm
+       "series thứ 4", và luôn đi kèm nhãn chữ chứ không đứng một mình.
+     • `--viz-seq-*` — thang TUẦN TỰ một sắc, nhạt → đậm, cho độ ưu tiên
+       (Highest…Lowest là thang CÓ THỨ TỰ, không phải các danh mục ngang hàng).
+       ⚠️ KHÔNG dùng bậc nào của thang này làm rãnh nền cho thanh mức: đã thử và nhìn
+       trên màn hình thì sai nghĩa — ở chế độ tối `--viz-seq-1` đủ bão hòa để một
+       sprint "0/2" đọc thành đã xong 100%. Rãnh nền dùng `--muted`.
+     • `--viz-load-*` — ba phân đoạn của biểu đồ khối lượng; đây là bộ DUY NHẤT mà
+       người đọc buộc phải phân biệt bằng màu, nên đã chạy validator: cả hai chế độ
+       PASS toàn bộ (CVD ΔE nhỏ nhất 9.6 sáng / 4.0 tối tritan, thường 24.0 / 20.9).
+       Riêng chế độ sáng có cảnh báo tương phản < 3:1 ở màu xanh lá → bắt buộc có
+       nhãn số hiện rõ, đã làm trong `AssigneeWorkloadChart`. */
+  --viz-status-todo: #64748b;
+  --viz-status-inprogress: #2a78d6;
+  --viz-status-review: #eda100;
+  --viz-status-done: #1baf7a;
+
+  --viz-seq-1: #cfe0f7;
+  --viz-seq-2: #9dc2ef;
+  --viz-seq-3: #6ba3e6;
+  --viz-seq-4: #3a85dd;
+  --viz-seq-5: #1f5fa8;
+
+  --viz-load-done: #1baf7a;
+  --viz-load-active: #2a78d6;
+  --viz-load-overdue: #e34948;
+
+  --viz-grid: oklch(0.922 0 0);
 }
 
 .dark {
@@ -146,6 +181,26 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.7 0.15 258);
+
+  /* Bước màu RIÊNG cho nền tối, không phải phép lật tự động của bản sáng — đã chạy
+     validator trên đúng nền `--card` của chế độ tối (#262626): cả ba `--viz-load-*`
+     đạt ≥ 3:1 và qua mọi ngưỡng. */
+  --viz-status-todo: #94a3b8;
+  --viz-status-inprogress: #3987e5;
+  --viz-status-review: #c98500;
+  --viz-status-done: #199e70;
+
+  --viz-seq-1: #1e3a5f;
+  --viz-seq-2: #2a5588;
+  --viz-seq-3: #3671b3;
+  --viz-seq-4: #468fdc;
+  --viz-seq-5: #6aa9e8;
+
+  --viz-load-done: #199e70;
+  --viz-load-active: #3987e5;
+  --viz-load-overdue: #e66767;
+
+  --viz-grid: oklch(1 0 0 / 12%);
 }
 
 @layer base {

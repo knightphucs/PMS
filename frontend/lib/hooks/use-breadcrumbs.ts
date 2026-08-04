@@ -17,6 +17,7 @@ const TAB_LABEL: Record<string, string> = {
   backlog: 'Backlog',
   sprints: 'Sprint',
   members: 'Thành viên',
+  statistics: 'Thống kê',
 };
 
 /** Khu quản trị — nhãn tĩnh, không phải nạp gì nên không có trạng thái `loading`. */
