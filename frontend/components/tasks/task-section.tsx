@@ -24,7 +24,20 @@ export function TaskSection({
   className?: string;
 }) {
   return (
-    <section className={cn('grid gap-2.5', className)}>
+    // 🔴 Hai lớp chống tràn ngang, cả hai đều cần thiết — đây là chỗ rò rỉ đã làm tràn cả
+    // màn chi tiết Task khi mô tả chứa một URL không có dấu cách (đo được: cột trái 632px
+    // mà khối này phồng lên 1165px).
+    //
+    // 1. `min-w-0` — `<section>` là grid item của cột trái, mà grid item mặc định có
+    //    `min-width:auto`, tức nó nở theo nội dung dài nhất thay vì co về bề rộng cột.
+    //
+    // 2. `grid-cols-[minmax(0,1fr)]` — khai báo cột TƯỜNG MINH thay vì để grid tự sinh cột
+    //    ẩn `auto`. Cột ẩn `auto` có sàn là min-content của nội dung, và đây là cái bẫy
+    //    thật sự: `break-words` (`overflow-wrap: break-word`) cho phép ngắt để KHỎI tràn
+    //    nhưng **không hề làm giảm min-content**, nên track vẫn phồng và chữ vẫn không có
+    //    bề rộng hữu hạn nào để ngắt theo. Sửa ở đây một lần là xong cho cả năm khối
+    //    (mô tả, subtask, đính kèm, liên kết, thảo luận) thay vì vá từng thẻ <p>.
+    <section className={cn('grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2.5', className)}>
       <div className="flex min-h-8 flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
           {title}

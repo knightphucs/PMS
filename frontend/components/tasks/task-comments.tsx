@@ -198,7 +198,10 @@ export function TaskComments({
                       </div>
                     </div>
                   ) : (
-                    <p className="mt-0.5 text-sm leading-relaxed whitespace-pre-wrap">
+                    // `break-words` đi kèm `whitespace-pre-wrap`: cha đã có `min-w-0` nên
+                    // không phồng track, nhưng một URL dài vẫn tràn khỏi mép nếu không cho
+                    // phép ngắt giữa từ.
+                    <p className="mt-0.5 text-sm leading-relaxed break-words whitespace-pre-wrap">
                       {comment.content}
                     </p>
                   )}
