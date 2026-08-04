@@ -42,7 +42,62 @@ export const taskKeys = {
   detail: (projectId: string, taskId: string) => [...taskKeys.all(projectId), taskId] as const,
 };
 
+/**
+ * Dữ liệu của MỘT task cụ thể, đều nằm dưới `taskKeys.detail` để một lần invalidate task
+ * là làm mới cả bảy khối của màn chi tiết.
+ */
+export const taskDetailKeys = {
+  comments: (projectId: string, taskId: string) =>
+    [...taskKeys.detail(projectId, taskId), 'comments'] as const,
+  attachments: (projectId: string, taskId: string) =>
+    [...taskKeys.detail(projectId, taskId), 'attachments'] as const,
+  watchers: (projectId: string, taskId: string) =>
+    [...taskKeys.detail(projectId, taskId), 'watchers'] as const,
+  links: (projectId: string, taskId: string) =>
+    [...taskKeys.detail(projectId, taskId), 'links'] as const,
+  activity: (projectId: string, taskId: string) =>
+    [...taskKeys.detail(projectId, taskId), 'activity'] as const,
+};
+
+export const projectActivityKeys = {
+  all: (projectId: string) => [...projectDataKeys.all(projectId), 'activity'] as const,
+};
+
+export const statisticsKeys = {
+  all: (projectId: string) => [...projectDataKeys.all(projectId), 'statistics'] as const,
+};
+
+export const projectAttachmentKeys = {
+  all: (projectId: string) => [...projectDataKeys.all(projectId), 'attachments'] as const,
+};
+
+/**
+ * Nhãn là dữ liệu TOÀN CỤC, cố ý nằm NGOÀI `projectDataKeys`: kéo một thẻ trong project A
+ * không có lý do gì làm cũ danh sách nhãn dùng chung cho mọi project.
+ */
+export const labelKeys = {
+  all: ['labels'] as const,
+};
+
 /** Lời mời của TÔI — không thuộc project nào cụ thể (tôi còn chưa là thành viên). */
 export const invitationKeys = {
   all: ['my-invitations'] as const,
+};
+
+/** Nhật ký cấp hệ thống — chỉ SystemAdmin, không thuộc project nào (ADR-042). */
+export const systemAuditKeys = {
+  all: ['system-audit-logs'] as const,
+};
+
+/**
+ * Thông báo nằm NGOÀI `projectDataKeys` — hộp thông báo là của một CON NGƯỜI, không của
+ * một project, và endpoint không nhận `projectId` ở đâu cả (ADR-023).
+ *
+ * `unreadCount` là nhánh con của `all` để một lần `invalidateQueries(notificationKeys.all)`
+ * làm mới cả badge lẫn danh sách — hai thứ luôn phải khớp nhau.
+ */
+export const notificationKeys = {
+  all: ['notifications'] as const,
+  list: (request: unknown) => [...notificationKeys.all, 'list', request] as const,
+  unreadCount: () => [...notificationKeys.all, 'unread-count'] as const,
 };

@@ -224,3 +224,47 @@ describe('apiFetch — hình dạng request và response', () => {
     });
   });
 });
+
+describe('apiFetch — body dạng FormData (upload file đính kèm)', () => {
+  beforeEach(() => dangDangNhap());
+
+  it('KHÔNG đặt Content-Type để trình duyệt tự sinh boundary', async () => {
+    fetchMock().mockResolvedValue(jsonResponse(201, { id: 'a1' }));
+
+    const form = new FormData();
+    form.append('file', new Blob([new Uint8Array([1, 2, 3])]), 'anh.png');
+
+    await apiFetch('/tasks/t1/attachments', { method: 'POST', body: form });
+
+    const headers = fetchCall(0).init.headers as Record<string, string>;
+
+    // Tự đặt 'multipart/form-data' (không boundary) thì server không tách được các phần
+    // và trả 400 với thông điệp chẳng liên quan gì tới nguyên nhân thật.
+    expect(headers['Content-Type']).toBeUndefined();
+    // Vẫn phải giữ Authorization — upload là endpoint cần đăng nhập.
+    expect(headers.Authorization).toBe('Bearer token-cu');
+  });
+
+  it('gửi FormData NGUYÊN TRẠNG, không JSON.stringify', async () => {
+    fetchMock().mockResolvedValue(jsonResponse(201, { id: 'a1' }));
+
+    const form = new FormData();
+    form.append('file', new Blob(['noi dung']), 'tai-lieu.pdf');
+
+    await apiFetch('/tasks/t1/attachments', { method: 'POST', body: form });
+
+    // JSON.stringify(FormData) cho ra chuỗi '{}' — file biến mất im lặng và server nhận
+    // một request rỗng. Đây chính là hành vi của apiFetch TRƯỚC 2026-08-03.
+    expect(fetchCall(0).init.body).toBe(form);
+  });
+
+  it('vẫn JSON.stringify body thường — nhánh FormData không làm hỏng đường cũ', async () => {
+    fetchMock().mockResolvedValue(jsonResponse(200, {}));
+
+    await apiFetch('/labels', { method: 'POST', body: { name: 'bug' } });
+
+    const { init } = fetchCall(0);
+    expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json');
+    expect(init.body).toBe('{"name":"bug"}');
+  });
+});
