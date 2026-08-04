@@ -29,6 +29,23 @@ export interface EmployeeDto {
   name: string;
   email: string;
   systemRole: SystemRole;
+  /**
+   * Quyền cấp HỆ THỐNG (tầng 1) — ADR-045. Cùng tập với claim `permission` trong JWT, cùng
+   * một nguồn là bảng `RolePermissions` phía backend.
+   *
+   * 🔴 Có ở đây để frontend gác nút/menu mà **không phải giải mã JWT**. Access token nằm
+   * trong bộ nhớ Zustand và client chưa từng có dòng nào đọc nội dung nó (ADR-027); thêm
+   * một bộ phân tích token ở client là thêm một chỗ nữa để lệch. Cưỡng chế thật vẫn 100%
+   * ở server — đây chỉ để UI khỏi hiện nút chắc chắn nhận 403.
+   *
+   * ⚠️ Gác quyền qua `lib/auth/system-permissions.ts`, đừng đọc mảng này trực tiếp: phiên
+   * đã tải trước lúc deploy giữ `employee` trong cache **không có** trường này cho tới lần
+   * refresh kế, và hàm ở đó đọc `undefined` thành "không có quyền nào".
+   *
+   * 📌 Đây là quyền tầng 1. Quyền theo từng project (tầng 2) KHÔNG nằm ở đây và không bao
+   * giờ được nằm ở đây — xem `lib/tasks/permissions.ts`.
+   */
+  permissions: string[];
 }
 
 /**

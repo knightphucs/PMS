@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PMS.Domain.Common;
 using PMS.Domain.Entities;
 
@@ -38,6 +39,58 @@ public class PmsDbContext : DbContext
 
         ApplySoftDeleteQueryFilter(modelBuilder);
         ApplyIdNeverGenerated(modelBuilder);
+        ApplyUtcDateTimeKind(modelBuilder);
+    }
+
+    /// <summary>
+    /// Đóng dấu lại <see cref="DateTimeKind.Utc"/> cho MỌI cột <c>DateTime</c> lúc ĐỌC ra.
+    ///
+    /// <para>
+    /// 🔴 Vì sao cần: kiểu <c>datetime2</c> của SQL Server <b>không lưu Kind</b>. Ghi một
+    /// <c>DateTime</c> có <c>Kind = Utc</c> xuống rồi đọc lên thì nhận lại
+    /// <c>Kind = Unspecified</c>, và <c>System.Text.Json</c> serialize giá trị Unspecified
+    /// <b>không kèm hậu tố</b> — ra <c>"2026-08-04T14:15:06"</c> thay vì
+    /// <c>"2026-08-04T14:15:06Z"</c>.
+    /// </para>
+    /// <para>
+    /// Hệ quả ở trình duyệt: <c>new Date("...T14:15:06")</c> hiểu là giờ ĐỊA PHƯƠNG, nên
+    /// <b>mọi mốc thời gian trong ứng dụng lệch đúng bằng chênh múi giờ</b>. Ở Việt Nam
+    /// (UTC+7), một thao tác vừa xảy ra hiện thành "7 giờ trước". Lỗi này chạm tới bình luận,
+    /// thông báo, nhật ký hoạt động, hạn hoàn thành — tức gần như mọi màn hình — mà build vẫn
+    /// sạch, test vẫn xanh, vì không test nào so chuỗi JSON thô của một mốc thời gian.
+    /// </para>
+    /// <para>
+    /// 📌 Chỉ chuyển đổi chiều ĐỌC; chiều ghi giữ nguyên giá trị. Toàn bộ hệ thống đã dùng
+    /// <c>DateTime.UtcNow</c> nên dữ liệu trong cột vốn là UTC — ở đây chỉ khôi phục lại
+    /// thông tin Kind mà tầng lưu trữ đánh rơi, không dịch chuyển thời điểm nào cả.
+    /// </para>
+    /// <para>
+    /// Cách đã loại: cấu hình <c>JsonSerializerOptions</c> ở tầng API. Nó chỉ vá được đường
+    /// đi ra HTTP, trong khi cùng một giá trị Unspecified còn chảy vào so sánh nghiệp vụ
+    /// (<c>IsOverdue</c>, <c>DueDate &lt; UtcNow</c>) và vào <c>DueDateNotifier</c> — sửa ở
+    /// tầng đọc là sửa một lần cho mọi người tiêu thụ.
+    /// </para>
+    /// </summary>
+    private static void ApplyUtcDateTimeKind(ModelBuilder modelBuilder)
+    {
+        var toUtc = new ValueConverter<DateTime, DateTime>(
+            write => write,
+            read => DateTime.SpecifyKind(read, DateTimeKind.Utc));
+
+        var toUtcNullable = new ValueConverter<DateTime?, DateTime?>(
+            write => write,
+            read => read.HasValue ? DateTime.SpecifyKind(read.Value, DateTimeKind.Utc) : read);
+
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            foreach (var property in entityType.GetProperties())
+            {
+                if (property.ClrType == typeof(DateTime))
+                    property.SetValueConverter(toUtc);
+                else if (property.ClrType == typeof(DateTime?))
+                    property.SetValueConverter(toUtcNullable);
+            }
+        }
     }
 
     private static void ApplyIdNeverGenerated(ModelBuilder modelBuilder)

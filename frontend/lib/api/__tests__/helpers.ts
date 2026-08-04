@@ -33,6 +33,8 @@ export const EMPLOYEE: EmployeeDto = {
   name: 'Nguyễn Văn A',
   email: 'a@pms.test',
   systemRole: 'User',
+  // Đúng tập quyền mà backend seed cho vai trò `User` (ADR-045).
+  permissions: ['projects:create'],
 };
 
 /** Body của `/auth/refresh` khi thành công. */

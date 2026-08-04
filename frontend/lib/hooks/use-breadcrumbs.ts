@@ -19,6 +19,14 @@ const TAB_LABEL: Record<string, string> = {
   members: 'Thành viên',
 };
 
+/** Khu quản trị — nhãn tĩnh, không phải nạp gì nên không có trạng thái `loading`. */
+const ADMIN_LABEL: Record<string, string> = {
+  employees: 'Nhân sự',
+  roles: 'Phân quyền',
+  labels: 'Nhãn toàn cục',
+  'audit-logs': 'Nhật ký hệ thống',
+};
+
 /**
  * Breadcrumb cho thanh header, vốn nằm trong `AppShell` — tức là **trên** segment `[id]`
  * nên không bao giờ nhận được project qua prop.
@@ -49,6 +57,13 @@ export function useBreadcrumbs(): Crumb[] {
   // Quan sát ghé cache của `TaskDetailContent` — `enabled: false` nên không phát request
   // nào. Khi dialog mở đè lên board, URL đã là `/tasks/{id}` nên breadcrumb đổi theo.
   const task = useTaskCached(projectId ?? '', taskId);
+
+  if (segments[0] === 'admin') {
+    const crumbs: Crumb[] = [{ label: 'Quản trị' }];
+    const label = segments[1] ? ADMIN_LABEL[segments[1]] : undefined;
+    if (label) crumbs.push({ label });
+    return crumbs;
+  }
 
   if (!isProjectRoute) return [];
 

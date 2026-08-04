@@ -90,6 +90,28 @@ export const systemAuditKeys = {
 };
 
 /**
+ * Nhân sự cấp hệ thống. Khóa PHẲNG, cố ý nằm ngoài `projectDataKeys`: đây là dữ liệu toàn
+ * hệ thống, khóa/mở một tài khoản không liên quan gì tới cache của một project cụ thể.
+ */
+export const adminEmployeeKeys = {
+  all: ['admin-employees'] as const,
+  list: (request: unknown) => [...adminEmployeeKeys.all, 'list', request] as const,
+};
+
+/**
+ * Phân quyền vai trò (ADR-045).
+ *
+ * `catalog` và `matrix` là hai nhánh con của `all` để một lần
+ * `invalidateQueries(rolePermissionKeys.all)` sau khi lưu làm mới cả hai — ma trận mà lệch
+ * với danh mục thì ô tích hiện sai và người quản trị không có cách nào biết.
+ */
+export const rolePermissionKeys = {
+  all: ['role-permissions'] as const,
+  catalog: () => [...rolePermissionKeys.all, 'catalog'] as const,
+  matrix: () => [...rolePermissionKeys.all, 'matrix'] as const,
+};
+
+/**
  * Thông báo nằm NGOÀI `projectDataKeys` — hộp thông báo là của một CON NGƯỜI, không của
  * một project, và endpoint không nhận `projectId` ở đâu cả (ADR-023).
  *

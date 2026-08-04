@@ -71,7 +71,9 @@ export type ActivityAction =
   | 'CommentDeleted'
   | 'AccountLocked'
   | 'AccountUnlocked'
-  | 'SystemRoleChanged';
+  | 'SystemRoleChanged'
+  /** Đổi tập quyền của một vai trò hệ thống (ADR-045). `EntityType = "RolePermission"`. */
+  | 'PermissionsChanged';
 
 /**
  * Thứ tự hiển thị của Priority.
@@ -173,4 +175,5 @@ export const ACTIVITY_ACTION_LABEL: Record<ActivityAction, string> = {
   AccountLocked: 'Khóa tài khoản',
   AccountUnlocked: 'Mở khóa tài khoản',
   SystemRoleChanged: 'Đổi quyền hệ thống',
+  PermissionsChanged: 'Đổi quyền của vai trò',
 };
