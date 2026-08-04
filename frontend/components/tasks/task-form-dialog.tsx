@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
 import { ApiError, errorMessage } from '@/lib/api/problem';
 import { applyServerErrors } from '@/lib/form';
 import { useCreateTask, useTask, useUpdateTask } from '@/lib/hooks/use-tasks';
@@ -37,12 +38,13 @@ import {
   taskSchema,
   toNullableId,
   toNullableIso,
+  toNullableText,
   type TaskValues,
 } from '@/lib/validation/task-schema';
 import { PRIORITY_ORDER, type Priority } from '@/types/enums';
 
 /** ⚠️ Khớp ĐÚNG tên property của Create/UpdateTaskRequest. */
-const FIELDS = ['name', 'priority', 'dueDate', 'sprintId'] as const;
+const FIELDS = ['name', 'priority', 'dueDate', 'sprintId', 'description'] as const;
 
 /** `Select` không nhận chuỗi rỗng làm value — dùng token này cho "Backlog". */
 const BACKLOG = 'backlog';
@@ -54,6 +56,13 @@ interface Props {
   taskId: string | null;
   /** Sprint mặc định khi tạo mới (đang mở board của sprint nào thì gợi ý sprint đó). */
   defaultSprintId?: string | null;
+  /**
+   * Có giá trị = đang tạo **subtask** của task đó. Chỉ có nghĩa ở chế độ tạo.
+   *
+   * Mặc định `null` nên mọi nơi gọi cũ giữ nguyên hành vi từng byte — `CreateTaskRequest`
+   * vốn đã luôn gửi `parentTaskId: null`.
+   */
+  parentTaskId?: string | null;
   onClose: () => void;
 }
 
@@ -72,9 +81,11 @@ export function TaskFormDialog({
   open,
   taskId,
   defaultSprintId = null,
+  parentTaskId = null,
   onClose,
 }: Props) {
   const isEdit = taskId !== null;
+  const isSubtask = !isEdit && parentTaskId !== null;
   const detail = useTask(projectId, open && isEdit ? taskId : null);
   const sprints = useSprints(open ? projectId : null);
   const createTask = useCreateTask(projectId);
@@ -93,7 +104,7 @@ export function TaskFormDialog({
     formState: { errors, isSubmitting },
   } = useForm<TaskValues>({
     resolver: zodResolver(taskSchema),
-    defaultValues: { name: '', priority: 'Medium', dueDate: '', sprintId: '' },
+    defaultValues: { name: '', priority: 'Medium', dueDate: '', sprintId: '', description: '' },
   });
 
   const priority = watch('priority');
@@ -109,6 +120,7 @@ export function TaskFormDialog({
         priority: 'Medium',
         dueDate: '',
         sprintId: defaultSprintId ?? '',
+        description: '',
       });
       return;
     }
@@ -119,6 +131,9 @@ export function TaskFormDialog({
       priority: detail.data.priority,
       dueDate: detail.data.dueDate ? toDateInputValue(detail.data.dueDate) : '',
       sprintId: detail.data.sprintId ?? '',
+      // 🔴 Mang mô tả hiện tại vào form. Bỏ dòng này là PUT gửi `description: undefined`,
+      // backend bind `null` và mô tả bị xóa — xem chú thích ở `taskSchema.description`.
+      description: detail.data.description ?? '',
     });
   }, [open, isEdit, detail.data, defaultSprintId, reset]);
 
@@ -133,6 +148,9 @@ export function TaskFormDialog({
             name: values.name,
             priority: values.priority,
             dueDate: toNullableIso(values.dueDate),
+            // 🔴 `PUT /tasks/{id}` GHI ĐÈ TOÀN PHẦN — mọi trường không gửi đều thành `null`.
+            // Đây không phải PATCH.
+            description: toNullableText(values.description),
             // Token của lần GET GẦN NHẤT, không phải của lúc dựng bảng.
             rowVersion: detail.data.rowVersion,
           });
@@ -141,13 +159,17 @@ export function TaskFormDialog({
           await createTask.mutateAsync({
             name: values.name,
             projectId,
-            sprintId: toNullableId(values.sprintId),
-            // Tạo subtask đi qua màn chi tiết task, không phải dialog này.
-            parentTaskId: null,
+            // Subtask luôn vào Backlog: `TaskRepository` lọc board/backlog theo
+            // `ParentTaskId == null` nên sprint của subtask là giá trị không ai nhìn thấy.
+            sprintId: isSubtask ? null : toNullableId(values.sprintId),
+            parentTaskId,
             dueDate: toNullableIso(values.dueDate),
             priority: values.priority,
+            description: toNullableText(values.description),
           });
-          toast.success(`Đã tạo task "${values.name}".`);
+          toast.success(
+            isSubtask ? `Đã tạo subtask "${values.name}".` : `Đã tạo task "${values.name}".`,
+          );
         }
         handleOpenChange(false);
       } catch (error) {
@@ -183,11 +205,15 @@ export function TaskFormDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Sửa task' : 'Tạo task'}</DialogTitle>
+          <DialogTitle>
+            {isEdit ? 'Sửa task' : isSubtask ? 'Tạo subtask' : 'Tạo task'}
+          </DialogTitle>
           <DialogDescription>
             {isEdit
               ? 'Trạng thái đổi bằng cách kéo thẻ trên bảng, không sửa ở đây.'
-              : 'Task mới luôn bắt đầu ở trạng thái Cần làm.'}
+              : isSubtask
+                ? 'Subtask luôn bắt đầu ở trạng thái Cần làm và thuộc về task cha, không nằm trên bảng.'
+                : 'Task mới luôn bắt đầu ở trạng thái Cần làm.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -256,10 +282,27 @@ export function TaskFormDialog({
               />
             </div>
 
+            <div className="grid gap-2">
+              <Label htmlFor="task-description">Mô tả</Label>
+              <Textarea
+                id="task-description"
+                rows={4}
+                placeholder="Bối cảnh, tiêu chí hoàn thành, đường dẫn liên quan…"
+                aria-invalid={errors.description ? true : undefined}
+                aria-describedby={errors.description ? 'task-description-error' : undefined}
+                {...register('description')}
+              />
+              {errors.description ? (
+                <p id="task-description-error" role="alert" className="text-destructive text-sm">
+                  {errors.description.message}
+                </p>
+              ) : null}
+            </div>
+
             {/* Chuyển sprint khi SỬA đi qua `PUT /tasks/{id}/sprint` (endpoint riêng,
                 không cần rowVersion) chứ không qua `PUT /tasks/{id}` — nên ô này chỉ
-                hiện ở chế độ tạo. */}
-            {!isEdit ? (
+                hiện ở chế độ tạo. Subtask cũng không có ô này: nó không lên board. */}
+            {!isEdit && !isSubtask ? (
               <div className="grid gap-2">
                 <Label htmlFor="task-sprint">Sprint</Label>
                 <Select

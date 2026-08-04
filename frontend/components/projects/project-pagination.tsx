@@ -21,6 +21,8 @@ interface Props {
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
   disabled?: boolean;
+  /** Danh từ đếm được trong dòng "Hiển thị 1–10 trong tổng số N …". */
+  unitLabel?: string;
 }
 
 /**
@@ -28,7 +30,13 @@ interface Props {
  * `page < totalPages`. Cùng lý do không tính lại `IsOverdue` hay `SubtaskProgress`:
  * giá trị đã có sẵn thì tính lại chỉ tạo thêm một chỗ có thể lệch.
  */
-export function ProjectPagination({ page, onPageChange, onPageSizeChange, disabled }: Props) {
+export function ProjectPagination({
+  page,
+  onPageChange,
+  onPageSizeChange,
+  disabled,
+  unitLabel = 'dự án',
+}: Props) {
   const from = page.totalCount === 0 ? 0 : (page.page - 1) * page.pageSize + 1;
   const to = Math.min(page.page * page.pageSize, page.totalCount);
 
@@ -37,7 +45,7 @@ export function ProjectPagination({ page, onPageChange, onPageSizeChange, disabl
       <p className="text-muted-foreground text-sm" aria-live="polite">
         Hiển thị <strong className="text-foreground">{from}</strong>–
         <strong className="text-foreground">{to}</strong> trong tổng số{' '}
-        <strong className="text-foreground">{page.totalCount}</strong> dự án
+        <strong className="text-foreground">{page.totalCount}</strong> {unitLabel}
       </p>
 
       <div className="flex items-center gap-4">
@@ -48,7 +56,7 @@ export function ProjectPagination({ page, onPageChange, onPageSizeChange, disabl
             onValueChange={(value) => onPageSizeChange(Number(value))}
             disabled={disabled}
           >
-            <SelectTrigger size="sm" aria-label="Số dự án mỗi trang">
+            <SelectTrigger size="sm" aria-label={`Số ${unitLabel} mỗi trang`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

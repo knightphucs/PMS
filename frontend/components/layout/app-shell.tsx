@@ -7,6 +7,7 @@ import { Breadcrumbs } from '@/components/common/breadcrumbs';
 import { ThemeToggle } from '@/components/common/theme-toggle';
 import { SidebarBrand, SidebarNav } from '@/components/layout/sidebar';
 import { UserMenu } from '@/components/layout/user-menu';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -59,6 +60,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Breadcrumbs />
 
           <div className="flex-1" />
+          <NotificationBell />
           <ThemeToggle />
           <UserMenu />
         </header>

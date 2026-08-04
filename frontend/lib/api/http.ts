@@ -6,7 +6,12 @@ import { refreshAccessToken } from './refresh';
 
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-  /** Sẽ được JSON.stringify. Bỏ trống nếu endpoint không nhận body. */
+  /**
+   * Sẽ được `JSON.stringify`. Bỏ trống nếu endpoint không nhận body.
+   *
+   * ⚠️ **Ngoại lệ: `FormData`.** Truyền `FormData` thì nó được gửi NGUYÊN TRẠNG và header
+   * `Content-Type` **cố tình không được đặt** — xem `buildInit`.
+   */
   body?: unknown;
   /** Query string. Giá trị `undefined`, `null` hoặc chuỗi rỗng bị bỏ qua. */
   query?: Record<string, string | number | boolean | undefined | null>;
@@ -69,15 +74,26 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   const { method = 'GET', body, query, anonymous = false, signal } = options;
   const url = buildUrl(path, query);
 
+  // Upload file đi bằng multipart/form-data, không phải JSON.
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+
   const buildInit = (token: string | null): RequestInit => {
     const headers: Record<string, string> = { Accept: 'application/json' };
-    if (body !== undefined) headers['Content-Type'] = 'application/json';
+
+    // 🔴 KHÔNG đặt Content-Type cho FormData. multipart cần một `boundary=...` mà chỉ
+    // trình duyệt sinh được; tự đặt `multipart/form-data` (không boundary) thì server
+    // không tách được các phần và trả 400 với thông điệp chẳng liên quan gì tới nguyên
+    // nhân thật. Bỏ trống thì `fetch` tự điền cả kiểu lẫn boundary.
+    if (body !== undefined && !isFormData) headers['Content-Type'] = 'application/json';
     if (token) headers.Authorization = `Bearer ${token}`;
 
     return {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body:
+        body === undefined ? undefined
+        : isFormData ? (body as FormData)
+        : JSON.stringify(body),
       // Bắt buộc để cookie refresh đi kèm. Nhờ cookie có `Path=/api/v1/auth` nên nó chỉ
       // thực sự được gửi tới các endpoint auth, không rò ra mọi request nghiệp vụ.
       credentials: 'include',

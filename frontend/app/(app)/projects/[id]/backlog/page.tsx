@@ -70,6 +70,7 @@ export default function BacklogPage() {
       ) : (
         <BacklogTable
           tasks={backlog.data}
+          projectId={id}
           movingIds={taskActions.movingIds}
           renderMenu={taskActions.renderMenu}
         />

@@ -5,18 +5,26 @@ import { findTaskInBoard, moveTaskInBoard, patchTaskInBoard } from './board-cach
 import type { Status } from '@/types/enums';
 import type { BoardResponse, TaskSummaryResponse } from '@/types/task';
 
-const task = (id: string, status: Status, over = false): TaskSummaryResponse => ({
-  id,
-  name: `Task ${id}`,
-  status,
-  priority: 'Medium',
-  dueDate: '2026-01-01T00:00:00Z',
-  isOverdue: over,
-  sprintId: null,
-  parentTaskId: null,
-  subtaskProgress: 40,
-  assignees: [],
-});
+let nextNumber = 1;
+
+const task = (id: string, status: Status, over = false): TaskSummaryResponse => {
+  const number = nextNumber++;
+  return {
+    id,
+    number,
+    code: `PMS-${number}`,
+    name: `Task ${id}`,
+    status,
+    priority: 'Medium',
+    dueDate: '2026-01-01T00:00:00Z',
+    isOverdue: over,
+    sprintId: null,
+    parentTaskId: null,
+    subtaskProgress: 40,
+    assignees: [],
+    labels: [],
+  };
+};
 
 /** Board luôn đủ 4 cột kể cả cột rỗng — giống hệt backend. */
 const board = (): BoardResponse => ({
