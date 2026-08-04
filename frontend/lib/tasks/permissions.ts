@@ -27,6 +27,45 @@ export const canComment = (role: RoleInProject | null) =>
   role === 'ProjectManager' || role === 'Member';
 
 /**
+ * Ba action "cộng tác trên nội dung công việc" — `ManageTaskLabels` (ADR-037),
+ * `ManageTaskLinks` (ADR-038), `UploadAttachment` (ADR-035).
+ *
+ * Backend gom cả ba vào **cùng một nhánh** với `CreateComment` trong
+ * `ProjectPermissions.cs`: PM + Member ghi được, `Viewer` chỉ đọc. Vẫn tách thành ba hàm
+ * chứ không dùng chung một `canCollaborate`: chúng chỉ TÌNH CỜ bằng nhau hôm nay, và gộp
+ * lại thì lần đầu backend tách một trong ba ra sẽ phải sửa mọi nơi gọi.
+ *
+ * ⚠️ ĐỌC cả ba đều đi qua `ProjectAction.View` — `Viewer` vẫn xem nhãn, xem liên kết và
+ * **tải được** file đính kèm. Đừng ẩn cả khối, chỉ ẩn nút ghi.
+ */
+export const canManageLabels = (role: RoleInProject | null) =>
+  role === 'ProjectManager' || role === 'Member';
+
+export const canManageTaskLinks = (role: RoleInProject | null) =>
+  role === 'ProjectManager' || role === 'Member';
+
+export const canUploadAttachment = (role: RoleInProject | null) =>
+  role === 'ProjectManager' || role === 'Member';
+
+/**
+ * Theo dõi task — `ProjectAction.Watch` trả `true` cho **cả ba** vai trò.
+ *
+ * 🔴 `Viewer` theo dõi được. Đây là thao tác GHI duy nhất mà `Viewer` làm được (ADR-036),
+ * và hợp lý vì nó chỉ ảnh hưởng hộp thông báo của chính họ. Đừng ẩn nút bằng một phép kiểm
+ * `role !== 'Viewer'` chung chung — đó là lối tắt sai ở đúng chỗ này.
+ *
+ * `null` vẫn là không: chưa tải xong vai trò, hoặc chưa chấp nhận lời mời.
+ */
+export const canWatch = (role: RoleInProject | null) => role !== null;
+
+/**
+ * Xóa file đính kèm — luật **per-row**, không có `ProjectAction` riêng: người tải lên
+ * HOẶC ProjectManager (`AttachmentService.DeleteAsync`), đúng khuôn xóa comment của ADR-026.
+ */
+export const canDeleteAttachment = (role: RoleInProject | null, isUploader: boolean) =>
+  isUploader || role === 'ProjectManager';
+
+/**
  * Đổi trạng thái task — ADR-017, luật per-row KHÔNG nằm trong ma trận `ProjectPermissions`.
  *
  * Là `Assignee` của CHÍNH task đó, HOẶC là `ProjectManager` của project (PM override được
