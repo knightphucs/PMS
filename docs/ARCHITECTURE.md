@@ -211,7 +211,8 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | ~~A~~ | ~~Authorization — claim kiểu Permission~~ | ✅ 2026-08-04 | ADR-045. Đã chốt cả bốn điểm căng trước khi gõ code |
 | — | **Vá nợ backend + lệch múi giờ** | ✅ 2026-08-04 | ADR-046 / 046b. Kèm sửa endpoint thống kê hỏng 500 từ ngày viết |
 | — | **Backend tầng 3 — ba trên bốn** | ✅ 2026-08-04 | ADR-048. `Project.Status` có đường ghi · `GET /employees?search=` · @mention (server lọc id, đã mutation test) |
-| **10** | **Vòng đời Sprint** | ⬜ **Việc tiếp theo** | Hạng mục cuối của tầng 3. Cần một **quyết định sản phẩm** trước khi code (*task chưa xong đi đâu khi đóng sprint?*) → **viết ADR riêng trước**. Chi tiết ở "Việc còn dang dở" mục E |
+| **9b** | **Frontend — ba tính năng ADR-048 + ba lỗ hổng UI** | ⬜ **Việc tiếp theo** | Backend xong 2026-08-04 nhưng **frontend chưa dựng gì**: đổi `Project.Status`, ô tra nhân viên khi mời, @mention. Cộng ba chỗ "bấm vào không thấy gì" phát hiện 2026-08-05 — chi tiết ở "Việc còn dang dở" mục B |
+| **10** | **Vòng đời Sprint** | ⬜ | Hạng mục cuối của tầng 3. Cần một **quyết định sản phẩm** trước khi code (*task chưa xong đi đâu khi đóng sprint?*) → **viết ADR riêng trước**. Chi tiết ở "Việc còn dang dở" mục E |
 | 11 | **Nhóm báo cáo kiểu Jira** | ⬜ | Backlog insight · velocity · report · timeline. **Phiên riêng** — yêu cầu 2026-08-04 |
 | 12 | **Áp kỹ thuật DB** | ⬜ | Trigger · stored procedure · view · index. **Phiên riêng** — yêu cầu 2026-08-04 |
 | 13 | **Real-time (SignalR)** | ⬜ | Theo §6, chỉ làm sau khi core CRUD **và** frontend đã ổn định |
@@ -290,9 +291,48 @@ một trong hai endpoint hiếm hoi như vậy, đừng đem khuôn này áp san
 ~~1. Dashboard thống kê~~ · ~~2. Quên/đặt lại mật khẩu~~ · ~~3. Nhóm Admin~~ — **cả ba đã
 xong 2026-08-04.** Không còn màn hình nào trong lộ trình ban đầu ở trạng thái ⬜.
 
-**Còn lại đúng một mục:**
+**Còn lại:**
 
-1. **Search toàn cục** — ⬜ và **vẫn chưa có API**.
+1. 🆕 **Ba tính năng backend đã xong mà frontend chưa có gì (ADR-048, 2026-08-04).** Không
+   bị chặn, không cần quyết định nào — chỉ là chưa dựng. Ghi ra đây vì cả ba đều **vô hình**
+   nếu chỉ nhìn UI: backend có đường đi, người dùng không có nút.
+
+   | Backend đã có | Frontend hiện tại |
+   |---|---|
+   | `POST /projects/{id}/complete` + `/reopen` (PM-only) | Không nút nào — `Project.Status` **không đổi được từ UI**, dù nó nằm trong DTO và là khóa `sortBy`. `reopen` trả **409** nếu project chưa `Done` |
+   | `GET /employees?search=` (mọi người đã đăng nhập) | Ô mời thành viên vẫn bắt gõ **đúng email** bằng tay. Từ khóa **≥ 2 ký tự**, ngắn hơn trả **400** |
+   | `mentionedEmployeeIds` trong comment | `types/comment.ts` đã có trường, **chưa có ô chọn**. Client **gửi id**; server **không** parse `@tên` từ nội dung |
+
+2. 🆕 **Ba chỗ "bấm vào không thấy gì" — rà giao diện 2026-08-05.**
+
+   a. 🔴 **Nút "Mở trang riêng" trong dialog chi tiết Task là một no-op.**
+      `components/tasks/task-detail-header.tsx` dùng `<Link>` trỏ tới
+      `/projects/{id}/tasks/{taskId}` — nhưng khi dialog đang mở, **URL hiện tại đã đúng là
+      chuỗi đó** (intercepting route `(.)` giữ nguyên đường dẫn, ADR-043). Soft navigation
+      tới chính URL đang đứng không đổi router state, nên dialog ở nguyên đó.
+      Sửa bằng **điều hướng cứng** (`<a href>` thường, hoặc `window.location.assign`):
+      intercepting route **chỉ** áp cho soft navigation, một lần tải trang đầy đủ sẽ render
+      trang thật. Đây là cái bẫy cấu trúc của ADR-043, không phải lỗi cẩu thả.
+
+   b. **Không có trang hồ sơ cá nhân.** `UserMenu` chỉ có mục Đăng xuất; không route nào
+      trong `app/`. ⚠️ Và backend **chưa có đường sửa hồ sơ**: `AuthController` chỉ có
+      `GET /auth/me`, không có `PUT /employees/me`, không có đổi mật khẩu khi đã đăng nhập
+      (chỉ `forgot-password` qua email). Trang **chỉ đọc** làm được ngay; muốn sửa được thì
+      phải làm backend trước — và nhớ `/auth/me` **dựng DTO từ CLAIM chứ không đọc DB**, nên
+      đổi tên sẽ không hiện ra cho tới khi token được làm mới. Đó là một quyết định cần
+      **ADR riêng**, không phải chi tiết cài đặt.
+
+   c. **Sidebar chỉ còn 4 mục** và không phản ánh phạm vi sản phẩm khi đang ở trong một dự án.
+      🔴 **Đính chính một khẳng định SAI trong `components/layout/sidebar.tsx`:** comment ở đó
+      nói `AppShell` "không biết project nào đang mở vì nó nằm TRÊN segment `[id]`".
+      Không đúng với client component — `SidebarNav` **đã** gọi `usePathname()`, mà hàm đó
+      trả **toàn bộ** đường dẫn kể cả `[id]`. Rút id bằng regex trên pathname là hợp lệ và
+      **không** dính rủi ro "hai tab nói dối" mà comment lo: đó là rủi ro của **store**, còn
+      URL thì vốn đã thuộc về từng tab. Hướng đúng: một khối theo **ngữ cảnh dự án** hiện khi
+      pathname khớp `/projects/{id}/*` (Bảng · Backlog · Sprint · Thống kê · Thành viên) cộng
+      danh sách dự án gần đây. Sửa luôn comment đó, đừng để nguyên một lý do sai.
+
+3. **Search toàn cục** — ⬜ và **vẫn chưa có API**.
 
    ⚠️ **Đính chính quan trọng (2026-08-04).** Tài liệu này từng ghi "chỉ `EmployeeRepository`
    và `NotificationRepository` dùng tới `?search=`" — **SAI**. Đã kiểm từng repository:

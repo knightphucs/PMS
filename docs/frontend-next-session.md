@@ -1,15 +1,101 @@
 # Chuẩn bị cho phiên Frontend kế tiếp
 
 > Soạn ngày 2026-07-31, cuối phiên "Frontend — nền tảng".
-> **Cập nhật 2026-08-04** cuối phiên "Phân quyền permission" — **đọc §0 trước**, các mục
-> bên dưới lỗi thời phần lớn.
-> Đọc cùng `ARCHITECTURE.md` §6 và ADR-027 → ADR-047.
+> **Cập nhật 2026-08-05** — **đọc §0 trước**, rồi §0a; các mục bên dưới lỗi thời phần lớn.
+> Đọc cùng `ARCHITECTURE.md` §6 và ADR-027 → ADR-048.
 
 ---
 
-## 0. 🆕 Cập nhật 2026-08-04 — KHÔNG CÒN MÀN HÌNH NÀO ⬜
+## 0. 🆕 Cập nhật 2026-08-05 — việc cho phiên tới
 
-**Đọc mục này trước; §0b, §2, §3 và §4 bên dưới đã lỗi thời phần lớn.**
+**Đây là mục mới nhất. §0a bên dưới là bản của 2026-08-04, vẫn đúng nhưng chưa đủ.**
+
+### ⚠️ Đọc trước một dòng lệnh: kiểm nhánh
+
+Nhánh làm việc là **`module/authorization-permission`**, **không phải `main`** — `main` đi
+sau 8 commit. Chạy `git log --oneline -5` trước khi sửa bất cứ gì.
+
+> Bài học 2026-08-05, trả giá thật: một phiên đã được giao đi sửa lỗi tràn ngang 8px ở
+> `/board` và **sửa lại thứ commit `894d7f0` đã sửa 22 giờ trước đó**, vì nó làm việc trên
+> một worktree tách từ `main`. Mô tả lỗi nghe hợp lý, mã nguồn trong tầm mắt cũng khớp — chỉ
+> có `git log` của nhánh kia là biết sự thật. **Kiểm lịch sử trước khi tin một mô tả lỗi.**
+
+### Ba tính năng backend đã xong mà frontend CHƯA CÓ GÌ (ADR-048)
+
+Không bị chặn, không cần quyết định. Cả ba **vô hình nếu chỉ nhìn UI** — backend có đường
+đi, người dùng không có nút.
+
+| Backend đã có | Cần dựng | Bẫy |
+|---|---|---|
+| `POST /projects/{id}/complete` + `/reopen` | Nút đổi trạng thái dự án, PM-only | `reopen` trả **409** nếu project chưa `Done`; `reopen` đưa về `InProgress` **chứ không** về `ToDo` |
+| `GET /employees?search=` | Ô gợi ý khi mời thành viên | Từ khóa **≥ 2 ký tự**, ngắn hơn là **400**. DTO chỉ 3 trường — đừng trông chờ `systemRole`/`isLocked` |
+| `mentionedEmployeeIds` | Ô chọn @mention trong comment | Client **gửi id**; server **không** parse `@tên`. Nhắc người ngoài dự án vẫn trả **thành công**, phần nhắc bị lọc bỏ im lặng (trả 400 sẽ là rò rỉ) |
+
+### 🪤 Ba chỗ "bấm vào không thấy gì" — rà giao diện 2026-08-05
+
+1. 🔴 **Nút "Mở trang riêng" trong dialog chi tiết Task là một NO-OP.**
+   `components/tasks/task-detail-header.tsx` dùng `<Link>` trỏ tới
+   `/projects/{id}/tasks/{taskId}` — nhưng khi dialog đang mở, **URL hiện tại đã đúng là
+   chuỗi đó** (intercepting route `(.)` giữ nguyên đường dẫn, ADR-043). Bấm `<Link>` tới
+   chính URL đang đứng không đổi router state → dialog ở nguyên đó.
+
+   Sửa bằng **điều hướng cứng** — `<a href>` thường hoặc `window.location.assign()`, **không
+   phải** `next/link`. Intercepting route **chỉ** áp cho soft navigation; một lần tải trang
+   đầy đủ mới render trang thật.
+
+   > Đây là cái bẫy **cấu trúc** của ADR-043: hai vỏ dùng chung một URL là điều làm cho
+   > dialog chia sẻ link được — và cũng chính là điều làm cho "thoát ra trang thật" không
+   > thể là một soft navigation. Kiểm chứng đúng: mở dialog → bấm → dialog phải **biến mất**
+   > và thanh tab dự án phải **ẩn** (`showTabs === false` khi segment là `'tasks'`).
+
+2. **Không có trang hồ sơ cá nhân.** `UserMenu` chỉ có mục Đăng xuất; không route nào trong
+   `app/`. ⚠️ Backend cũng **chưa có đường sửa hồ sơ**: `AuthController` chỉ có `GET /auth/me`,
+   không `PUT /employees/me`, không đổi mật khẩu khi đã đăng nhập.
+
+   Trang **chỉ đọc** làm được ngay. Muốn sửa được thì phải làm backend trước — và nhớ
+   `/auth/me` **dựng DTO từ CLAIM chứ không đọc DB**, nên đổi tên sẽ **không hiện ra** cho
+   tới khi token được làm mới. Đó là quyết định cần **ADR riêng**, không phải chi tiết cài đặt.
+
+3. **Sidebar chỉ còn 4 mục**, không phản ánh phạm vi sản phẩm khi đang ở trong một dự án.
+
+   🔴 **Trong `components/layout/sidebar.tsx` có một khẳng định SAI, sửa luôn khi làm:**
+   comment ở đó nói `AppShell` "không biết project nào đang mở vì nó nằm TRÊN segment `[id]`".
+   Không đúng với client component — `SidebarNav` **đã** gọi `usePathname()`, mà hàm đó trả
+   **toàn bộ** đường dẫn kể cả `[id]`. Rút id bằng regex trên pathname là hợp lệ, và **không**
+   dính rủi ro "hai tab nói dối" mà comment lo: đó là rủi ro của **store**, còn URL vốn đã
+   thuộc về từng tab.
+
+   Hướng đúng: khối theo **ngữ cảnh dự án** hiện khi pathname khớp `/projects/{id}/*`
+   (Bảng · Backlog · Sprint · Thống kê · Thành viên), cộng danh sách dự án gần đây.
+
+### Cách chẩn đoán tràn ngang — dùng lại, nhanh hơn đoán từ class
+
+Đo `width: min-content` của **từng grid item** rồi so với bề rộng khả dụng của container:
+item nào có min-content lớn hơn chính là thứ sàn hóa track. Nhanh hơn nhiều so với duyệt
+`getBoundingClientRect()` từng cấp, vì nó chỉ thẳng ra **nguyên nhân** thay vì hậu quả.
+
+```js
+for (const child of container.children) {
+  const prev = child.style.width;
+  child.style.width = 'min-content';
+  console.log(child.className, child.getBoundingClientRect().width);
+  child.style.width = prev;
+}
+```
+
+Ví dụ thật (thanh tab dự án ở 375px): header `66.8` · **thanh tab `366.8`** · thân board
+`224` → thủ phạm là thanh tab, **không phải** cột Kanban như mô tả lỗi ban đầu nói. Con số
+`366.8` khớp chính xác tổng bề rộng 4 tab cộng gap — đó là bằng chứng, không phải suy đoán.
+
+⚠️ Và một `nav` **đã có** `overflow-x-auto` vẫn có thể là nguồn: `min-width` computed của
+chính nó là `0px`, nhưng `<div>` bọc ngoài là block thường với `min-width: auto` nên nó
+**khai báo hộ** trọn bề rộng nội tại lên cấp trên.
+
+---
+
+## 0a. Cập nhật 2026-08-04 — KHÔNG CÒN MÀN HÌNH NÀO ⬜
+
+**Đọc §0 trước mục này; §0b, §2, §3 và §4 bên dưới đã lỗi thời phần lớn.**
 
 Ba nhóm việc mà §0 cũ liệt kê — Dashboard, Quên/đặt lại mật khẩu, nhóm Admin — **đã xong
 hết**. Cộng thêm một nhóm không có trong danh sách đó: **màn Phân quyền** (`/admin/roles`),
