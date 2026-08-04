@@ -42,7 +42,7 @@ public class EmployeeRepository : Repository<Employee>, IEmployeeRepository
 
         // Whitelist bằng switch thay vì dựng OrderBy động từ chuỗi client gửi lên:
         // chuỗi tự do đi thẳng vào biểu thức sắp xếp là một dạng injection.
-        query = (request.SortBy?.ToLowerInvariant(), request.IsDescending) switch
+        var ordered = (request.SortBy?.ToLowerInvariant(), request.IsDescending) switch
         {
             ("name",   false) => query.OrderBy(e => e.Name),
             ("name",   true)  => query.OrderByDescending(e => e.Name),
@@ -55,6 +55,12 @@ public class EmployeeRepository : Repository<Employee>, IEmployeeRepository
             (_, true)         => query.OrderByDescending(e => e.CreatedAt),
             _                 => query.OrderBy(e => e.CreatedAt)   // mặc định: cũ nhất trước
         };
+
+        // Tie-break theo Id: thiếu nó thì hai bản ghi có cùng khóa sắp xếp (cùng tên, cùng
+        // CreatedAt, cùng trạng thái) có thứ tự KHÔNG xác định giữa hai truy vấn, nên phân
+        // trang có thể trả trùng một dòng ở trang này và bỏ sót nó ở trang kia. Lỗi chỉ lộ
+        // khi dữ liệu đủ nhiều và đúng lúc — tức là ở production chứ không phải lúc dev.
+        query = ordered.ThenBy(e => e.Id);
 
         var items = await query
             .Skip(request.Skip)

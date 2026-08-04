@@ -1,0 +1,29 @@
+<Project>
+
+  <!--
+    Áp cho MỌI project dưới `backend/` (4 project src + 2 project test).
+
+    🔴 Vì sao tồn tại: cho tới 2026-08-04 KHÔNG project nào bật `TreatWarningsAsErrors`, và
+    cũng không có file này. Câu "0 warning" trong tài liệu vì thế là một ẢNH CHỤP tại một
+    thời điểm, không phải một bất biến — cảnh báo tiếp theo lọt vào sẽ không làm gì đỏ cả,
+    và nó sẽ nằm đó cho tới khi có người tình cờ đọc log build.
+
+    Đây đúng lớp vấn đề mà §15 đã đặt tên: "build sạch, test xanh, ADR ghi ✅" có thể là ba
+    lời khai sai cùng lúc. Bật cờ này biến "0 warning" từ một lời kể thành một điều kiện.
+
+    ⚠️ Trước khi bật đã chạy `dotnet build` TRẦN (không -warnaserror) để xem cảnh báo thật
+    và xử lý hết — theo đúng ghi chú ở §11.
+  -->
+  <PropertyGroup>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!--
+      File migration do `dotnet ef` sinh ra tự tắt sẵn cảnh báo của chính nó bằng
+      #pragma (612/618). Không loại trừ gì thêm ở đây: mọi cảnh báo còn lại đều là code
+      người viết và đều phải xử lý, không phải giấu.
+    -->
+  </PropertyGroup>
+
+</Project>

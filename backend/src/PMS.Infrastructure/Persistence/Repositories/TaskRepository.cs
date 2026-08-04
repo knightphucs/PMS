@@ -204,10 +204,15 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
     public async Task<IReadOnlyList<TaskItem>> GetOverdueAsync(CancellationToken ct = default)
     {
         var today = DateTime.UtcNow.Date;
+        // ⚠️ So sánh THẲNG với mốc nửa đêm, KHÔNG dùng `.Value.Date`. Từ 2026-08-04 mọi cột
+        // DateTime có ValueConverter (đóng dấu Kind=Utc lúc đọc), và EF **không dịch được
+        // member access `.Date` trên cột đã chuyển đổi** — nó ném ngay lúc chạy, thành HTTP
+        // 500. Hai vế tương đương về mặt toán học vì `today`/`horizon` đã là nửa đêm:
+        // `DueDate.Date < today` ⟺ `DueDate < today`.
         return await DbSet
             .AsNoTracking()
             .Where(t => t.DueDate != null
-                     && t.DueDate.Value.Date < today
+                     && t.DueDate < today
                      && t.Status != Status.Done)
             .ToListAsync(ct);
     }
@@ -215,7 +220,9 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
     public async Task<IReadOnlyList<TaskItem>> GetDueSoonOrOverdueWithTargetsAsync(
         int horizonDays, CancellationToken ct = default)
     {
-        var horizon = DateTime.UtcNow.Date.AddDays(horizonDays);
+        // Cộng thêm 1 ngày rồi so `<`: tương đương `DueDate.Date <= horizon` nhưng dịch
+        // được sang SQL sau khi cột DueDate có ValueConverter (xem GetOverdueAsync).
+        var horizonExclusive = DateTime.UtcNow.Date.AddDays(horizonDays + 1);
 
         return await DbSet
             .AsNoTracking()
@@ -224,7 +231,7 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
             .Include(t => t.Watchers)
             .AsSplitQuery()
             .Where(t => t.DueDate != null
-                     && t.DueDate.Value.Date <= horizon
+                     && t.DueDate < horizonExclusive
                      && t.Status != Status.Done)
             .ToListAsync(ct);
     }

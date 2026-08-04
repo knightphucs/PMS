@@ -37,6 +37,21 @@ public class LoginRequestValidator : AbstractValidator<LoginRequest>
     }
 }
 
+// 📌 CỐ Ý KHÔNG có `RefreshTokenRequestValidator`, và đây là một quyết định chứ không phải
+// một chỗ sót.
+//
+// `ValidationFilter` duyệt **action arguments** (`ValidationFilter.cs:14-29`). Nhưng cả
+// `/auth/refresh` lẫn `/auth/logout` đều KHÔNG nhận `RefreshTokenRequest` làm tham số — DTO
+// đó được dựng bên trong thân action từ cookie httpOnly
+// (`new RefreshTokenRequest(ReadRefreshCookie())`, ADR-027). Filter không bao giờ nhìn thấy
+// nó, nên một validator đặt ở đây sẽ KHÔNG BAO GIỜ CHẠY.
+//
+// Thêm nó vào là dựng đúng thứ mà §1 đã đặt tên hai lần: một chốt an toàn *trông như đã
+// khóa* mà không ai gọi tới (`ValidationFilter` tra `IValidator<IFormFile>`,
+// `ICurrentUserService.SystemRole` không người đọc). Hành vi đúng đã có sẵn: thiếu cookie
+// thì `GetByHashAsync` không tìm ra token và trả **401**, có test giữ
+// (`AuthCookieTests.Refresh_khong_co_cookie_tra_401`).
+
 public class ForgotPasswordRequestValidator : AbstractValidator<ForgotPasswordRequest>
 {
     public ForgotPasswordRequestValidator()

@@ -147,7 +147,16 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 
-builder.Services.AddHealthChecks();
+// 🔴 `AddHealthChecks()` trần KHÔNG kiểm gì cả — nó chỉ dựng hạ tầng. Cho tới 2026-08-04
+// `/health` vẫn trả `Healthy` ngay cả khi SQL Server sập, tức là một endpoint sức khỏe
+// *luôn luôn* nói khỏe. Đứng sau load balancer thì đó không phải thiếu sót vô hại: nó chủ
+// động giữ một instance đã hỏng ở trong vòng nhận traffic.
+//
+// `AddDbContextCheck` mở kết nối và chạy một truy vấn nhẹ, nên nó kiểm đúng thứ hay hỏng
+// nhất trong dự án này (container SQL chưa lên — xem §11). Gói NuGet đã tham chiếu sẵn từ
+// trước, chỉ là chưa ai gọi tới.
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<PmsDbContext>("database");
 
 // Job quét task sắp/đã quá hạn -> Notification DueSoon (ADR-040).
 // Đăng ký BÊN TRONG nhánh này, cùng kiểu gác với UseRateLimiter phía dưới: dưới
