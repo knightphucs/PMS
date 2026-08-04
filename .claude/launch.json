@@ -5,17 +5,8 @@
       "name": "frontend",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 3000,
-      "url": "https://localhost:3000",
-      "cwd": "frontend",
-      "autoPort": false
-    },
-    {
-      "name": "frontend-alt",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--port", "3100"],
-      "port": 3100,
-      "url": "https://localhost:3100",
+      "port": 4176,
+      "url": "https://localhost:4176",
       "cwd": "frontend",
       "autoPort": false
     }

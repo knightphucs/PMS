@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack --experimental-https",
+    "dev": "next dev -p 4176 --turbopack --experimental-https",
     "build": "next build --turbopack",
-    "start": "next start",
+    "start": "next start -p 4176 --experimental-https",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
