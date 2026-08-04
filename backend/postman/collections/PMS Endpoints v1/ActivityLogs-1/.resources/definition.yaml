@@ -1,0 +1,4 @@
+$kind: collection
+name: ActivityLogs
+description: Đọc lịch sử thay đổi (IActivityLogger ghi từ ADR-013, nay có đường đọc).
+order: 2452834400337919

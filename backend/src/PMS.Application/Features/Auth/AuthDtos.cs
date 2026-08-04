@@ -6,6 +6,10 @@ public record RegisterRequest(string Name, string Email, string Password, string
 public record LoginRequest(string Email, string Password);
 public record RefreshTokenRequest(string RefreshToken);
 
+public record ForgotPasswordRequest(string Email);
+
+public record ResetPasswordRequest(string Token, string NewPassword, string ConfirmPassword);
+
 public record EmployeeDto(Guid Id, string Name, string Email, SystemRole SystemRole);
 
 /// <summary>

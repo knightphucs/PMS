@@ -1,6 +1,7 @@
 /** Soi gương `PMS.Application/Features/Tasks/TaskDtos.cs`. */
 
 import type { Priority, RoleInTask, Status } from './enums';
+import type { LabelResponse } from './label';
 
 /**
  * Người đảm nhận rút gọn, chỉ đủ vẽ avatar trên thẻ.
@@ -15,6 +16,15 @@ export interface TaskCardAssignee {
 
 export interface TaskSummaryResponse {
   id: string;
+  /** Số thứ tự trong project. Dùng khi cần sắp xếp/tra cứu bằng số. */
+  number: number;
+  /**
+   * Mã hiển thị đã ghép sẵn, dạng `PMS-12` (ADR-034).
+   *
+   * ⚠️ **Đừng tự nối** từ `projectKey` + `number`: backend đã ghép rồi, và hai nơi định
+   * dạng thì chắc chắn có lúc lệch nhau.
+   */
+  code: string;
   name: string;
   status: Status;
   priority: Priority;
@@ -33,6 +43,8 @@ export interface TaskSummaryResponse {
    */
   subtaskProgress: number;
   assignees: TaskCardAssignee[];
+  /** Chip nhãn trên thẻ Kanban. Rỗng nếu task chưa gắn nhãn nào. */
+  labels: LabelResponse[];
 }
 
 export interface TaskAssigneeResponse {
@@ -44,12 +56,19 @@ export interface TaskAssigneeResponse {
 
 export interface TaskDetailResponse {
   id: string;
+  number: number;
+  /** Mã hiển thị `PMS-12` — xem ghi chú ở `TaskSummaryResponse.code`. */
+  code: string;
   name: string;
+  /** `null` khi chưa có mô tả. Backend chuẩn hóa chuỗi rỗng/toàn khoảng trắng thành `null`. */
+  description: string | null;
   status: Status;
   priority: Priority;
   dueDate: string | null;
   isOverdue: boolean;
   projectId: string;
+  /** Mã ngắn của project (`PMS`) — nửa đầu của `code`. Hữu ích cho breadcrumb. */
+  projectKey: string;
   sprintId: string | null;
   parentTaskId: string | null;
   /** Người TẠO task — khác với người được giao làm (mô hình Jira). */
@@ -57,6 +76,12 @@ export interface TaskDetailResponse {
   reporterName: string;
   assignees: TaskAssigneeResponse[];
   subtasks: TaskSummaryResponse[];
+  labels: LabelResponse[];
+  /**
+   * NGƯỜI ĐANG GỌI có đang theo dõi task này không — giá trị phụ thuộc người hỏi, không
+   * phải thuộc tính của task. Dùng cho nút Theo dõi/Bỏ theo dõi (ADR-036).
+   */
+  isWatching: boolean;
   subtaskProgress: number;
   /** Base64. BẮT BUỘC gửi lại khi `PUT /tasks/{id}` (ADR-016). */
   rowVersion: string;
@@ -87,6 +112,8 @@ export interface CreateTaskRequest {
   parentTaskId: string | null;
   dueDate: string | null;
   priority: Priority;
+  /** Bỏ qua hoặc gửi `null` nếu chưa có mô tả — ĐỪNG gửi chuỗi `"string"`. */
+  description?: string | null;
 }
 
 /**
@@ -99,6 +126,7 @@ export interface UpdateTaskRequest {
   dueDate: string | null;
   priority: Priority;
   rowVersion: string;
+  description?: string | null;
 }
 
 /** `{ "target": "InProgress" }` — tên trường là `target`, không phải `status`. */

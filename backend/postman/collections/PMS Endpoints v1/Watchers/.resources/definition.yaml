@@ -1,0 +1,4 @@
+$kind: collection
+name: Watchers
+description: "Theo dõi task để nhận thông báo dù không được gán (ADR-036). Route /me nên không ai ép người khác theo dõi được. Viewer CŨNG theo dõi được — thao tác ghi duy nhất của vai trò đó."
+order: 1785500007000

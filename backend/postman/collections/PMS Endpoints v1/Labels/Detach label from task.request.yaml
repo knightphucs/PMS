@@ -1,0 +1,43 @@
+$kind: http-request
+name: Detach label from task
+description: "Gỡ nhãn khỏi task. Cũng idempotent."
+url: "{{api_url}}/tasks/:task_id/labels/:label_id"
+method: DELETE
+pathVariables:
+  - key: task_id
+    value: 8DD5602C-EB76-4E72-BFF4-707011B0E6AF
+    description: Task liên quan
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+  - key: label_id
+    value: A1B2C3D4-E5F6-4708-9A0B-1C2D3E4F5061
+    description: Nhãn
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1785500006000

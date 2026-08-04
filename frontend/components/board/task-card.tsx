@@ -3,6 +3,7 @@
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { CalendarIcon, GitBranchIcon } from 'lucide-react';
+import Link from 'next/link';
 
 import { AvatarStack } from '@/components/common/avatar-stack';
 import { PriorityIcon } from '@/components/tasks/priority-icon';
@@ -12,6 +13,11 @@ import type { TaskSummaryResponse } from '@/types/task';
 
 interface Props {
   task: TaskSummaryResponse;
+  /**
+   * Đường dẫn tới chi tiết task. Bỏ trống ở bản vẽ trong `DragOverlay` — overlay chỉ là
+   * ảnh, không được có gì bấm được.
+   */
+  href?: string;
   /** `false` = không đủ quyền HOẶC thẻ đang có mutation bay dở. */
   canDrag: boolean;
   /** Lý do không kéo được, hiện ở tooltip gốc của trình duyệt. */
@@ -25,7 +31,7 @@ interface Props {
   overlay?: boolean;
 }
 
-export function TaskCard({ task, canDrag, disabledReason, menu, overlay }: Props) {
+export function TaskCard({ task, href, canDrag, disabledReason, menu, overlay }: Props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
     // Đưa cả object vào `data` để `onDragStart`/`onDragEnd` biết trạng thái hiện tại của
@@ -52,9 +58,27 @@ export function TaskCard({ task, canDrag, disabledReason, menu, overlay }: Props
       )}
     >
       <div className="flex items-start gap-1">
-        <h3 className="line-clamp-2 flex-1 text-[13px] leading-snug font-medium">
-          {task.name}
-        </h3>
+        <div className="min-w-0 flex-1">
+          {/* Mã task do backend ghép sẵn (ADR-034) — dấu hiệu nhận dạng số một của một
+              công cụ theo dõi việc, và là thứ người ta đọc cho nhau nghe qua điện thoại. */}
+          <span className="text-muted-foreground block text-[11px] font-medium tabular-nums">
+            {task.code}
+          </span>
+
+          <h3 className="line-clamp-2 text-[13px] leading-snug font-medium">
+            {href && !overlay ? (
+              // Kéo–thả KHÔNG bị hỏng vì link: `board-view.tsx` đặt `PointerSensor` với
+              // `activationConstraint: { distance: 6 }`, nên một cú bấm không di chuyển
+              // không bao giờ khởi động thao tác kéo — và một thao tác kéo đã khởi động
+              // thì không kết thúc bằng `click`.
+              <Link href={href} className="hover:text-primary transition-colors">
+                {task.name}
+              </Link>
+            ) : (
+              task.name
+            )}
+          </h3>
+        </div>
         {menu && !overlay ? <div className="-mt-0.5 -mr-1 shrink-0">{menu}</div> : null}
       </div>
 

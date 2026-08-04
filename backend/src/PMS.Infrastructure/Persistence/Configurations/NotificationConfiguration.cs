@@ -21,6 +21,15 @@ public class NotificationConfiguration : IEntityTypeConfiguration<Notification>
         // vì thêm index thứ hai làm chậm đường ghi vốn chạy ở MỌI luồng nghiệp vụ.
         builder.HasIndex(n => new { n.EmployeeId, n.IsRead });
 
+        // 🔴 ĐẢO một quyết định cũ, ghi rõ để không ai tưởng là bỏ sót: chú thích ngay phía
+        // trên cố ý TRÁNH index thứ hai vì đường ghi của bảng này chạy ở mọi luồng nghiệp vụ.
+        // Nay job quét hạn (ADR-040) khử trùng lặp bằng cách truy vấn
+        // `WHERE Type = 'DueSoon' AND RelatedEntityId IN (...) AND CreatedAt >= @today`,
+        // và nếu quét toàn bảng thì nó sẽ chậm dần đúng theo tốc độ bảng phình ra — trong khi
+        // job này chạy MỖI GIỜ, vĩnh viễn. Chi phí ghi thêm một index đổi lấy việc đó là
+        // đáng; đánh đổi đã đổi chiều vì có thêm một đường đọc thường trực.
+        builder.HasIndex(n => new { n.RelatedEntityId, n.Type });
+
         builder.HasOne(n => n.Recipient)
                .WithMany(e => e.Notifications)
                .HasForeignKey(n => n.EmployeeId)

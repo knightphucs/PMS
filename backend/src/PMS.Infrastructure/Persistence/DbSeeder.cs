@@ -26,16 +26,16 @@ public static class DbSeeder
         await context.Employees.AddRangeAsync(employees, ct);
 
         // ---------- Labels ----------
-        var lblBug      = new Label { Id = Guid.NewGuid(), Name = "bug" };
-        var lblFeature  = new Label { Id = Guid.NewGuid(), Name = "feature" };
-        var lblUrgent   = new Label { Id = Guid.NewGuid(), Name = "urgent" };
-        var lblBackend  = new Label { Id = Guid.NewGuid(), Name = "backend" };
-        var lblFrontend = new Label { Id = Guid.NewGuid(), Name = "frontend" };
+        var lblBug      = new Label { Id = Guid.NewGuid(), Name = "bug",      Color = "#DC2626" };
+        var lblFeature  = new Label { Id = Guid.NewGuid(), Name = "feature",  Color = "#16A34A" };
+        var lblUrgent   = new Label { Id = Guid.NewGuid(), Name = "urgent",   Color = "#EA580C" };
+        var lblBackend  = new Label { Id = Guid.NewGuid(), Name = "backend",  Color = "#2563EB" };
+        var lblFrontend = new Label { Id = Guid.NewGuid(), Name = "frontend", Color = "#9333EA" };
         await context.Labels.AddRangeAsync(
             new[] { lblBug, lblFeature, lblUrgent, lblBackend, lblFrontend }, ct);
 
         // ---------- Project 1: đầy đủ Sprint + Task nhiều trạng thái ----------
-        var project1 = NewProject("Hệ thống quản lý dự án",
+        var project1 = NewProject("Hệ thống quản lý dự án", key: "PMS",
             "Xây dựng PMS nội bộ tương tự Jira thu nhỏ", daysFromNow: 90);
 
         AddMember(project1, an,    RoleInProject.ProjectManager, accepted: true);
@@ -117,7 +117,7 @@ public static class DbSeeder
         t4.Comments.Add(NewComment(t4, cuong, "Task này bị trễ do chờ chốt format response."));
 
         // ---------- Project 2 ----------
-        var project2 = NewProject("Website giới thiệu công ty",
+        var project2 = NewProject("Website giới thiệu công ty", key: "WEB",
             "Landing page và trang tin tức", daysFromNow: 45);
         AddMember(project2, binh, RoleInProject.ProjectManager, accepted: true);
         AddMember(project2, an,   RoleInProject.Member,         accepted: true);
@@ -133,7 +133,7 @@ public static class DbSeeder
         t9.AddAssignee(an, RoleInTask.Owner);
 
         // ---------- Project 3: đã hoàn thành ----------
-        var project3 = NewProject("Nâng cấp hạ tầng máy chủ",
+        var project3 = NewProject("Nâng cấp hạ tầng máy chủ", key: "HT",
             "Chuyển sang môi trường container", daysFromNow: -10);
         project3.Complete();
         AddMember(project3, cuong, RoleInProject.ProjectManager, accepted: true);
@@ -146,6 +146,15 @@ public static class DbSeeder
         await context.Sprints.AddRangeAsync(new[] { sprint1, sprint2, sprint3 }, ct);
         await context.Tasks.AddRangeAsync(
             new[] { t1, t2, t3, t4, t5, t6, sub1, sub2, sub3, t7, t8, t9, t10, t11 }, ct);
+
+        // Bộ đếm phải khớp số task cao nhất đã seed, nếu không task tạo đầu tiên sau khi
+        // seed sẽ đụng unique index (ProjectId, Number) — ADR-033.
+        await context.ProjectTaskCounters.AddRangeAsync(
+            new[] { project1, project2, project3 }.Select(p => new ProjectTaskCounter
+            {
+                ProjectId = p.Id,
+                NextNumber = SeedTaskNumbers.GetValueOrDefault(p.Id)
+            }), ct);
 
         // ---------- ActivityLog + Notification ----------
         await context.ActivityLogs.AddRangeAsync(new[]
@@ -181,10 +190,10 @@ public static class DbSeeder
         return employee;
     }
 
-    private static Project NewProject(string name, string description, int daysFromNow)
+    private static Project NewProject(string name, string key, string description, int daysFromNow)
         => new()
         {
-            Id = Guid.NewGuid(), Name = name, Description = description,
+            Id = Guid.NewGuid(), Name = name, Key = key, Description = description,
             ExpectedCompletionDate = DateTime.UtcNow.AddDays(daysFromNow)
         };
 
@@ -204,15 +213,29 @@ public static class DbSeeder
             EndDate = DateTime.UtcNow.AddDays(endOffset)
         };
 
+    /// <summary>
+    /// Bộ đếm số task theo project, chỉ dùng trong lúc seed — soi gương đúng thứ
+    /// <c>ProjectTaskCounters</c> làm ở runtime, để dữ liệu seed cũng có mã task hợp lệ
+    /// và không trùng trong phạm vi một project (ADR-033).
+    /// </summary>
+    private static readonly Dictionary<Guid, int> SeedTaskNumbers = [];
+
     private static TaskItem NewTask(
         Project project, Sprint? sprint, Employee reporter,
         string name, Priority priority, int dueOffset)
-        => new()
+    {
+        SeedTaskNumbers.TryGetValue(project.Id, out var last);
+        SeedTaskNumbers[project.Id] = last + 1;
+
+        var task = new TaskItem
         {
             Id = Guid.NewGuid(), Name = name, Priority = priority,
             ProjectId = project.Id, SprintId = sprint?.Id, ReporterId = reporter.Id,
             DueDate = DateTime.UtcNow.AddDays(dueOffset)
         };
+        task.AssignNumber(last + 1);
+        return task;
+    }
 
     /// <summary>
     /// Đưa task tới trạng thái đích bằng cách đi ĐÚNG state machine (ToDo->InProgress->Review->Done).

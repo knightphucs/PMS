@@ -1,0 +1,27 @@
+$kind: http-request
+name: Delete label (SystemAdmin)
+description: "CHỈ SystemAdmin. Gỡ nhãn khỏi MỌI task đang gắn nó, không chỉ project hiện tại. Ghi ActivityLog cấp hệ thống."
+url: "{{api_url}}/labels/:label_id"
+method: DELETE
+pathVariables:
+  - key: label_id
+    value: A1B2C3D4-E5F6-4708-9A0B-1C2D3E4F5061
+    description: Nhãn
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1785500004000

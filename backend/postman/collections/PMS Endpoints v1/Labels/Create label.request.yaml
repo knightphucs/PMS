@@ -1,0 +1,17 @@
+$kind: http-request
+name: Create label
+description: "Tạo nhãn mới. Mọi user đã đăng nhập đều được. Trùng tên -> 409. Bỏ color thì backend dùng #6B7280."
+url: "{{api_url}}/labels"
+method: POST
+body:
+  type: json
+  content: |-
+    {
+        "name": "urgent",
+        "color": "#EA580C"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1785500002000

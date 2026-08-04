@@ -5,32 +5,46 @@
 > Mục đích: đảm bảo tính nhất quán xuyên suốt quá trình phát triển, và làm tài liệu
 > tham chiếu cho báo cáo thực tập tốt nghiệp.
 >
-> Cập nhật lần cuối: 2026-08-02 (phiên Frontend — Board Kanban + Sprint + Thành viên)
+> Cập nhật lần cuối: 2026-08-03 (phiên Frontend — Lời mời, chi tiết Task, Notification bell)
 
 > ## 🧭 Bắt đầu phiên mới ở đây
-> **Trạng thái:** backend core ĐẦY ĐỦ, **frontend nay có 6 màn hình dùng được thật**:
-> danh sách Dự án, và trang chi tiết dự án bốn tab (Bảng Kanban / Backlog / Sprint /
-> Thành viên). Có dark mode, màu thương hiệu, breadcrumb.
-> Backend **324 test pass** (189 unit + 135 integration), clean build 0 warning;
-> frontend `typecheck` + `eslint` + `build` sạch và **76 test** cho `lib/api/` + logic
-> thuần của Kanban. **0 migration** (thay đổi backend phiên này chỉ là DTO + `Include`).
+> **Trạng thái: BACKEND ĐÃ XONG (419 test, 0 warning). Frontend nay có 10 màn** — 6 màn của
+> phiên trước, cộng **"Lời mời của tôi"**, **Notification bell + trang thông báo**, và
+> **chi tiết Task** (màn phức tạp nhất của sản phẩm, 7 khối).
 >
-> ### ➡️ Phiên tiếp theo nên làm gì
-> 📋 **Danh sách đầy đủ việc còn dang dở ở §1 → "Việc còn dang dở"** — gồm cả code đã viết
-> mà chưa có màn nào dùng. Đọc trước để khỏi viết lại thứ đã có. Tóm tắt:
+> **Hai luồng từng hở nay đã khép kín:** mời thành viên (mời → thấy thông báo → có chỗ bấm
+> Chấp nhận) và làm việc trên một task.
 >
-> **Làm được ngay, KHÔNG chờ backend** (API đã sẵn sàng từ lâu):
-> 1. ⭐ **"Lời mời của tôi"** — luồng mời thành viên hiện **chưa khép kín**: PM mời được
->    nhưng người được mời **không có chỗ nào bấm Chấp nhận**. Toàn bộ hook + endpoint đã
->    viết xong ở phiên 2026-08-02, chỉ thiếu một trang. Rẻ nhất, giá trị cao nhất.
-> 2. **Notification bell** — `NotificationsController` đủ dùng.
-> 3. **Admin: quản lý nhân sự** — `AdminEmployeesController` đã có, chưa có màn nào.
+> ### ➡️ Phiên tiếp theo — vẫn toàn bộ là frontend, không gì bị chặn
+> 1. **Dashboard thống kê (Recharts)** — API + `useProjectStatistics` đã có; `recharts`
+>    **chưa cài** (`npm i recharts`).
+> 2. **Quên / đặt lại mật khẩu** — 2 trang, tầng dữ liệu đã có. ⚠️ `forgot-password` LUÔN
+>    trả 204 kể cả email không tồn tại → UI chỉ được hiện MỘT thông điệp duy nhất (ADR-041).
+> 3. **Nhóm Admin** — để riêng một phiên, nhóm người dùng khác hẳn. Phải viết tầng dữ liệu
+>    `AdminEmployees` trước (chưa có gì); audit log thì đã có sẵn hook.
+> 4. **Search toàn cục** — vẫn ⬜ và **vẫn chưa có API**. ⚠️ `?search=` được model binder
+>    nhận trên mọi danh sách nhưng **chỉ `Employee` và `Notification` thực sự dùng tới** —
+>    project/task/sprint/comment nhận rồi bỏ qua, đừng dựng UI lọc dựa vào nó.
 >
-> **Cần làm backend trước:**
-> 4. **Đợt API ngắn**: `Description` cho task, mã task `PMS-12`, Label, Watcher,
->    ActivityLog đọc → mở khóa màn **chi tiết Task** (màn ⬜ lớn nhất còn lại).
-> 5. **API thống kê** → mở khóa Dashboard.
-> 6. Job task quá hạn → Notification `DueSoon`.
+> ### 🔑 Ba điều của phiên chi tiết-Task cần biết trước khi đụng vào code
+> - **`PUT /tasks/{id}` là GHI ĐÈ TOÀN PHẦN, không phải PATCH** (ADR-044). Trường nào không
+>   gửi thì thành `null`. Đây là một lỗi **đã sống thật**: form sửa task chưa bao giờ gửi
+>   `description`, nên sửa tên task là xóa trắng mô tả. Đã sửa, và mọi lệnh ghi của màn chi
+>   tiết nay đi qua đúng một trục `useTaskFieldSave`.
+> - **Chi tiết Task có hai vỏ** (dialog chặn route + trang thật) dùng chung một
+>   `TaskDetailContent` — ADR-043. Tiền tố intercepting route là **`(.)`**, và
+>   `@modal/default.tsx` là **bắt buộc** (thiếu nó thì *board* 404).
+> - **Đừng gom 4 tab vào route group `(tabs)/`** — `useSelectedLayoutSegment()` sẽ trả
+>   `'(tabs)'` và thanh tab mất trạng thái active, hỏng im lặng. Lý do đầy đủ ở ADR-043.
+>
+> ### 🔑 Ba quyết định của phiên backend cần biết trước khi đụng vào code
+> - **`SystemAdmin` không có đặc quyền nghiệp vụ nào** (ADR-042). §10 từng ghi ngược lại —
+>   một hành vi tài liệu mô tả nhưng code chưa từng có. Nay tài liệu đã sửa cho khớp code,
+>   và có `SystemAdminScopeTests` chạy `[Theory]` trên 16 route giữ lại.
+> - **Mã task `PMS-12` do backend ghép sẵn** và trả trong `code` — frontend **đừng** tự nối
+>   từ `projectKey` + `number` (ADR-034).
+> - **`LinkType.IsBlockedBy` không bao giờ được lưu xuống DB** — nó là giá trị chỉ dùng ở
+>   đầu vào, backend tự chuẩn hóa về `Blocks` đảo chiều (ADR-038).
 >
 > ⚠️ Trước khi làm Kanban hay đụng vào state machine của task: `docs/frontend-next-session.md`
 > §6 có **một đính chính quan trọng** — quy tắc chuyển trạng thái **KHÔNG PHẢI** "cột kề".
@@ -122,59 +136,114 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | Task — giao việc (gán/tự nhận/gỡ) | ✅ | `TaskAssignmentService`, đúng bảng "Quy tắc gán việc" ở §5 và seq-02 |
 | Board (Kanban) + Backlog | ✅ | `GET /projects/{id}/board?sprintId=` và `/backlog`; board luôn trả đủ 4 cột kể cả cột rỗng |
 | Comment — API | ✅ | `CommentService`/`CommentsController`, có Unit + Integration Test. Quyền theo ADR-026: viết = PM/Member, sửa = chỉ tác giả, xóa = tác giả hoặc PM. Xóa cứng |
-| Watcher / Label / TaskLink — API | ⬜ | Entity + configuration + migration đã có; `TaskLink` đang được dùng gián tiếp qua blocker check nhưng chưa có API tạo/xóa link |
+| Watcher / Label / TaskLink — API | ✅ | Xong 2026-08-03. `Label` thêm `Color` + phân quyền theo bán kính ảnh hưởng (ADR-037); `Watcher` có repository riêng vì không phải `BaseEntity` (ADR-036); `TaskLink` chuẩn hóa lúc ghi + guard chu trình (ADR-038) |
+| Task — `Description` + mã `PMS-12` | ✅ | Xong 2026-08-03. Bảng đếm riêng `ProjectTaskCounters` (ADR-033), mã ghép ở Mapper (ADR-034). Migration có backfill, đã kiểm tay trên DB có dữ liệu |
+| Attachment (đính kèm file cho Task/Project) | ✅ | Mới 2026-08-03. `IFileStorage` + `LocalFileStorage`, whitelist 9 bước gồm magic number, tải về `octet-stream` + `nosniff` (ADR-035). 15 integration test |
 | Task — người đảm nhận trên thẻ board/backlog | ✅ | `TaskSummaryResponse.Assignees` (thêm 2026-08-02, **không migration**). Đồng thời sửa bug im lặng: ba query board/backlog thiếu `Include` nên `SubtaskProgress` LUÔN trả 0 |
 | Notification — API đọc | ✅ | `NotificationFeedService`/`NotificationsController` — danh sách có phân trang, đếm chưa đọc, đánh dấu một/tất cả. Ngoại lệ hợp lệ của ADR-006/019 — xem ADR-023 |
-| Activity Log — API đọc | ⬜ | Đã ghi đủ qua `IActivityLogger` (ADR-013) ở mọi luồng Project/Task/Comment, nhưng chưa có endpoint nào đọc lịch sử ra — cùng loại khoảng trống mà Notification vừa đóng |
+| Activity Log — API đọc | ✅ | Xong 2026-08-03. `GET /tasks/{id}/activity` + `/projects/{id}/activity`. **Đồng thời sửa một lỗ hổng có sẵn:** `ProjectService` trước đó KHÔNG ghi `ActivityLog` dòng nào — tạo/sửa/xóa project đều không sinh log |
+| Nhật ký cấp hệ thống (SystemAdmin) | ✅ | Mới 2026-08-03. `GET /admin/audit-logs`, `entityType` cố định ở server (`Employee`/`Label`) — đối trọng của ADR-042 |
 | Employee management (ngoài Auth) | ✅ | `AdminEmployeesController` — khóa/mở tài khoản, cấp `SystemAdmin` — *bảng này từng ghi ⬜ dù đã code xong, đã sửa lại 2026-07-29* |
-| Thống kê / Dashboard | ⬜ | Chưa bắt đầu |
+| Thống kê / Dashboard — API | ✅ | Xong 2026-08-03. `GET /projects/{id}/statistics` — tổng hợp trong SQL, zero-fill đủ mọi giá trị enum. `Member` nay cũng xem được (ADR-039). *Màn hình Recharts vẫn ⬜* |
+| Background job task quá hạn → `DueSoon` | ✅ | Xong 2026-08-03. `IDueDateNotifier` (nghiệp vụ, test được) + `DueDateNotificationWorker` (timer). Khử trùng lặp theo ngày UTC, không đăng ký ở môi trường Testing (ADR-040) |
+| Reset password | ✅ | Xong 2026-08-03 (ADR-041). `IEmailSender` giả lập cho Dev — không còn bị chặn bởi email service |
 | Frontend — nền tảng (scaffold, API client, Auth, Project CRUD) | ✅ | Next 15 + Tailwind 4 + shadcn/ui + TanStack Query + Zustand. Tầng API client xử lý JWT, single-flight refresh (ADR-030) và cả 4 hình dạng lỗi của backend. Đăng ký/đăng nhập/giữ phiên khi F5/đăng xuất + route guard. Project: danh sách phân trang + tìm kiếm + tạo + sửa (round-trip `RowVersion`, xử lý 409 bằng tải lại) + xóa (xử lý 409 còn task chưa xong) |
 | Frontend — Project detail (tab) + Thành viên + Sprint | ✅ | `app/(app)/projects/[id]/` với tab là segment định tuyến thật. Mời/đổi vai trò/gỡ/rời dự án; Sprint CRUD đầy đủ |
 | Frontend — Board/Backlog Kanban | ✅ | `@dnd-kit` + cập nhật lạc quan. Ba bẫy 409 chặn bằng **cấu trúc** (`useDroppable disabled`) nên không request nào được tạo ra — đã kiểm chứng trên trình duyệt |
 | Frontend — Task CRUD + giao việc | ✅ | Tạo/sửa (trọn luồng `RowVersion` 409 của ADR-016)/xóa, gán–tự nhận–gỡ người |
 | Frontend — dark mode + màu thương hiệu | ✅ | Xanh Jira trên `--primary`, ThemeProvider + nút chuyển, breadcrumb. Đã đo tương phản WCAG AA trên cả 5 màn × 2 chế độ |
 | Frontend — hạ tầng test | ✅ | Vitest cho `lib/api/` + logic thuần của Kanban — 76 test |
-| Frontend — chi tiết Task, Notification bell, Dashboard | ⬜ | Chi tiết Task chờ Watcher/Label/TaskLink + ActivityLog API; Dashboard chờ API thống kê |
+| Frontend — "Lời mời của tôi" | ✅ | Xong 2026-08-03. `app/(app)/invitations/`. **Luồng mời nay đã khép kín**: PM mời → người được mời thấy badge ở sidebar → chấp nhận → vào thẳng board |
+| Frontend — Notification bell + trang thông báo | ✅ | Xong 2026-08-03. Tầng dữ liệu notification viết mới trong phiên này (types/endpoints/hook/keys). Điều hướng bằng cặp `(relatedEntityKind, relatedEntityId)` (ADR-025), kèm trang phân giải `/tasks/{id}` vì DTO thông báo không mang `projectId` |
+| Frontend — **chi tiết Task** (7 khối) | ✅ | Xong 2026-08-03. Hai vỏ dùng chung một nội dung: dialog chặn route + trang thật (ADR-043). Mô tả sửa tại chỗ, subtask + tạo subtask, đính kèm (4 mã lỗi riêng), liên kết, người theo dõi, nhãn, `Bình luận \| Lịch sử` |
+| Frontend — Dashboard (Recharts) | ⬜ | Không bị chặn — API và hook `useProjectStatistics` đã có. `recharts` **chưa cài** |
+| Frontend — Quên/đặt lại mật khẩu | ⬜ | Không bị chặn — tầng dữ liệu đã có từ 2026-08-03 |
+| Frontend — Admin (nhân sự / nhãn toàn cục / audit log) | ⬜ | Cố ý để riêng một phiên (nhóm người dùng khác hẳn). Tầng dữ liệu `AdminEmployees` **chưa có**; audit log thì đã có sẵn hook |
 | Real-time (SignalR) | ⬜ | Có chủ đích — chỉ làm sau khi core CRUD ổn định (xem §6) |
 
 ### Lộ trình các phiên tiếp theo
 
-> Sắp theo thứ tự phụ thuộc và giá trị, không phải theo độ khó. Cập nhật 2026-08-02 (phiên
-> Frontend — Board Kanban). Hạng mục 1 **đã xong**; mọi hạng mục còn lại đều bị chặn bởi
-> backend, nên phiên sau là **phiên backend**.
+> Sắp theo thứ tự phụ thuộc và giá trị, không phải theo độ khó. Cập nhật 2026-08-03 (phiên
+> Backend hoàn chỉnh). **Toàn bộ hạng mục backend đã xong** — mọi việc còn lại là frontend.
 
-| # | Hạng mục | Vì sao xếp ở đây | Quy mô ước tính |
+| # | Hạng mục | Trạng thái | Ghi chú |
 |---|---|---|---|
-| ~~1~~ | ~~Frontend — Project detail + Board/Backlog Kanban + Sprint~~ | ✅ **Xong 2026-08-02.** 6 màn hình dùng được thật, kéo–thả có cập nhật lạc quan, dark mode, 76 test | — |
-| 1b | **Đợt backend ngắn**: `Description` + mã task `PMS-12`, Label, Watcher, ActivityLog đọc | ⭐ **Việc tiếp theo.** Bốn thứ này cùng chặn màn **chi tiết Task** — màn ⬜ lớn nhất còn lại. Gom một đợt rẻ hơn làm rời. Mã task còn là chi tiết ảnh hưởng thị giác lớn nhất tới cảm giác "giống Jira", và càng để lâu càng phải backfill nhiều | Vừa — 1 migration |
-| 2 | **Watcher + Label + TaskLink API** | Ba cái nhỏ, gom một đợt. ⚠️ `Watcher` **không** kế thừa `BaseEntity` nên `IRepository<T>` không phục vụ được, phải xử lý riêng. `TaskLink` cần thêm guard chống link vòng (A blocks B và B blocks A cùng lúc sẽ khóa chết cả hai ở blocker check). `Watcher` giờ có thêm lý do rõ ràng để làm: nó đã nằm trong `InterestedEmployeeIds` của cả luồng đổi status lẫn comment, nhưng chưa có API nào để đăng ký theo dõi | Vừa |
-| 3 | **Background job task quá hạn** → Notification `DueSoon` | `ITaskRepository.GetOverdueAsync` **đã tồn tại nhưng chưa có caller nào** — đúng loại code chờ sẵn mà nếu để lâu sẽ lệch khỏi nghiệp vụ. Phụ thuộc cũ đã được giải: giờ đã đọc được thông báo nên job có ý nghĩa thật | Nhỏ |
-| 4 | **Activity Log API đọc** | Khoảng trống cùng loại với Notification trước phiên này: `IActivityLogger` ghi ở mọi luồng (nay có cả 3 action của Comment) nhưng chưa endpoint nào đọc ra. Cần cho tab "Activity" ở màn hình chi tiết task (§6) | Nhỏ — 1 service, 1–2 endpoint |
-| 5 | **Dashboard thống kê** | `ProjectAction.ViewStatistics` đã có sẵn trong ma trận quyền nhưng chưa ai dùng. Cần cả API lẫn màn hình Recharts | Vừa |
-| 6 | **Reset password** | Mục ⬜ cuối cùng của Auth. Còn phụ thuộc email service nên để sau | Nhỏ–vừa |
-| 7 | **Real-time (SignalR)** | Theo §6, chỉ làm sau khi core CRUD **và** frontend đã ổn định | Vừa |
+| ~~1~~ | ~~Frontend — Project detail + Board/Backlog Kanban + Sprint~~ | ✅ 2026-08-02 | 6 màn hình, kéo–thả cập nhật lạc quan, dark mode |
+| ~~1b~~ | ~~`Description` + mã task `PMS-12`~~ | ✅ 2026-08-03 | ADR-033/034. Bảng đếm riêng, backfill đã kiểm tay |
+| ~~2~~ | ~~Watcher + Label + TaskLink API~~ | ✅ 2026-08-03 | ADR-036/037/038 |
+| ~~3~~ | ~~Background job task quá hạn~~ | ✅ 2026-08-03 | ADR-040. `GetOverdueAsync` không tái dùng được — cần bản có `Include` |
+| ~~4~~ | ~~Activity Log API đọc~~ | ✅ 2026-08-03 | Kèm sửa lỗi `ProjectService` không ghi log dòng nào |
+| ~~5~~ | ~~Dashboard thống kê — **API**~~ | ✅ 2026-08-03 | ADR-039. Màn hình Recharts vẫn còn |
+| ~~6~~ | ~~Reset password~~ | ✅ 2026-08-03 | ADR-041 |
+| — | **Attachment** (ngoài kế hoạch ban đầu) | ✅ 2026-08-03 | ADR-035. Chuyển từ §14 Nhóm B lên core theo yêu cầu |
+| — | **Chốt vai trò `SystemAdmin`** | ✅ 2026-08-03 | ADR-042 |
+| ~~7~~ | ~~Frontend — Lời mời + chi tiết Task + Notification bell~~ | ✅ 2026-08-03 | ADR-043/044. Kèm sửa lỗi mất mô tả ở `PUT /tasks/{id}` |
+| **8** | **Frontend — Dashboard (Recharts) + Quên/đặt lại mật khẩu** | ⬜ **Việc tiếp theo** | Không bị chặn. Cần `npm i recharts` |
+| 9 | **Frontend — nhóm Admin** | ⬜ | Phiên riêng. Phải viết tầng dữ liệu `AdminEmployees` trước (list phân trang + khóa/mở + đổi `SystemRole`) |
+| **A** | **Authorization — thêm claim kiểu Permission** | ⬜ **mới đề xuất 2026-08-04** | Chưa chốt. Chạm vào ADR-006/015/019/042 — xem khối bên dưới trước khi code |
+| 10 | **Real-time (SignalR)** | ⬜ | Theo §6, chỉ làm sau khi core CRUD **và** frontend đã ổn định |
 
-**Tiến độ, nói thẳng (cập nhật 2026-08-02):** rủi ro lớn nhất của hai phiên trước —
-"frontend ở con số không", rồi "Board Kanban là màn hội đồng nhìn vào nhiều nhất mà vẫn
-chưa có" — **đã gỡ xong cả hai**. Board chạy thật, kéo–thả có cập nhật lạc quan, và ba
-bẫy 409 được chặn bằng cấu trúc chứ không phải bằng toast đỏ.
+#### ⚠️ Hạng mục A — claim kiểu Permission: bốn điểm căng phải chốt TRƯỚC khi gõ code
 
-Rủi ro nay đổi hình dạng lần nữa và **đảo chiều**: từ đây trở đi **frontend bị backend
-chặn**, không phải ngược lại. Ba màn ⬜ còn lại (chi tiết Task, Notification bell,
-Dashboard) đều chờ API:
-- **Chi tiết Task** chờ `Description` + Label + Watcher + ActivityLog (hạng mục 1b, 2, 4)
-- **Dashboard** chờ API thống kê (hạng mục 5)
-- **Notification bell** là ngoại lệ — API đọc đã sẵn sàng từ lâu, chỉ là chưa có màn.
-  Đây là món **rẻ nhất** còn lại nếu muốn thêm một màn nữa mà không phải đụng backend.
+Đề xuất (2026-08-04): đưa quyền vào JWT dưới dạng claim `permission` thay vì chỉ mang
+`SystemRole`. Ghi lại đây **chưa phải một ADR** — nó là danh sách câu hỏi, vì thiết kế hiện
+tại có bốn chỗ sẽ vỡ nếu áp dụng máy móc.
 
-Khoản nợ kiểm chứng của hai phiên trước cũng đã trả: phiên này thao tác thật trên trình
-duyệt, xác nhận được giữ phiên khi F5, single-flight refresh (một lần F5 → **đúng một**
-`/refresh`), và toàn bộ luồng 409 của `RowVersion`.
+1. 🔴 **Quyền tầng 2 KHÔNG nhét vào token được, và đây là điểm chí mạng.** Một người có vai
+   trò **khác nhau ở từng project** (`ProjectMember.RoleInProject`). Nhét quyền per-project
+   vào claim nghĩa là token phình theo số project, và tệ hơn: **nó cũ đi ngay khi PM đổi vai
+   trò của ai đó**. Hiện tại đổi vai trò có hiệu lực **tức thì** vì mỗi request đọc lại từ
+   `ProjectMember`; chuyển sang claim là chấp nhận độ trễ tối đa bằng tuổi access token
+   (15 phút) — trong đó có cả ca "vừa gỡ một người khỏi project mà họ vẫn ghi được".
+   Tiền lệ đã có trong dự án: ADR-015 phải **thu hồi refresh token** khi khóa tài khoản,
+   đúng vì lý do này.
+2. **Quyền tầng 1 thì hợp.** `SystemAdmin` là toàn cục, số lượng ít, đổi hiếm — claim
+   `permission` cho nhóm admin (`employees:lock`, `labels:manage`, `audit:read`) là đúng
+   chỗ, và nó thay được policy `require-system-admin` đang hard-code theo vai trò.
+3. **Đừng để nó mở lại god mode mà ADR-042 vừa đóng.** Cám dỗ tự nhiên của mô hình
+   permission là thêm `projects:read:all`. Nếu làm, phải rà **mọi** query lọc theo membership
+   (danh sách project, board, backlog, thành viên…), nếu không sẽ ra trạng thái mâu thuẫn:
+   admin mở được `GET /projects/{id}` nhưng danh sách vẫn trống.
+4. **Frontend có một bản sao phải đồng bộ.** `lib/tasks/permissions.ts` soi gương
+   `ProjectPermissions.cs`. Nếu nguồn sự thật chuyển sang claim thì bản sao đó phải đọc
+   claim — **hoặc** giữ nguyên và chấp nhận hai mô hình song song, là thứ chắc chắn lệch.
+
+**Khuyến nghị để cân nhắc:** mô hình **lai** — claim `permission` cho quyền **hệ thống**
+(tầng 1), giữ nguyên `ProjectPermissions` đọc DB cho quyền **project-scoped** (tầng 2). Giữ
+được tính tức thì của việc đổi vai trò, mà vẫn có được thứ mô hình permission thực sự cho:
+tách quyền admin ra khỏi một enum vai trò cứng.
+
+**Tiến độ, nói thẳng (cập nhật 2026-08-03):** rủi ro của phiên trước — "frontend bị backend
+chặn" — **đã gỡ hết**. Không còn một màn hình nào phải chờ API.
+
+Rủi ro nay đổi hình dạng lần nữa, và lần này nó **chỉ còn một chiều**: toàn bộ giá trị còn
+lại nằm ở frontend, và khối lượng đó không nhỏ — bốn tới năm màn hình, trong đó **chi tiết
+Task** là màn phức tạp nhất của cả sản phẩm (mô tả, nhãn, người theo dõi, liên kết, lịch sử,
+comment, đính kèm — bảy khối trên một trang).
+
+**Ba thứ phiên này phát hiện mà không ai đi tìm** — đều là code đã build sạch, test xanh,
+tài liệu ghi ✅, nhưng sai:
+1. **`ProjectService` không ghi `ActivityLog` dòng nào.** Tạo/sửa/xóa project đều không sinh
+   log. Chỉ lộ ra khi dựng màn "lịch sử project" và thấy nó trống rỗng.
+2. **`ValidationFilter` không bao giờ chạy cho upload** — nó tra `IValidator<IFormFile>`,
+   thứ không tồn tại. Thiết kế dựa vào FluentValidation cho whitelist file sẽ để ngỏ toàn bộ
+   cửa **mà vẫn trông như đã khóa**.
+3. **§10 mô tả một quyền mà code chưa từng có** (SystemAdmin read-only toàn hệ thống) — lần
+   thứ tư dự án gặp hình dạng lỗi này, nhưng là lần đầu **code mới là bản đúng**.
+
+Cả ba đều thuộc đúng một lớp mà §15 đã đặt tên từ 2026-07-30: *"build sạch, test xanh, ADR
+ghi ✅" vẫn có thể là ba lời khai sai cùng lúc.* Điểm chung của chúng: thứ cần kiểm chứng
+chưa có ai gọi tới.
+
+**Khoản nợ kiểm chứng của phiên này:** backfill trong migration **không** được test nào chạm
+(factory luôn `EnsureDeleted` + `Migrate` trên DB rỗng), nên đã kiểm **bằng tay** trên một
+database tạm dựng đúng hình dạng dữ liệu cũ — gồm cả hai task có `CreatedAt` giống hệt nhau
+và một task đã xóa mềm. Kết quả đúng như thiết kế.
 
 ### Việc còn dang dở — đọc trước khi bắt đầu phiên mới
 
 > Liệt kê thẳng, không giấu. Mục đích: phiên sau **không phải dò lại**, và không viết lại
-> thứ đã có. Cập nhật 2026-08-02.
+> thứ đã có. Cập nhật 2026-08-03 (phiên chi tiết Task).
 
 #### A. Code ĐÃ VIẾT nhưng chưa có màn nào dùng
 
@@ -183,42 +252,48 @@ tương ứng sẽ cần ngay. Nhưng phải biết là **đang có sẵn** đ�
 
 | Thứ đã có | Ở đâu | Màn hình sẽ dùng |
 |---|---|---|
-| `useMyInvitations`, `useRespondToInvitation` + 3 endpoint accept/decline/list | `lib/hooks/use-members.ts`, `lib/api/endpoints/members.ts` | **"Lời mời của tôi"** — chưa có màn. Hiện chỉ chấp nhận lời mời được bằng gọi API tay |
-| `canComment`, `canEditComment`, `canDeleteComment` (ADR-026) | `lib/tasks/permissions.ts` | Khối **Comment** ở màn chi tiết Task |
-| `useSelfAssignTask`, `getTaskAssignees` | `lib/hooks/use-tasks.ts`, `endpoints/tasks.ts` | Nút "Tự nhận việc" ở chi tiết Task (dialog giao việc hiện chỉ dùng gán/gỡ) |
-| `listProjectTasks` (phân trang, `sortBy` name/priority/status) | `endpoints/tasks.ts` | Màn **danh sách task** dạng bảng có phân trang, nếu sau này cần |
-| `mayFailUnpredictably(status)` | `lib/tasks/status-transitions.ts` | Đánh dấu trước nước đi có thể 409 do `TaskLink` chặn |
-| `findTaskInBoard` | `lib/tasks/board-cache.ts` | Tiện ích tra thẻ, dùng khi làm cập nhật lạc quan chỗ khác |
+| `useProjectStatistics` + `types/statistics.ts` | `lib/hooks/use-statistics.ts` | **Dashboard** — chưa có màn. `byStatus`/`byPriority` đã zero-fill đủ mọi giá trị enum |
+| `forgotPassword`, `resetPassword` + DTO | `lib/api/endpoints/auth.ts`, `types/auth.ts` | **Quên / đặt lại mật khẩu** — chưa có màn |
+| `useSystemAuditLogs` + `systemAuditKeys` + `SystemAuditLogResponse` | `lib/hooks/use-activity.ts` | **Admin: audit log** — chưa có màn. Đây là phần admin DUY NHẤT đã có tầng dữ liệu |
+| `useProjectActivity` | `lib/hooks/use-activity.ts` | Tab **lịch sử của project** (chi tiết Task đã dùng bản của task, chưa ai dùng bản project) |
+| `useProjectAttachments`, `useUploadProjectAttachment` | `lib/hooks/use-attachments.ts` | Đính kèm ở cấp **project** (cấp task đã dùng rồi) |
+| `useCreateLabel` / `useUpdateLabel` / `useDeleteLabel` | `lib/hooks/use-labels.ts` | **Admin: nhãn toàn cục**. ⚠️ sửa/xóa chỉ `SystemAdmin` (ADR-037) |
+| `listProjectTasks` (phân trang, `sortBy` name/priority/status) | `endpoints/tasks.ts` | Màn **danh sách task** dạng bảng. Nay đã có một người dùng: `useProjectTaskOptions` (ô chọn task khi tạo liên kết) |
+| `mayFailUnpredictably(status)` | `lib/tasks/status-transitions.ts` | Đã dùng ở `task-status-control.tsx` để soạn thông điệp riêng cho nước đi có thể 409 |
 
-⚠️ **Đáng chú ý nhất: "Lời mời của tôi".** Luồng mời thành viên hiện **chưa khép kín** trên
-giao diện — PM mời được, nhưng người được mời **không có chỗ nào để bấm Chấp nhận**. Toàn
-bộ tầng dữ liệu đã xong, chỉ thiếu một trang. Đây là món rẻ nhất và có giá trị nhất còn lại.
+⚠️ **`AdminEmployeesController` vẫn CHƯA có gì ở frontend** — không types, không endpoints,
+không hook. Phiên Admin phải viết tầng dữ liệu đó trước: `GET /admin/employees` (PagedRequest,
+`search` khớp Name **hoặc** Email và **thực sự hoạt động** ở endpoint này), `POST {id}/lock`
+(body `{reason}`, 204), `POST {id}/unlock` (204), `PUT {id}/system-role` (body `{role}`, 204).
+Bất biến "≥1 admin chưa khóa" trả **409**; tự khóa/tự đổi vai trò mình trả **400**.
 
-#### B. Màn hình chưa làm, xếp theo "có bị chặn không"
+#### B. Màn hình chưa làm — không màn nào bị chặn
 
-**KHÔNG bị chặn — làm được ngay, API đã sẵn sàng từ lâu:**
-1. **"Lời mời của tôi"** — xem mục A. Nhỏ.
-2. **Notification bell** — `NotificationsController` đủ (danh sách phân trang, đếm chưa đọc,
-   đánh dấu một/tất cả). Dùng cặp `(relatedEntityKind, relatedEntityId)` để điều hướng
-   (ADR-025), **đừng tự dựng bảng type→route**. Nhỏ–vừa.
-3. **Comment trên task** — `CommentsController` đủ. Nhưng nó nằm trong màn chi tiết Task,
-   mà màn đó lại bị chặn (xem dưới) — trừ khi làm Comment thành một khối riêng.
-4. **Admin: quản lý nhân sự** — `AdminEmployeesController` đã có (khóa/mở tài khoản, cấp
-   `SystemAdmin`) và **chưa có màn nào**. Nhỏ.
-
-**BỊ CHẶN bởi backend:**
-5. **Chi tiết Task** — chờ `Description`, mã `PMS-12`, Label, Watcher, TaskLink, ActivityLog.
-   Đây là màn ⬜ lớn nhất còn lại.
-6. **Dashboard thống kê** — chờ API thống kê.
-7. **Search toàn cục** — hiện chỉ có `search` theo tên trong từng danh sách.
+1. **Dashboard thống kê** — hook đã có, chỉ cần `npm i recharts`. Vừa.
+2. **Quên / đặt lại mật khẩu** — 2 trang. ⚠️ `forgot-password` LUÔN trả 204, UI chỉ được hiện
+   một thông điệp duy nhất (ADR-041). Nhỏ.
+3. **Admin: nhân sự + nhãn toàn cục + audit log** — phiên riêng, xem mục A. Vừa.
+4. **Search toàn cục** — ⬜ và **vẫn chưa có API**. ⚠️ `PagedRequest.Search` được binder nhận
+   ở mọi danh sách nhưng **chỉ `EmployeeRepository` và `NotificationRepository` dùng tới**;
+   project/task/sprint/comment/audit-log nhận rồi **bỏ qua im lặng**. Đừng dựng UI lọc dựa
+   vào nó (đây là lý do ô chọn task khi tạo liên kết lọc ở client, trần 100 task).
 
 #### C. Nợ kỹ thuật đã biết
 
 - **Không có trường thứ tự task ở bất kỳ đâu.** Sắp xếp thẻ trong cùng một cột (kiểu
   Trello) là **không làm được** — cần thêm cột rank + endpoint reorder ở backend. Đây là lý
-  do đã cố ý bỏ `@dnd-kit/sortable`.
-- **Tạo subtask chưa có giao diện.** `CreateTaskRequest.ParentTaskId` hỗ trợ sẵn và domain
-  đã chặn subtask 2 cấp, nhưng dialog tạo task hiện luôn gửi `parentTaskId: null`.
+  do đã cố ý bỏ `@dnd-kit/sortable`. *Màn chi tiết Task không cần nó: subtask và liên kết
+  hiển thị theo thứ tự backend trả.*
+- ~~Tạo subtask chưa có giao diện~~ ✅ **xong 2026-08-03** — `TaskFormDialog` nhận thêm prop
+  `parentTaskId`; khi tạo subtask thì ẩn ô Sprint và gửi `sprintId: null` (repository lọc
+  board/backlog theo `ParentTaskId == null` nên sprint của subtask là giá trị vô hình).
+- **Nhãn vẫn là dữ liệu TOÀN CỤC** (ADR-037). Ô chọn nhãn ở chi tiết Task vì vậy liệt kê nhãn
+  của cả hệ thống, không lọc theo project — đúng thiết kế hiện tại, nhưng sẽ khó dùng khi số
+  nhãn tăng. Cách sửa gốc (`Label.ProjectId`) đã ghi ở ADR-037.
+- **`ProjectMembers.CreatedAt` của dữ liệu cũ là `0001-01-01`** — cùng nguyên nhân với
+  `Tasks.CreatedAt` ở ADR-033 (migration thêm cột với `defaultValue`). Nó lộ ra ở dòng "Được
+  mời ngày …" của trang Lời mời. Frontend đã chặn ở tầng hiển thị (`isSentinelDate` trong
+  `lib/format.ts` trả `—` cho mọi mốc trước năm 1900); **chưa** backfill ở DB.
 - **Sprint không có `RowVersion`** → sửa đồng thời là last-write-wins, không có tín hiệu.
   Đừng dựng UI cảnh báo stale cho sprint.
 - **`invalidateQueries(projectDataKeys.all)` hơi rộng**: chuyển task sang sprint cũng làm
@@ -231,15 +306,30 @@ bộ tầng dữ liệu đã xong, chỉ thiếu một trang. Đây là món r�
 
 #### D. Chưa kiểm chứng bằng tay
 
-Phiên 2026-08-02 kiểm rất kỹ trên Chrome ở kích thước desktop, nhưng **chưa** kiểm:
-- Kéo–thả bằng **cảm ứng** thật (đã cấu hình `TouchSensor` với `delay: 220` để không
-  khóa thao tác cuộn cột, nhưng chưa thử trên thiết bị thật).
-- Kéo–thả bằng **bàn phím** thật (đã cấu hình `KeyboardSensor` + nhánh dự phòng
-  `rectIntersection` vì `pointerWithin` luôn rỗng khi không có con trỏ).
-- Giao diện trên **màn hình nhỏ** (bố cục board đã đặt `sm:grid-cols-2` / `xl:grid-cols-4`
-  nhưng chưa xem thật).
-- Luồng **403** khi `Member` không phải assignee cố kéo thẻ (đã gác ở client theo ADR-017
-  nên khó chạm tới; cần đăng nhập bằng tài khoản Member để thử).
+**✅ Đã trả trong phiên 2026-08-03** (kiểm thật trên trình duyệt, tài khoản seed):
+- **Giao diện màn hình nhỏ** — chi tiết Task ở 375×812: hai cột xếp chồng đúng, sidebar thu
+  về hamburger, `scrollWidth === clientWidth` (không tràn ngang).
+- **Quyền theo vai trò thật, không suy luận** — đăng nhập `dung@pms.local` (`Viewer`) trên
+  chi tiết Task: nút **Theo dõi CÓ** và bấm được thật (ngoại lệ ghi duy nhất của ADR-036),
+  còn tải file lên / gắn nhãn / tạo liên kết / soạn comment / đổi trạng thái / sửa mô tả
+  đều **không hiện**; nút tải file **VỀ** vẫn có (đọc đi qua `ProjectAction.View`).
+- **Luồng lời mời khép kín** — `em@pms.local` có lời mời `Pending` trong seed: badge sidebar
+  → Chấp nhận → vào thẳng board.
+- **Vòng 409 của `RowVersion`** — sửa từ một client thứ hai rồi sửa trên UI: 409 → banner +
+  tự tải lại → **lần thứ hai thành công** (chứng minh không rơi vào 409 vĩnh viễn).
+- **Bốn mã lỗi upload** — `.exe` → 415; file EXE đổi tên thành `.png` → **400 magic number**;
+  file hợp lệ → tải lên rồi tải về được (Blob `application/octet-stream`, ADR-035).
+- **`LinkType` chuẩn hóa (ADR-038)** — `Blocks(A→B)` rồi `IsBlockedBy(B→A)` → **409** với
+  thông điệp riêng; xem từ B thì cùng một hàng hiện là `IsBlockedBy`. UI còn chặn sớm hơn:
+  ô chọn task lọc bỏ task đã có liên kết nên nước đi đó **không tạo ra request nào**.
+
+**Vẫn CHƯA kiểm:**
+- Kéo–thả bằng **cảm ứng** thật (đã cấu hình `TouchSensor` với `delay: 220`, chưa thử trên
+  thiết bị thật).
+- Kéo–thả bằng **bàn phím** thật. ⚠️ Phiên 2026-08-03 **không** kiểm được: công cụ trình
+  duyệt của phiên này không bắn được sự kiện chuột/bàn phím tổng hợp tới `<button>` thường
+  (mọi thao tác phải gọi `.click()` bằng JS), nên một kết quả "kéo bằng bàn phím OK" sẽ
+  không đáng tin. Để nguyên là nợ thay vì báo sai.
 
 ---
 
@@ -412,14 +502,23 @@ ProjectManagementSystem/
   - 1 Sprint có nhiều Task (qua `Task.SprintId`)
   - Task chưa gán Sprint (`SprintId = null`) = nằm ở **Backlog**
 
-### Entity phân loại & liên kết (theo mô hình Jira thật) ⬜ *(entity đã có; `TaskLink` đang được dùng gián tiếp qua blocker check của `TaskStatusTransitionService`, nhưng cả ba chưa có API riêng)*
-- **`Label`**: Tên tag tự do (ví dụ: `bug`, `frontend`, `urgent`) — Task N—N Label,
-  giúp lọc/tìm kiếm linh hoạt hơn Status/Priority cố định
-- **`Watcher`** *(bảng trung gian Employee–Task)*: `TaskId`, `EmployeeId` — người
-  theo dõi task để nhận Notification dù không được assign làm (khác với `TaskAssignment`)
-- **`TaskLink`** *(self-referencing giữa 2 Task)*: `SourceTaskId`, `TargetTaskId`,
+### Entity phân loại & liên kết (theo mô hình Jira thật) ✅ *(API đầy đủ từ 2026-08-03)*
+- **`Label`** ✅: Tên tag tự do (`bug`, `frontend`, `urgent`) + **`Color`** (`#RRGGBB`) —
+  Task N—N Label. **Toàn cục**, tên duy nhất toàn hệ thống; quyền tách theo bán kính ảnh
+  hưởng (ADR-037): tạo = mọi user, gắn/gỡ = PM/Member, **sửa/xóa = chỉ SystemAdmin**
+- **`Watcher`** ✅ *(bảng trung gian Employee–Task)*: `TaskId`, `EmployeeId` — người
+  theo dõi task để nhận Notification dù không được assign làm (khác với `TaskAssignment`).
+  ⚠️ **Không** kế thừa `BaseEntity` → có repository riêng và phải **tự set `CreatedAt`**
+  (ADR-036). Là thao tác ghi duy nhất mà `Viewer` làm được
+- **`TaskLink`** ✅ *(self-referencing giữa 2 Task)*: `SourceTaskId`, `TargetTaskId`,
   `LinkType` (`Blocks` / `IsBlockedBy` / `RelatesTo` / `Duplicates`) — quản lý phụ
-  thuộc giữa các task, ví dụ Task B không thể `Done` nếu Task A (blocking) chưa xong
+  thuộc giữa các task. ⚠️ **`IsBlockedBy` là giá trị chỉ dùng ở ĐẦU VÀO, không bao giờ
+  được lưu**: backend chuẩn hóa nó về `Blocks` đảo chiều để unique index bắt được trùng
+  ngữ nghĩa (ADR-038). Có guard chặn vòng chặn
+- **`Attachment`** ✅ *(mới 2026-08-03)*: file đính kèm của **Task hoặc Project** — hai FK
+  nullable + CHECK constraint đúng-một-chủ. `FileName` (tên gốc, chỉ để hiển thị),
+  `StoredFileName` (tên trên đĩa do hệ thống sinh), `ContentType`, `SizeBytes`,
+  `UploaderId`. Whitelist đuôi + kiểm magic number + thư mục ngoài `wwwroot` (ADR-035)
 
 ### Workflow Transition Rules (Status không đổi tự do) ✅ *(`TaskStatusTransitionService`, có test)*
 Thay vì cho phép đổi `Status` tự do giữa 4 giá trị enum, áp dụng quy tắc chuyển trạng
@@ -506,6 +605,9 @@ tổng hợp kết quả...).
 - Task 1—N Task (subtask, self-referencing, tùy chọn)
 - Task N—N Task (qua `TaskLink`, khác mục đích với quan hệ subtask)
 - Task 1—N Comment
+- Task 1—N Attachment · Project 1—N Attachment *(đúng một trong hai, CHECK constraint)*
+- Project 1—1 ProjectTaskCounter *(bộ đếm mã task — ADR-033)*
+- Employee 1—N PasswordResetToken *(ADR-041)*
 - Task N—N Label
 - Task N—N Employee (qua `Watcher` — theo dõi, khác với `TaskAssignment` — thực hiện)
 - Employee N—N Project (qua `ProjectMember`, có `RoleInProject`)
@@ -588,13 +690,19 @@ nên chúng **miễn nhiễm CSRF**; cookie chỉ đi tới 4 endpoint auth nh�
   không có ngữ nghĩa vị trí nên kéo–thả sẽ hứa một thứ tự mà backend không lưu được
 - ✅ Quản lý Sprint (CRUD đầy đủ) + quản lý Thành viên (mời / đổi vai trò / gỡ / rời dự án)
 - ✅ Dark mode + màu thương hiệu (xanh Jira) + breadcrumb trên header
-- ⬜ Chi tiết Task: thông tin, Priority badge, Labels, danh sách người đảm nhận (Assignee)
-  + Reporter, nút "Watch"/"Unwatch", **Comment**, **Linked Issues** (Blocks/Relates to),
-  **Activity Log** (lịch sử thay đổi), **danh sách Subtask** (progress bar % hoàn thành
-  + mỗi Subtask click vào mở ra như 1 Task đầy đủ, không phải checkbox tĩnh)
+- ✅ **Chi tiết Task** — hai vỏ dùng chung một `TaskDetailContent` (ADR-043): dialog chặn
+  route khi bấm thẻ từ board/backlog, trang thật `/projects/{id}/tasks/{taskId}` khi mở link
+  hoặc F5. Bố cục hai cột: trái là mô tả (sửa tại chỗ), Subtask (progress bar + tạo subtask +
+  mỗi subtask mở ra như một Task đầy đủ), Tệp đính kèm, Liên kết, rồi cụm
+  `Bình luận | Lịch sử` (tab **cục bộ**, không phải segment định tuyến); phải là cột dính
+  gồm trạng thái, người đảm nhận + tự nhận việc, độ ưu tiên, hạn, nhãn màu, người theo dõi,
+  mã `PMS-12`, người tạo
+- ✅ **"Lời mời của tôi"** (`/invitations`) — khép kín luồng mời thành viên
+- ✅ **Notification bell** (góc header) + trang `/notifications` có lọc `Tất cả | Chưa đọc`.
+  Điều hướng bằng cặp `(relatedEntityKind, relatedEntityId)` (ADR-025); thông báo loại Task
+  đi qua trang phân giải `/tasks/{taskId}` vì DTO thông báo không mang `projectId`
 - ⬜ Trang quản lý Nhân sự + phân quyền theo từng Project
 - ⬜ **Thanh Search/Filter** toàn cục: tìm task theo tên, người phụ trách, status, deadline
-- ⬜ **Notification bell** (góc header): danh sách thông báo, đánh dấu đã đọc
 - ⬜ Dashboard thống kê (Recharts): tỷ lệ hoàn thành, task theo nhân sự, task quá hạn
 
 **Quy ước ẩn/hiện nút theo quyền** (§10 là nguồn luật, đây là cách áp dụng):
@@ -744,17 +852,28 @@ Dùng `ASPNETCORE_ENVIRONMENT` để switch giữa các file `appsettings.{Envir
 | Rate limiting cho endpoint đăng nhập (chống brute-force) | ✅ Đã có (`[EnableRateLimiting("login")]`) |
 | HTTPS bắt buộc (`app.UseHttpsRedirection()`) | ✅ Đã có |
 | Khóa/mở tài khoản, cấp `SystemAdmin` role cho người khác | ✅ Đã có — `AdminEmployeesController`, policy `RequireSystemAdmin`. Khóa/đổi role đều thu hồi toàn bộ refresh token. Bất biến: luôn còn ≥1 SystemAdmin chưa bị khóa |
-| Quên mật khẩu / Reset password qua token hết hạn 15-30 phút | ⬜ Chưa code — `PasswordResetToken` chưa tồn tại; còn phụ thuộc email service |
-> 📌 Hai mục ⬜ là quyết định thiết kế có sẵn từ đầu (ADR §15, 2026-07-22), chưa tới
-> lượt implement — không phải bug hay bị bỏ sót giữa chừng.
+| Quên mật khẩu / Reset password qua token hết hạn 30 phút | ✅ Đã có (2026-08-03, ADR-041) — `PasswordResetToken` (hash SHA-256, dùng một lần), `POST /auth/forgot-password` **luôn 204**, `POST /auth/reset-password` gộp mọi lỗi vào một 400. Đổi mật khẩu thu hồi toàn bộ refresh token. `IEmailSender` có bản giả lập ghi Serilog cho Dev, `NullEmailSender` cho môi trường khác |
+> 📌 Mục Reset password từng là ⬜ suốt nhiều phiên vì "chờ email service". Cách gỡ:
+> `IEmailSender` là một abstraction hai method — cắm SMTP thật sau này chỉ là đổi một dòng
+> đăng ký DI, còn nghiệp vụ token thì không phải chờ gì cả.
 
 ### Authorization — mô hình 2 tầng
 **Tầng 1 — System Role** (gắn với tài khoản, không đổi theo project):
-- `SystemAdmin`: quản lý toàn bộ user, cấu hình hệ thống. **Không tự động có quyền
-  thao tác (action) trong bất kỳ project nào** — nếu muốn tạo/sửa task như PM, phải
-  được thêm làm `ProjectMember` như người bình thường. Ngoại lệ: SystemAdmin có quyền
-  **xem (read-only)** toàn bộ project cho mục đích support/audit, tương tự cách admin
-  site của Jira hỗ trợ kỹ thuật mà không tự ý sửa dữ liệu nghiệp vụ.
+- `SystemAdmin`: quản trị **hệ thống** — khóa/mở tài khoản, cấp `SystemRole`, quản lý nhãn
+  toàn cục, đọc nhật ký cấp hệ thống. **KHÔNG có bất kỳ đặc quyền nghiệp vụ nào**: không
+  đọc, không ghi, không "read-only để hỗ trợ". SystemAdmin không phải thành viên của một
+  project thì nhận **404** trên mọi endpoint của project đó, y hệt người ngoài. Muốn xem
+  hay thao tác, phải được mời làm `ProjectMember` như người bình thường.
+
+  > ⚠️ **Đính chính 2026-08-03 (ADR-042).** Cho tới hôm nay dòng này ghi *"Ngoại lệ:
+  > SystemAdmin có quyền xem (read-only) toàn bộ project cho mục đích support/audit"* —
+  > một hành vi **chưa từng có dòng code nào hiện thực**. Đã sửa **tài liệu cho khớp code**
+  > chứ không phải ngược lại: quyền đọc xuyên project là "God Mode" thu nhỏ, đi ngược
+  > Least Privilege, và trong một hệ thống có `Issue Security Level` ở lộ trình thì nó còn
+  > là cửa hậu vô hiệu hóa luôn tầng đó. Nhu cầu chính đáng phía sau — **trách nhiệm giải
+  > trình** — được đáp ứng bằng `GET /api/v1/admin/audit-logs` (chỉ ghi hành động cấp hệ
+  > thống, cố định `EntityType` ở server). Hợp đồng này nay có test giữ:
+  > `SystemAdminScopeTests` chạy `[Theory]` trên **16 route** project-scoped.
 - `User`: nhân viên thường, chỉ thấy project mình tham gia. **Mọi `User` đều có quyền
   tạo Project mới** — khi tạo, hệ thống tự động insert `ProjectMember(EmployeeId=creator,
   RoleInProject=ProjectManager)`, người tạo tự động trở thành PM của project đó.
@@ -767,9 +886,9 @@ Dùng `ASPNETCORE_ENVIRONMENT` để switch giữa các file `appsettings.{Envir
 project khác nhau):
 | Role | Quyền hạn |
 |---|---|
-| `ProjectManager` | Tạo/sửa/xóa project, tạo Sprint, tạo task, gán nhân sự, xem thống kê |
-| `Member` | Xem task được giao, cập nhật status task của mình, viết comment |
-| `Viewer` | Chỉ xem, không chỉnh sửa — dùng cho stakeholder theo dõi tiến độ (cấp quản lý không trực tiếp làm việc, khách hàng/đối tác, phòng ban khác cần tham chiếu, auditor) |
+| `ProjectManager` | Tạo/sửa/xóa project, tạo Sprint, tạo task, gán nhân sự, xem thống kê, xóa comment/file của người khác |
+| `Member` | Xem task được giao, cập nhật status task của mình, viết comment, **xem thống kê** (ADR-039), gắn nhãn, tạo liên kết task, đính kèm file, theo dõi task |
+| `Viewer` | Chỉ xem, không chỉnh sửa — dùng cho stakeholder theo dõi tiến độ (cấp quản lý không trực tiếp làm việc, khách hàng/đối tác, phòng ban khác cần tham chiếu, auditor). Ngoại lệ duy nhất được GHI: **theo dõi task** (ADR-036) — nó chỉ ảnh hưởng hộp thông báo của chính họ |
 
 > 📌 `Viewer` là actor riêng trong Use Case Diagram, chỉ có mũi tên tới các use case
 > "Xem Project/Task/Thống kê" — không có bất kỳ liên kết nào tới use case ghi/sửa/xóa.
@@ -792,11 +911,24 @@ project khác nhau):
 - **Integration Test** (xUnit + Shouldly): test API endpoint end-to-end trên SQL Server
   thật, database riêng `PmsTestDb` — xem ADR-010 (§15) về lý do không dùng EF InMemory/SQLite
 
-### Hiện trạng (2026-07-31, sau phiên Frontend — nền tảng)
+### Hiện trạng (2026-08-03, sau phiên Backend hoàn chỉnh)
 
-**322 test pass** — 189 unit + 133 integration, clean build 0 warning.
-*(+7 so với phiên trước: `AuthCookieTests` 5 fact, 1 fact `Access-Control-Allow-Credentials`,
-1 fact vai trò-theo-người-gọi trong danh sách project.)*
+**419 test pass** — 220 unit + 199 integration, clean build 0 warning.
+*(+95 so với phiên trước: quyền mở rộng 15, mã task 7, TaskLinkGraph 8, bốn API chi tiết
+Task 16, Attachment 15, đặt lại mật khẩu 8, job quét hạn 5, `SystemAdminScopeTests` 21.)*
+
+⚠️ **Một khoảng trống test có ý thức, ghi rõ để không ai tưởng đã được phủ:** phần
+**backfill** trong migration `AddTaskCodeDescriptionLabelColorAndAttachments` **không** được
+test nào chạm tới, vì `PmsWebApplicationFactory` chạy `EnsureDeleted` + `Migrate` nên nó luôn
+thao tác trên database rỗng. Cách kiểm chứng duy nhất là chạy tay lên một DB có sẵn dữ liệu:
+```bash
+# dựng DB tạm ở migration TRƯỚC đó, chèn dữ liệu, rồi update lên mới nhất
+dotnet ef database update 20260729042932_AddRowVersionAndNotificationTypeConversion
+# ... chèn Projects/Tasks bằng SQL ...
+dotnet ef database update
+```
+Đã làm việc này ngày 2026-08-03 với dữ liệu dựng đúng hình dạng dữ liệu cũ (hai task cùng
+`CreatedAt = 0001-01-01`, một task đã xóa mềm) — kết quả đúng như thiết kế.
 
 ⚠️ **Chuỗi kết nối test mặc định giả định một tài khoản `sa` không có trên mọi máy.**
 `PmsWebApplicationFactory` mặc định
@@ -808,11 +940,25 @@ integration test — trông như code hỏng nhưng thật ra là môi trường
 $env:PMS_TEST_DB = "Server=localhost;Database=PmsTestDb;Integrated Security=True;TrustServerCertificate=True;Encrypt=False"
 ```
 
-**Frontend chưa có hạ tầng test** (Vitest/Playwright). Đây là khoảng trống **có ý thức**,
-chưa phải quyết định: cần chốt riêng vì nó thêm một bộ công cụ và một vòng CI nữa. Trong
-lúc chưa có, ba thứ đang giữ chỗ: `tsc --noEmit`, `eslint`, và `npm run build` (bắt được
-lỗi prerender mà `next dev` im lặng bỏ qua — đã bắt được thật một lỗi `useSearchParams`
-thiếu `Suspense` ở trang login).
+🔴 **Có một cách hỏng THỨ HAI cho ra đúng cùng một triệu chứng, và nó dễ chẩn đoán nhầm
+hơn nhiều.** Trên máy dùng Docker (macOS/Linux), chuỗi mặc định là **đúng** — nhưng nếu
+container SQL Server *vừa* được `docker start`, nó chưa nhận kết nối trong khoảng 30–60
+giây đầu, và toàn bộ 199 integration test đỏ với **cùng một stack trace `AttemptOneLogin`**
+như trường hợp sai mật khẩu ở trên. Đã gặp thật ngày 2026-08-04: lần chạy đầu 199/199 đỏ,
+chạy lại sau vài phút **không đổi gì** thì 199/199 xanh.
+
+Phân biệt hai ca bằng một lệnh, trước khi đi sửa chuỗi kết nối:
+```bash
+docker exec pms-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P '<mật-khẩu>' -C -Q "SELECT 1"
+```
+Lệnh này chạy được → container đã sẵn sàng, lỗi nằm ở phía host (mật khẩu/port/biến môi
+trường). Lệnh này cũng hỏng → chỉ là chưa khởi động xong, **đợi rồi chạy lại**.
+
+**Frontend đã có hạ tầng test** (Vitest, **79 test** cho `lib/api/` + logic thuần của
+Kanban). Ba cổng tĩnh vẫn giữ nguyên vai trò: `tsc --noEmit`, `eslint`, và `npm run build`
+(bắt được lỗi prerender mà `next dev` im lặng bỏ qua — đã bắt được thật một lỗi
+`useSearchParams` thiếu `Suspense` ở trang login, và ngày 2026-08-03 là bước duy nhất xác
+nhận slot song song `@modal` dựng được).
 
 **Single-flight refresh (ADR-030) đã được kiểm chứng bằng chính module thật** ở phiên
 2026-07-31, dù chưa có hạ tầng test thường trực. Cách làm: biên dịch `lib/api/**` +
@@ -934,8 +1080,10 @@ Task + Sprint** khớp 1-1 với 18 endpoint. Ba điểm dễ vấp khi chạy t
 > tới trải nghiệm cốt lõi của việc quản lý dự án/task hàng ngày.
 
 ### Nhóm B — nên có, làm sau khi Core (Nhóm A) ổn định
-- **File attachment** trên Task (đính kèm tài liệu, hình ảnh)
-- **Email notification** (ngoài in-app notification đã có ở core)
+- ~~**File attachment** trên Task~~ → ✅ **đã chuyển thành core, xong 2026-08-03** (ADR-035):
+  đính kèm cho cả Task lẫn Project, có whitelist đuôi + kiểm magic number
+- **Email notification** (ngoài in-app notification đã có ở core) — hạ tầng `IEmailSender`
+  đã có sẵn từ ADR-041, chỉ còn cắm SMTP thật và thêm các loại email nghiệp vụ
 - **Bulk actions**: chọn nhiều task, đổi status/gán người hàng loạt
 - **Epic**: nhóm nhiều Task/Sprint lại thành 1 mục tiêu lớn hơn, xuyên nhiều Sprint
   (thêm 1 tầng phân cấp: Epic → Sprint → Task — chỉ nên làm khi core Sprint đã ổn định)
@@ -1015,7 +1163,7 @@ CLI, xem `docs/uml/README.md`. Trước đây nguồn chỉ nằm trong thuộc 
 | 2026-07-29 | Chuẩn hóa CORS Policy | Bắt buộc trước khi Frontend gọi API thật. ⚠️ **Đính chính 2026-07-30:** dòng này từng ghi ✅ nhưng thực tế KHÔNG header CORS nào được phát ra — hai lỗi im lặng, xem đính chính chi tiết cuối §15 |
 | 2026-07-22 | Thêm mục Non-Functional Requirements + Data Seeding | Phục vụ demo báo cáo trôi chảy và thể hiện đầy đủ tư duy thiết kế hệ thống — `DbSeeder` đã chạy được ở môi trường Development |
 | 2026-07-22 | Mọi `User` được tạo Project, tự động thành `ProjectManager` của project đó | Tránh bottleneck xin duyệt qua SystemAdmin, khớp cách Jira/Trello vận hành thật |
-| 2026-07-29 | `SystemAdmin` tách bạch khỏi Project Role: chỉ read-only toàn hệ thống, muốn thao tác phải là `ProjectMember` như bình thường | Tránh "God Mode" — giữ đúng nguyên tắc Least Privilege, dễ audit trách nhiệm — *chưa có code nào cho SystemAdmin bypass đọc toàn hệ thống* |
+| 2026-08-03 | **(ADR-042)** `SystemAdmin` tách bạch hoàn toàn: **không có đặc quyền nghiệp vụ nào**, kể cả đọc. Muốn xem/thao tác phải là `ProjectMember` như bình thường | Tránh "God Mode", giữ đúng Least Privilege. Thay dòng 2026-07-29 vốn ghi "read-only toàn hệ thống" — một hành vi tài liệu mô tả nhưng code chưa từng có. Nhu cầu giải trình chuyển sang `GET /admin/audit-logs`. Có `SystemAdminScopeTests` giữ — chi tiết bên dưới |
 | 2026-07-22 | Giữ `Viewer` như 1 actor riêng trong Use Case Diagram | Phản ánh nhu cầu thực tế: stakeholder/khách hàng/auditor cần xem mà không cần sửa — đã có trong `RoleInProject` + `ProjectPermissions`, có test |
 | 2026-07-30 | Cho phép `Member` tự self-assign task đang `ToDo` (không cần PM gán); gán người khác/gỡ người khác vẫn chỉ PM | Khớp mô hình Kanban thực tế (tự "pick up" task), giảm bottleneck qua PM, vẫn tránh xung đột nhờ điều kiện task phải đang `ToDo` — hiện thực bằng `ProjectAction.SelfAssign` (PM/Member, chặn Viewer) |
 | 2026-07-30 | Thêm Reporter, Priority, Label, Watcher, TaskLink, Workflow Transition Rules vào core | Đối chiếu trực tiếp mô hình Jira thật — đây là các khái niệm cơ bản mà thiếu sẽ khiến hệ thống thiếu tính thực tế — Reporter/Priority/Workflow đã xong; Label/Watcher/TaskLink còn thiếu API riêng |
@@ -1059,6 +1207,16 @@ CLI, xem `docs/uml/README.md`. Trước đây nguồn chỉ nằm trong thuộc 
 | 2026-07-31 | **(ADR-030)** Interceptor refresh phải **single-flight**: một promise dùng chung, các request khác xếp hàng rồi retry đúng một lần | Reuse detection của `AuthService.RefreshAsync` sẽ thu hồi TOÀN BỘ phiên nếu hai request cùng gọi `/refresh` — chi tiết bên dưới |
 | 2026-07-31 | **(ADR-031)** Dùng Next.js **15**, không dùng 16 | Next 16 đổi `middleware.ts` → `proxy.ts` khiến mọi tài liệu tra cứu bị lệch tên — chi tiết bên dưới |
 | 2026-07-31 | **(ADR-032)** `ProjectSummaryResponse` trả kèm `RoleInProject` của người gọi | Không có nó thì UI phải gọi `GET /projects/{id}/members` cho TỪNG dòng để biết được hiện nút Sửa/Xóa hay không (N+1) — chi tiết bên dưới |
+| 2026-08-03 | **(ADR-033)** Đánh số task bằng bảng `ProjectTaskCounters` riêng + `UPDATE…OUTPUT` trong transaction; KHÔNG dùng `Project.RowVersion` làm khóa lạc quan | `rowversion` đổi khi bất kỳ cột nào của hàng đổi, nên mỗi lần tạo task sẽ vô hiệu token mà form sửa project đang round-trip → 409 giả (phá ADR-016) — chi tiết bên dưới |
+| 2026-08-03 | **(ADR-034)** Mã hiển thị `PMS-12` ghép ở Mapper với tham số bắt buộc, không phải computed property trên entity | Computed property cần `Project` được Include, sẽ NRE ở mọi query board/backlog — đúng lớp lỗi `SubtaskProgress`-luôn-0 — chi tiết bên dưới |
+| 2026-08-03 | **(ADR-035)** File đính kèm cho Task/Project: 9 bước kiểm tra gồm magic number, thư mục ngoài `wwwroot`, tải về luôn `octet-stream` + `nosniff` | Đuôi và Content-Type đều do client tự khai nên chỉ kiểm chúng là không kiểm gì; `ValidationFilter` KHÔNG chạy cho multipart — chi tiết bên dưới |
+| 2026-08-03 | **(ADR-036)** `Watcher` có repository riêng ngoài `IRepository<T>`, và phải tự set `CreatedAt` | Khóa kép nên không thỏa `where T : BaseEntity`; cũng vì thế `ApplyAuditFields()` bỏ qua nó — chi tiết bên dưới |
+| 2026-08-03 | **(ADR-037)** Quyền trên nhãn tách theo bán kính ảnh hưởng: tạo = mọi user, gắn/gỡ = PM/Member, sửa/xóa = chỉ SystemAdmin | Xóa một nhãn toàn cục gỡ chip khỏi board của mọi project — chi tiết bên dưới |
+| 2026-08-03 | **(ADR-038)** TaskLink chuẩn hóa lúc ghi (`IsBlockedBy` không bao giờ được lưu), không tạo nghịch đảo, guard chu trình bằng BFS | Unique index hiện có KHÔNG bắt được trùng ngữ nghĩa giữa `Blocks(A,B)` và `IsBlockedBy(B,A)` — chi tiết bên dưới |
+| 2026-08-03 | **(ADR-039)** `ViewStatistics` mở cho cả `Member` | Member vốn đã đọc được mọi task qua `/board`; tổng hợp của dữ liệu đã đọc được không phải đặc quyền — chi tiết bên dưới |
+| 2026-08-03 | **(ADR-040)** Job quét hạn khử trùng lặp theo `(EmployeeId, Type, RelatedEntityId, ngày UTC)`; job KHÔNG gọi `IActivityLogger` lẫn `NotifyMany` | Cả hai đọc `ICurrentUserService` — một cái ném khi không có `HttpContext`, một cái "chạy đúng" do tình cờ — chi tiết bên dưới |
+| 2026-08-03 | **(ADR-041)** Reset password: `forgot-password` luôn 204, mọi lỗi token gộp thành một 400, `SerilogEmailSender` chỉ ở Dev/Testing | Phân biệt được phản hồi là biến endpoint thành công cụ dò email/token; log chứa token thô ở production là rò rỉ credential — chi tiết bên dưới |
+| 2026-08-03 | **(ADR-042)** `SystemAdmin` KHÔNG có đặc quyền nghiệp vụ nào, kể cả đọc; trách nhiệm giải trình chuyển sang `GET /admin/audit-logs` với `entityType` cố định ở server | §10 mô tả một ngoại lệ read-only mà code chưa từng có; sửa tài liệu cho khớp code thay vì ngược lại — chi tiết bên dưới |
 
 | | | |
 
@@ -1822,6 +1980,407 @@ này cũng là chốt chặn hồi quy cho đúng cái bẫy ordinal-0 ở trên
 nào vỡ. Không test nào phải sửa (không chỗ nào `new ProjectSummaryResponse(...)` bằng tay,
 tất cả đều deserialize). `IProjectRepository.GetPagedForEmployeeAsync` đổi kiểu trả về
 sang `PagedResult<ProjectWithRole>`, chỉ ảnh hưởng một call site trong `ProjectService`.
+
+### Chi tiết ADR-033 → ADR-042 (phiên Backend hoàn chỉnh, 2026-08-03)
+
+#### ADR-033 (2026-08-03) — Đánh số task bằng bảng đếm riêng, KHÔNG dùng `Project.RowVersion`
+
+**Bối cảnh:** mã task kiểu Jira (`PMS-12`) cần một số tăng dần **trong phạm vi từng project**.
+Phương án phản xạ đầu tiên: thêm cột `TaskCounter` lên `Projects`, tăng nó trong
+`TaskService.CreateAsync`, và để `Projects.RowVersion` (đã có sẵn) làm khóa lạc quan — hai
+người tạo task cùng lúc thì người thứ hai nhận `DbUpdateConcurrencyException` rồi retry.
+
+**Vì sao phương án đó SAI** — nó chạy được, và đó chính là chỗ nguy hiểm:
+1. 🔴 **Phá vỡ ADR-016.** `rowversion` của SQL Server đổi khi **bất kỳ** cột nào của hàng
+   đó đổi. Mỗi lần tạo task sẽ vô hiệu hóa token mà `edit-project-dialog.tsx` đang
+   round-trip → PM mở form sửa project, đồng đội tạo một task, PM bấm Lưu và nhận **409
+   giả** trên một trường hoàn toàn không liên quan. Trên project đông người, form sửa
+   project thành vô dụng.
+2. `ExceptionHandlingMiddleware` map `DbUpdateConcurrencyException` → 409 kèm thông điệp
+   *"vui lòng tải lại và thử lại"*. Trên `POST /tasks` đó là một lời nói dối: người gọi
+   không sửa gì và không có gì để tải lại.
+3. Retry ngây thơ còn không chạy: sau exception, entry `Project` vẫn giữ **original
+   RowVersion cũ**, nên lần thử thứ hai hỏng y hệt — vĩnh viễn.
+
+**Quyết định:** bảng riêng `ProjectTaskCounters` (`ProjectId` PK, `NextNumber`), cấp số bằng
+đúng một câu lệnh nguyên tử, chạy trong `IUnitOfWork.ExecuteInTransactionAsync`:
+```sql
+UPDATE ProjectTaskCounters SET NextNumber = NextNumber + 1
+OUTPUT INSERTED.NextNumber WHERE ProjectId = @projectId;
+```
+Dưới READ COMMITTED, câu này giữ X lock trên hàng bộ đếm tới **hết transaction**, nên người
+tạo đồng thời **chờ một nhịp rồi nhận số kế tiếp** thay vì thất bại. Không retry, không 409,
+không đụng `Projects.RowVersion`, số liên tục không thủng.
+
+**Đây là caller hợp lệ ĐẦU TIÊN của `ExecuteInTransactionAsync`** kể từ khi ADR-007 tạo ra
+nó — và đúng loại việc XML doc của chính nó đã dành chỗ sẵn ("nghiệp vụ cần NHIỀU lần
+SaveChanges hoặc trộn lệnh ngoài ChangeTracker"). Nó cũng đã bọc sẵn execution strategy,
+quan trọng vì `EnableRetryOnFailure(3)` đang bật.
+
+**Không vi phạm lệnh cấm bulk-update của ADR-024:** lệnh cấm đó sinh ra để bảo vệ
+`ApplySoftDelete()`/`ApplyAuditFields()` khỏi bị bỏ qua. Hàng `ProjectTaskCounters` **không
+có** cột audit lẫn cờ soft-delete — không có interceptor nào để bỏ qua. Ngoại lệ có ý thức,
+ghi ở đây để lần sau không ai tưởng luật kia đã bị nới lỏng.
+
+**Số không tái sử dụng, kể cả khi task bị xóa mềm.** Unique index `(ProjectId, Number)` cố ý
+**không lọc** theo `IsDeleted`: mã `PMS-12` đã phát tán ra comment, URL và tài liệu ngoài hệ
+thống, nên cấp lại số đó cho task khác là làm sai lệch mọi tham chiếu cũ. Tương tự
+`Projects.Key`.
+
+**Backfill và cái bẫy trong nó:** migration đánh số dữ liệu cũ bằng
+`ROW_NUMBER() OVER (PARTITION BY ProjectId ORDER BY CreatedAt, Id)`. Tie-break bằng `Id` là
+**bắt buộc**: migration `20260728032237` thêm `Tasks.CreatedAt` với
+`defaultValue: 0001-01-01`, nên mọi task tạo trước 2026-07-28 có `CreatedAt` **giống hệt
+nhau** và `ROW_NUMBER` sẽ không tất định giữa các lần chạy.
+
+⚠️ **Không test nào chạm tới backfill**: `PmsWebApplicationFactory` chạy `EnsureDeleted` +
+`Migrate` nên nó luôn thao tác trên DB rỗng. Đã kiểm chứng **bằng tay** trên một database
+tạm có sẵn dữ liệu (2 project, 4 task trong đó 2 task cùng `CreatedAt` và 1 task đã xóa
+mềm): kết quả `PRJ1`/`PRJ2`, số `1,2,3` và `1`, bộ đếm `3` và `1` — đúng như thiết kế.
+
+#### ADR-034 (2026-08-03) — Mã hiển thị ghép ở Mapper, không phải computed property
+
+**Bối cảnh:** chỗ tự nhiên nhất để đặt `PMS-12` là một computed property trên `TaskItem`,
+đúng khuôn `IsOverdue`/`SubtaskProgress`/`RelatedEntityKind` đã dùng ba lần trước đó.
+
+**Quyết định: KHÔNG.** `Code => $"{Project.Key}-{Number}"` cần navigation `Project`, mà nó
+không phải lúc nào cũng được `Include`. Hậu quả là **NRE ở mọi query board/backlog/paged** —
+hoặc, nếu ai đó vá bằng cách thêm `Include` khắp nơi, là một ràng buộc ngầm mà mỗi query mới
+phải nhớ. Đó đúng lớp lỗi đã xảy ra **hai lần** trong dự án này: `SubtaskProgress` luôn trả 0
+vì thiếu `Include(Subtasks)`, và `Assignee.Employee` NRE trong `GetForStatusChangeAsync`.
+
+Thay vào đó `TaskMapper.ToSummary(task, projectKey)` và `ToDetail(task, projectKey,
+currentEmployeeId)` **viết tay, tham số bắt buộc** — cùng khuôn `ProjectMapper.ToSummary`
+của ADR-032. Trình biên dịch chặn ngay tại call site, không cần ai phải nhớ. Service lấy key
+**một lần** cho cả request rồi truyền xuống, nên board 40 thẻ vẫn chỉ một truy vấn phụ.
+
+**DTO trả cả `Number` lẫn chuỗi `Code` đã ghép** — không bắt frontend tự nối từ
+`projectKey` + `number`: hai nơi định dạng thì chắc chắn có lúc lệch nhau.
+
+#### ADR-035 (2026-08-03) — Mô hình bảo mật file đính kèm
+
+**Quyết định:** file đính kèm cho **Task hoặc Project** (subtask dùng chung endpoint task vì
+subtask là `TaskItem` đầy đủ). Hai FK nullable + CHECK constraint đúng-một-chủ, thay vì cặp
+`(TargetKind, TargetId)` đa hình — giữ được ràng buộc khóa ngoại và query filter thật.
+
+**Chín bước kiểm tra và mã lỗi tương ứng:**
+
+| # | Kiểm tra | Mã |
+|---|---|---|
+| 1 | Quyền (`UploadAttachment`) — **trước khi đọc byte nào** | 404 / 403 |
+| 2 | File rỗng | 400 |
+| 3 | Vượt `MaxFileBytes` | **413** |
+| 4 | Tên file chứa dấu phân cách / `..` / bắt đầu bằng `.` / quá 255 ký tự | 400 |
+| 5 | **Đuôi kép** — đoạn Ở GIỮA nằm trong deny-list (`a.php.png`) | 400 |
+| 6 | Đuôi không thuộc whitelist | **415** |
+| 7 | `Content-Type` không thuộc whitelist | 415 |
+| 8 | **Magic number** 8 byte đầu không khớp đuôi | 400 |
+| 9 | Path containment ở `LocalFileStorage` | 500 (assertion) |
+
+**Vì sao bước 8 là bước quan trọng nhất:** cả đuôi lẫn `Content-Type` đều do **client tự
+khai**. Không có bước đọc nội dung thì đổi tên `evil.exe` → `evil.png` và khai
+`image/png` là qua sạch bảy bước còn lại.
+
+**Vì sao bước 8 trả 400 chứ không 415:** 415 nghĩa là "định dạng này chưa được hỗ trợ"; file
+**nói dối** về định dạng của mình là đầu vào sai lệch. Ranh giới này cũng quyết định bước 5
+chỉ soi các đoạn **ở giữa**: `script.exe` không có đoạn giữa nên rơi xuống bước 6 và nhận
+415 ("không hỗ trợ" — câu trả lời đúng), còn `shell.php.png` nhận 400 ("tên có ý đồ").
+
+🔴 **`ValidationFilter` KHÔNG chạy cho upload.** Nó duyệt `context.ActionArguments.Values`
+rồi tra `IValidator<kiểu-tham-số>`; với action multipart tham số là `IFormFile`, và không có
+validator nào đăng ký cho kiểu đó. Toàn bộ kiểm tra vì vậy nằm trong
+`AttachmentContentValidator` gọi từ service. Thiết kế dựa vào FluentValidation ở đây là để
+ngỏ **toàn bộ** cửa mà vẫn trông như đã khóa.
+
+🔴 **Path traversal bất khả thi về CẤU TRÚC.** `IFileStorage.SaveAsync(stream, extension)`
+không nhận tên file hay đường dẫn — tên trên đĩa do implementation tự sinh
+(`{guid}{ext}`). Không có tham số nào để nhét `../` vào. Cùng nguyên tắc *bảo đảm bằng cấu
+trúc hơn bằng kỷ luật* mà ADR-023 dùng cho `INotificationRepository` và ADR-008 cho
+`ISoftDeletable`. `LocalFileStorage` vẫn kiểm containment thêm một lần khi ĐỌC, vì lúc đó
+tên đến từ cột DB — "dữ liệu trong DB luôn sạch" là giả định, không phải bảo đảm.
+
+🔴 **Bất biến: thư mục lưu file nằm NGOÀI `wwwroot`, và `Program.cs` KHÔNG BAO GIỜ được
+thêm `UseStaticFiles()`.** Hiện dự án không có `wwwroot` — ghi lại ở đây để đó là một quyết
+định chứ không phải tình cờ. Thêm static file serving là mở đường cho một payload HTML/SVG
+được phục vụ nguyên trạng trên chính origin của API.
+
+**Endpoint tải về trả `application/octet-stream` chứ không phải `ContentType` đã lưu**, cộng
+`X-Content-Type-Options: nosniff` và `Content-Disposition: attachment`. Ba thứ đi cùng nhau
+triệt mọi đường render inline. **Cái giá đã chấp nhận:** xem trước ảnh inline sẽ cần một
+endpoint riêng chỉ nhận ảnh — chưa làm.
+
+**Rủi ro tồn dư ghi rõ:** không quét virus; `.txt`/`.csv` **không có chữ ký** để kiểm nên
+được đánh dấu miễn trừ tường minh trong `SignatureOptional` (chúng cũng không có khả năng
+thực thi, và đường tải về đã chặn diễn giải nội dung).
+
+#### ADR-036 (2026-08-03) — `Watcher` ngoài `IRepository<T>`, và `CreatedAt` thủ công
+
+`Watcher` dùng khóa kép `(TaskId, EmployeeId)` và **không có cột `Id`**, nên ràng buộc
+`IRepository<T> where T : BaseEntity` không phục vụ được — phải có `IWatcherRepository` độc
+lập.
+
+🔴 **Hệ quả thứ hai, dễ bỏ sót hơn nhiều:** `ApplyAuditFields()` duyệt
+`ChangeTracker.Entries<BaseEntity>()`, nên `Watcher.CreatedAt` **không** được đóng dấu tự
+động, và `WatcherConfiguration` cũng không có default value. Không tự set thì mọi watcher
+mang mốc `0001-01-01` và `OrderBy(CreatedAt)` trở nên vô nghĩa — sai im lặng. Có integration
+test khẳng định `CreatedAt.Year > 2000`.
+
+**`ProjectAction.Watch` là action RIÊNG dù cả ba vai trò đều được**, thay vì mượn `View`:
+`View` không bao giờ được phép cho qua một mutation, kể cả mutation vô hại. `Viewer` theo dõi
+được task — ngoại lệ ghi duy nhất của vai trò này, và hợp lý vì nó chỉ ảnh hưởng hộp thông
+báo của chính họ.
+
+**`IsWatching` phải truyền `currentEmployeeId` vào mapper**: giá trị phụ thuộc *người hỏi*,
+không suy ra được từ entity. Và `GetWithDetailsAsync` **bắt buộc** `Include(t => t.Watchers)`
+— thiếu thì `IsWatching` luôn `false`, đúng bug `SubtaskProgress`-luôn-0 lần thứ ba.
+
+#### ADR-037 (2026-08-03) — Quyền trên nhãn toàn cục, tách theo BÁN KÍNH ẢNH HƯỞNG
+
+Nhãn là dữ liệu **toàn cục** (unique `Name` toàn hệ thống). Quyền vì vậy không tách theo cấp
+bậc mà theo **phạm vi tác dụng phụ** — cùng tinh thần ADR-026 tách quyền comment theo *mức độ
+xâm phạm*:
+
+| Thao tác | Ai | Vì sao |
+|---|---|---|
+| Tạo nhãn | mọi user đã đăng nhập | Cộng thêm, không ảnh hưởng ai. Trùng tên → 409 |
+| Gắn/gỡ nhãn trên task | `ManageTaskLabels` (PM + Member) | Phạm vi một project |
+| **Sửa / xóa nhãn** | **chỉ `SystemAdmin`** | Xóa nhãn `urgent` là gỡ chip khỏi board của **mọi** project. Không PM nào nên sở hữu một tác dụng phụ xuyên project |
+
+**Khoản hoãn có ý thức:** cách sửa gốc là **nhãn theo project** (`Label.ProjectId`, unique
+`(ProjectId, Name)`), khi đó thế lưỡng nan trên biến mất hoàn toàn. Chưa làm vì cần thêm một
+migration dữ liệu cho bảng nối `TaskLabels`. Ghi ra đây thay vì giả vờ nhãn toàn cục là ổn.
+
+**Phát hiện kèm — một bẫy hiệu năng có sẵn:** `TaskSummaryResponse` cần nhãn cho chip board,
+tức collection `Include` **thứ ba**. `GetPagedByProjectAsync` cố ý **không** `AsSplitQuery`
+(split + `Skip/Take` trên `OrderBy` không duy nhất thì thứ tự không xác định), nên ba
+collection trong một câu sẽ nhân dòng theo `assignees × subtasks × labels`. Đã tách thành
+**hai bước**: phân trang lấy `Id` trước (không Include, thứ tự hoàn toàn xác định), rồi nạp
+lại đúng các Id đó với đủ Include + `AsSplitQuery`. Việc này khử luôn phép nhân dòng vốn đã
+tồn tại sẵn với hai collection, và tiện thể thêm tie-break `ThenBy(Id)` cho mọi nhánh sort.
+
+#### ADR-038 (2026-08-03) — TaskLink: chuẩn hóa lúc ghi, không nghịch đảo, guard chu trình
+
+🔴 **Unique index `(SourceTaskId, TargetTaskId, LinkType)` KHÔNG bắt được trùng ngữ nghĩa.**
+`Blocks(A,B)` và `IsBlockedBy(B,A)` là **cùng một sự thật** với giá trị cột khác nhau — index
+lưu cả hai vui vẻ. Đây là lỗ hổng đã tồn tại từ `InitialCreate` mà chưa ai chạm tới vì
+`TaskLink` chưa có API.
+
+**Quyết định — chuẩn hóa lúc ghi**, để index cũ thực sự kín:
+- `IsBlockedBy(A,B)` → lưu thành `Blocks(B,A)` (đảo chiều, đổi loại)
+- Loại đối xứng (`RelatesTo`, `Duplicates`) → sắp cặp theo thứ tự `Guid`
+
+**Hệ quả phải nhớ khi đọc DB:** `LinkType.IsBlockedBy` trở thành **giá trị chỉ dùng ở đầu
+vào, không bao giờ được lưu**. Hướng hiển thị được diễn giải lại theo người xem
+(`TaskLinkGraph.ViewFrom`): cùng một hàng `Blocks(A,B)` hiện là "chặn B" khi xem từ A và "bị
+A chặn" khi xem từ B.
+
+**KHÔNG tự tạo link nghịch đảo** — và lý do đúng không phải cái nghĩ đầu tiên: nó *không* gây
+đếm trùng ở `GetUnfinishedBlockersAsync` (query là `WHERE Id IN (subquery)`, id trùng tự
+gộp). Vấn đề thật nằm ở **màn chi tiết task**: cùng một sự thật hiện hai lần, một lần ở
+`OutgoingLinks` một lần ở `IncomingLinks`.
+
+**Guard chu trình — gọi đúng tên hiện tượng.** `A Blocks B, B Blocks A` **không** gây vòng
+lặp vô hạn trong code (`GetUnfinishedBlockersAsync` không đệ quy); nó là **livelock nghiệp
+vụ**: cả hai task vĩnh viễn không vào được `InProgress` vì mỗi cái chờ cái kia `Done`. Chặn
+bằng BFS trong bộ nhớ trên toàn bộ cạnh `Blocks` của project (vài trăm cạnh là cùng, không
+cần recursive CTE). **Race còn lại:** hai insert đồng thời vẫn tạo được chu trình — chấp
+nhận có ý thức, vì hậu quả là một livelock phát hiện được, không phải crash, và chi phí chặn
+triệt để (khóa toàn đồ thị) không xứng đáng.
+
+#### ADR-039 (2026-08-03) — `ViewStatistics` mở cho `Member`
+
+Ma trận cũ cho `ProjectManager` + `Viewer` nhưng **không** `Member` — đọc §10 theo nghĩa đen
+thì đúng (mục quyền của Member không liệt kê "xem thống kê", còn "chỉ xem" của Viewer thì
+bao hàm).
+
+**Nhưng đó không phải một ranh giới bảo mật:** `Member` vốn đã đọc được **mọi** task ở **mọi**
+trạng thái qua `ProjectAction.View` trên `/board` và `/backlog`. Tổng hợp của dữ liệu đã đọc
+được không phải một đặc quyền — nó chỉ là phép đếm mà client tự làm được. Giữ nguyên chỉ tạo
+ra một khác biệt vô nghĩa mà người dùng sẽ đọc là lỗi.
+
+**Quyết định: thêm `Member`.** Sửa đồng bộ ba chỗ — `ProjectPermissions.cs`, dòng
+`[InlineData]` trong `ProjectPermissionsTests`, và bảng vai trò §10.
+
+#### ADR-040 (2026-08-03) — Job quét hạn: khóa khử trùng lặp và hai quả mìn
+
+**Khóa de-dup: `(EmployeeId, Type, RelatedEntityId, NGÀY UTC)`** — không thêm cột, không
+thêm bảng. Trạng thái nằm ở **DB** chứ không ở bộ nhớ, nên nó đúng qua cả restart lẫn nhiều
+instance, và **độc lập với chu kỳ tick**: đổi tick từ 1 giờ xuống 5 phút cũng không làm người
+dùng bị dội thông báo.
+
+🔴 **Hai quả mìn trong scoped service mà job tuyệt đối không được giẫm:**
+1. **`IActivityLogger.Log` gọi `_currentUser.RequireEmployeeId()`** → ném
+   `UnauthorizedException` khi không có `HttpContext`. Job gọi nó sẽ chết ngay tick đầu
+   tiên. → Job **không ghi ActivityLog**.
+2. **`NotificationService.NotifyMany` đọc `_currentUser.EmployeeId`** để loại người thực
+   hiện khỏi danh sách nhận. Ngoài request, giá trị đó là `null`, và phép so `Guid != Guid?`
+   được nâng kiểu nên **luôn true** — việc lọc "chạy đúng" hoàn toàn do tình cờ. → Job dựng
+   thẳng `Notification` qua `IUnitOfWork`, để hành vi là thứ đọc được từ code chứ không phải
+   thứ suy ra từ một tai nạn.
+
+**Đảo một quyết định cũ, ghi rõ để không ai tưởng là bỏ sót:** `NotificationConfiguration` có
+comment cố ý **tránh** index thứ hai vì đường ghi của bảng này chạy ở mọi luồng nghiệp vụ.
+Nay thêm `(RelatedEntityId, Type)`. Lý do đánh đổi đổi chiều: job chạy **mỗi giờ, vĩnh viễn**,
+và truy vấn khử trùng lặp của nó sẽ quét toàn bảng — chậm dần đúng theo tốc độ bảng phình ra.
+Có thêm một đường đọc thường trực thì chi phí ghi của một index là đáng.
+
+**Đăng ký hosted service NẰM TRONG `if (!IsEnvironment("Testing"))`**, cùng kiểu gác với
+`UseRateLimiter`. Nếu nó chạy trong test, một luồng nền sẽ ghi `Notification` xen vào giữa và
+những test đếm delta thông báo sẽ đỏ **ngẫu nhiên** — loại hỏng khó chẩn đoán nhất vì nó phụ
+thuộc thời điểm.
+
+**Nghiệp vụ tách khỏi timer:** `IDueDateNotifier` là service Application bình thường,
+`BackgroundService` chỉ còn là cái đồng hồ. Nhờ đó unit test gọi thẳng được (5 test giữ luật
+khử trùng lặp), và sau này chuyển sang Hangfire hay một endpoint admin cũng không phải viết
+lại.
+
+#### ADR-041 (2026-08-03) — Đặt lại mật khẩu: phản hồi không phân biệt được
+
+**Quyết định:** `PasswordResetToken` lưu **hash SHA-256**, hạn 30 phút, dùng một lần. Cấp
+token mới thì vô hiệu mọi token còn treo.
+
+**Ba quy tắc, tất cả đều về việc KHÔNG rò rỉ thông tin:**
+1. `POST /auth/forgot-password` **luôn trả 204**, kể cả email không tồn tại — nếu không, nó
+   thành công cụ dò xem ai đã đăng ký. Nhánh "email lạ" vẫn **đốt đúng lượng công việc**
+   (sinh + hash một token rồi vứt), theo tiền lệ `DummyHash` của `LoginAsync`: không có bước
+   này thì thời gian phản hồi tự nó tố cáo, và việc trả 204 ở cả hai nhánh chỉ là bảo mật
+   trên giấy.
+2. Token sai / hết hạn / đã dùng → **cùng một 400 với cùng một thông điệp**, không phải 404.
+   Phân biệt được ba trường hợp là xác nhận cho kẻ tấn công rằng một token có thật.
+3. Tài khoản **bị khóa vẫn đặt lại được** mật khẩu. Từ chối là để lộ trạng thái khóa cho
+   người chỉ cầm địa chỉ email; việc chặn nằm ở `LoginAsync` (403).
+
+**Thu hồi toàn bộ refresh token khi đổi mật khẩu** — tiền lệ ADR-015. Lý do đổi mật khẩu
+thường là "nghi bị lộ", nên để phiên cũ sống tiếp là bỏ qua đúng mối đe dọa người dùng đang
+cố xử lý. Dùng lại `RevokeAllAsync` thay vì chép lại vòng lặp.
+
+🔴 **Việc chọn implementation `IEmailSender` là một quyết định BẢO MẬT.**
+`SerilogEmailSender` ghi nguyên thân email — trong đó có token **thô** — ra
+`logs/pms-*.log`. Ở production, ai đọc được log (hoặc bất kỳ hệ thống gom log nào) sẽ đặt lại
+được mật khẩu của mọi tài khoản. Vì vậy nó **chỉ** được đăng ký ở Development/Testing; mọi
+môi trường khác dùng `NullEmailSender`. `NullEmailSender` nuốt im lặng thay vì ném, vì một
+exception ở đây sẽ biến thành 500 và trở thành đúng cái kênh rò rỉ mà quy tắc 1 đang chặn.
+
+**`HashRefreshToken` đổi tên thành `HashToken`** khi có người dùng thứ hai — thay vì thêm một
+method thứ hai làm cùng một việc rồi để hai bản lệch nhau.
+
+#### ADR-042 (2026-08-03) — `SystemAdmin` không có đặc quyền nghiệp vụ nào
+
+**Bối cảnh — tài liệu mô tả một hành vi không tồn tại.** §10 ghi từ 2026-07-29 rằng
+SystemAdmin có quyền *"xem (read-only) toàn bộ project cho mục đích support/audit"*. Rà toàn
+bộ mã nguồn: `SystemRole` chỉ xuất hiện ở đúng ba chỗ có ý nghĩa — enum, policy
+`require-system-admin` trên `AdminEmployeesController`, và bất biến "≥1 admin chưa khóa".
+`ICurrentUserService.SystemRole` **chưa từng được một service nào đọc**. SystemAdmin không
+phải thành viên vẫn nhận 404 như người ngoài.
+
+Đây là lần thứ tư dự án gặp cùng một hình dạng lỗi (ADR-008: tài liệu nói đã xóa
+`Project.SoftDelete()`; ADR-016: `RowVersion` chỉ có ở schema; đính chính CORS). Khác ba lần
+trước ở chỗ: lần này **code mới là bản đúng**.
+
+**Quyết định: sửa tài liệu cho khớp code.** SystemAdmin là vai trò quản trị **hệ thống**
+thuần túy — không đọc, không ghi, không "read-only để hỗ trợ".
+
+**Vì sao không hiện thực hóa ngoại lệ như tài liệu mô tả:**
+- Quyền đọc xuyên project là "God Mode" thu nhỏ, đi ngược Least Privilege mà chính dòng
+  ADR-006 đã chốt.
+- Nó sẽ vô hiệu hóa trước `Issue Security Level` — tính năng đã nằm ở §14 Nhóm B.
+- Chi phí thật cao hơn vẻ ngoài: phải rà lại **mọi** query lọc theo membership (danh sách
+  project, board, backlog, thành viên…). Sửa nửa vời thì admin "xem được" project qua
+  `GET /projects/{id}` nhưng danh sách vẫn trống — một trạng thái mâu thuẫn khó chẩn đoán.
+
+**Nhu cầu chính đáng phía sau ngoại lệ đó là TRÁCH NHIỆM GIẢI TRÌNH**, và nó được đáp ứng
+bằng `GET /api/v1/admin/audit-logs`.
+
+🔴 **Endpoint đó cố ý KHÔNG nhận tham số `entityType`.** Danh sách loại đối tượng được đọc
+hard-code ở server: `Employee` (khóa/mở tài khoản, đổi `SystemRole`) và `Label` (thao tác
+nhãn toàn cục — ADR-037). Nhận nó từ query param, hoặc thêm `Project`/`TaskItem` vào danh
+sách, là mở lại đúng cái god mode vừa đóng. Có integration test khẳng định endpoint trả
+**0 dòng** cho một task, **kể cả task do chính admin tạo**.
+
+**Kiểm chứng:** `SystemAdminScopeTests` — `[Theory]` trên **16 route** project-scoped (mọi
+route đều 404), một test ghi (`POST /tasks` vào project lạ → 404), và một **positive control**
+(admin *là* Member → 200). Positive control là bắt buộc: không có nó, một đường authz hỏng
+toàn cục khiến mọi thứ trả 404 vẫn làm theory xanh — tức là nó không bảo vệ được gì.
+
+### Chi tiết ADR-043 → ADR-044 (phiên Frontend "chi tiết Task", 2026-08-03 tiếp)
+
+#### ADR-043 (2026-08-03) — Chi tiết Task có HAI vỏ: dialog chặn route + trang thật
+
+**Bối cảnh:** chi tiết Task là màn phức tạp nhất của sản phẩm (bảy khối). Hai lựa chọn quen
+thuộc đều có khuyết điểm thật: trang riêng làm mất ngữ cảnh board sau mỗi lần bấm một thẻ;
+dialog thuần thì không chia sẻ link được, nút Back sai, và breadcrumb không diễn tả được.
+
+**Quyết định: làm cả hai bằng *intercepting route* của App Router**, đúng mô hình Jira —
+bấm thẻ trên board thì hiện dialog đè lên board, còn mở link/F5/tab mới thì ra trang đầy đủ.
+
+```
+app/(app)/projects/[id]/
+├── layout.tsx                       ← nhận prop `modal`, ẩn thanh tab khi segment là `tasks`
+├── tasks/[taskId]/page.tsx          ← trang thật
+└── @modal/
+    ├── default.tsx                  ← BẮT BUỘC, trả null
+    └── (.)tasks/[taskId]/page.tsx   ← vỏ dialog
+```
+
+Cả hai vỏ render **cùng một** `TaskDetailContent`, nên không có bề mặt nào để hai lối vào
+lệch nội dung. Chúng không bao giờ mount đồng thời: khi dialog mở, slot `children` vẫn giữ
+board; khi tải cứng, `@modal` rơi về `default.tsx`.
+
+🔴 **Tiền tố là `(.)`, KHÔNG phải `(..)`** — và điều này được xác minh bằng cách đọc
+`node_modules/next/dist/shared/lib/router/utils/interception-routes.js` của **chính bản
+15.5.22 đang cài**, không phải theo trí nhớ hay tài liệu. `normalizeAppPath` (trong
+`app-paths.js`) bỏ **cả** segment nhóm `(…)` **lẫn** segment slot `@…`, nên
+`/(app)/projects/[id]/@modal/` chuẩn hóa về `/projects/[id]` và `(.)tasks/[taskId]` ghép ra
+đúng `/projects/[id]/tasks/[taskId]`. Dùng `(..)` sẽ trỏ nhầm sang `/projects/tasks/…` — một
+route không tồn tại, và triệu chứng là "dialog không bao giờ hiện" mà không có lỗi nào.
+
+🔴 **`@modal/default.tsx` không phải tùy chọn.** Với mọi URL dưới `projects/[id]` mà slot
+không khớp — tức gần như mọi URL — `next-app-loader` đi tìm đúng file đó; không có nó thì nó
+rơi về `PARALLEL_ROUTE_DEFAULT_PATH` và gọi `notFound()`, tức **404 cho cả trang**. Hình dạng
+lỗi rất khó truy: *board* tự nhiên 404 vì một file **không** được tạo ở chỗ khác.
+
+**Đã bác một phương án trông sạch hơn:** gom bốn tab vào route group `[id]/(tabs)/` để trang
+task không phải chia layout với thanh tab. Interception vẫn chạy (route group không tính vào
+đường dẫn), **nhưng** flight router state giữ nguyên segment nhóm, nên
+`useSelectedLayoutSegment()` trong `project-tabs.tsx` trả `'(tabs)'` thay vì `'board'` và
+**thanh tab mất hẳn trạng thái active** — hỏng im lặng, chỉ thấy bằng mắt. Thay bằng một dòng
+`showTabs = useSelectedLayoutSegment() !== 'tasks'`, và dòng đó còn *đúng hơn*: lúc dialog đè
+lên board, `children` vẫn là board nên tab vẫn hiện và vẫn active — đúng hành vi Jira.
+
+**Đóng dialog = `router.back()`**, `open` truyền cứng `true`. Trạng thái mở/đóng **chính là
+URL**, nên Escape, bấm nền và nút Back của trình duyệt đi chung một đường, không phải đồng bộ
+gì thêm. Link tới subtask và task liên quan dùng `<Link replace>`: với `push`, thoát khỏi một
+chuỗi subtask ba tầng phải bấm Back đúng ba lần, và `router.back()` rơi về task cha thay vì
+về board.
+
+#### ADR-044 (2026-08-03) — `PUT /tasks/{id}` ghi đè toàn phần: một trục ghi duy nhất
+
+**Phát hiện trong lúc khảo sát, không ai đi tìm:** `TaskService.UpdateAsync` gán thẳng cả
+bốn trường (`Name`/`Description`/`DueDate`/`Priority`) từ request — đây là **PUT thật**, không
+phải PATCH. Nhưng `task-form-dialog.tsx` **chưa bao giờ gửi `description`**, nên record C#
+bind `Description = null` và **mô tả bị xóa trắng mỗi lần sửa tên task**.
+
+Lỗi này build sạch, test xanh, và **không lộ ra** suốt thời gian chưa màn nào ghi được mô tả —
+nó sẽ nổ đúng vào ngày màn chi tiết Task lên. Cùng lớp với ba phát hiện của phiên trước
+(`ProjectService` không ghi ActivityLog, `ValidationFilter` không chạy cho upload, §10 mô tả
+quyền không tồn tại): *thứ cần kiểm chứng chưa có ai gọi tới.*
+
+**Hai quyết định để nó không tái diễn:**
+1. **Form sửa task nay có ô Mô tả**, và `taskSchema.description` là trường **bắt buộc của
+   form** (không optional) — chú thích ngay tại schema nói rõ vì sao.
+2. **Màn chi tiết Task có đúng MỘT chỗ gọi PUT**: `useTaskFieldSave`. Bốn khối sửa được (tên,
+   mô tả, ưu tiên, hạn) đều đi qua một closure nhận `Partial<>` rồi tự điền các trường còn
+   lại từ bản chi tiết hiện tại. Cho mỗi khối tự gọi mutation là tạo bốn cơ hội quên một
+   trường.
+
+⚠️ Trong closure đó, `patch.dueDate ?? current.dueDate` là **sai** với hai trường nullable:
+xóa hạn/xóa mô tả gửi `null`, mà `null ?? current` lấy lại giá trị cũ nên phép xóa im lặng
+không có tác dụng. Phải phân biệt "không truyền" (`undefined`) với "truyền `null`".
+
+**Ba bước 409 của ADR-016 giữ nguyên**, cộng một luật mới: **khóa mọi nút lưu khi
+`detail.isFetching`** — trong đó có lượt tải lại sau 409. Bấm Lưu lúc đó là gửi lại đúng
+`rowVersion` đã chết, và người dùng rơi vào 409 vĩnh viễn. Đã kiểm bằng tay: sửa từ tab thứ
+hai → 409 → banner + tự tải lại → **lần thử thứ hai thành công**.
 
 #### Đính chính 2026-07-30 — CORS ghi ✅ nhưng chưa từng hoạt động
 

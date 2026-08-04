@@ -1,6 +1,7 @@
 'use client';
 
 import { CalendarIcon } from 'lucide-react';
+import Link from 'next/link';
 
 import { AvatarStack } from '@/components/common/avatar-stack';
 import { PriorityLabel } from '@/components/tasks/priority-icon';
@@ -20,10 +21,13 @@ import type { TaskSummaryResponse } from '@/types/task';
 
 export function BacklogTable({
   tasks,
+  projectId,
   movingIds,
   renderMenu,
 }: {
   tasks: TaskSummaryResponse[];
+  /** Để dựng link tới chi tiết task. */
+  projectId: string;
   /** Task đang có request chuyển sprint bay dở — làm mờ thay vì cập nhật lạc quan. */
   movingIds: ReadonlySet<string>;
   renderMenu: (task: TaskSummaryResponse) => React.ReactNode;
@@ -33,6 +37,7 @@ export function BacklogTable({
       <Table className="[&_td]:px-3 [&_td]:py-2 [&_td]:text-[13px] [&_th]:h-9 [&_th]:px-3">
         <TableHeader className="bg-muted/40">
           <TableRow>
+            <TableHead className="w-24">Mã</TableHead>
             <TableHead>Tên task</TableHead>
             <TableHead className="w-36">Trạng thái</TableHead>
             <TableHead className="w-40">Độ ưu tiên</TableHead>
@@ -53,7 +58,18 @@ export function BacklogTable({
                 className={cn(moving && 'pointer-events-none opacity-50')}
                 aria-busy={moving || undefined}
               >
-                <TableCell className="font-medium">{task.name}</TableCell>
+                {/* Mã do backend ghép sẵn (ADR-034) — không nối projectKey + number. */}
+                <TableCell className="text-muted-foreground font-medium tabular-nums">
+                  {task.code}
+                </TableCell>
+                <TableCell className="font-medium">
+                  <Link
+                    href={`/projects/${projectId}/tasks/${task.id}`}
+                    className="hover:text-primary underline-offset-4 transition-colors hover:underline"
+                  >
+                    {task.name}
+                  </Link>
+                </TableCell>
                 <TableCell>
                   <StatusBadge status={task.status} />
                 </TableCell>
@@ -103,6 +119,7 @@ export function BacklogTableSkeleton({ rows = 5 }: { rows?: number }) {
       <div className="divide-y">
         {Array.from({ length: rows }).map((_, index) => (
           <div key={index} className="flex items-center gap-4 px-3 py-2.5">
+            <Skeleton className="h-4 w-16" />
             <Skeleton className="h-4 flex-1" />
             <Skeleton className="h-5 w-24 rounded-full" />
             <Skeleton className="h-4 w-28" />

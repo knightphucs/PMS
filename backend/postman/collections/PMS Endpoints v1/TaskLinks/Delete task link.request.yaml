@@ -1,0 +1,27 @@
+$kind: http-request
+name: Delete task link
+description: "Xóa liên kết theo id CỦA LIÊN KẾT (không lồng dưới task — một liên kết thuộc về cả hai task)."
+url: "{{api_url}}/task-links/:link_id"
+method: DELETE
+pathVariables:
+  - key: link_id
+    value: A1B2C3D4-E5F6-4708-9A0B-1C2D3E4F5061
+    description: Liên kết task
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1785500014000

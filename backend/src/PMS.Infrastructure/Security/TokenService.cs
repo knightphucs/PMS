@@ -48,6 +48,11 @@ public class TokenService : ITokenService
         => new(Convert.ToBase64String(RandomNumberGenerator.GetBytes(64)),
                DateTime.UtcNow.AddDays(_options.RefreshTokenDays));
 
-    public string HashRefreshToken(string rawToken)
+    // Base64Url: token đi trong query string của link reset nên không được chứa '+', '/', '='
+    // — chúng phải percent-encode và rất dễ bị hỏng khi người dùng copy-paste từ email.
+    public string CreateSecureToken()
+        => Base64UrlEncoder.Encode(RandomNumberGenerator.GetBytes(32));
+
+    public string HashToken(string rawToken)
         => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(rawToken)));
 }

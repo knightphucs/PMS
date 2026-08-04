@@ -12,6 +12,8 @@ import type { TaskSummaryResponse } from '@/types/task';
 interface Props {
   status: Status;
   tasks: TaskSummaryResponse[];
+  /** Để dựng link tới chi tiết task. Cột không tự biết mình thuộc project nào. */
+  projectId: string;
   /** Thẻ đang được kéo, `null` khi không kéo gì. */
   activeTask: TaskSummaryResponse | null;
   canDragTask: (task: TaskSummaryResponse) => boolean;
@@ -23,6 +25,7 @@ interface Props {
 export function BoardColumn({
   status,
   tasks,
+  projectId,
   activeTask,
   canDragTask,
   dragDisabledReason,
@@ -82,6 +85,7 @@ export function BoardColumn({
             <TaskCard
               key={task.id}
               task={task}
+              href={`/projects/${projectId}/tasks/${task.id}`}
               canDrag={canDragTask(task)}
               disabledReason={dragDisabledReason}
               menu={renderMenu?.(task)}

@@ -20,16 +20,32 @@ public class TaskServiceTests
     private readonly IProjectAuthorizationService _authz = Substitute.For<IProjectAuthorizationService>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly IActivityLogger _activityLog = Substitute.For<IActivityLogger>();
+    private readonly IProjectRepository _projectRepo = Substitute.For<IProjectRepository>();
+    private readonly IProjectTaskCounterRepository _counterRepo = Substitute.For<IProjectTaskCounterRepository>();
 
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _projectId = Guid.NewGuid();
+    private const string ProjectKey = "PMS";
     private readonly TaskService _sut;
 
     public TaskServiceTests()
     {
         _uow.Tasks.Returns(_taskRepo);
         _uow.Sprints.Returns(_sprintRepo);
+        _uow.Projects.Returns(_projectRepo);
+        _uow.ProjectTaskCounters.Returns(_counterRepo);
         _currentUser.EmployeeId.Returns(_userId);
+
+        _projectRepo.GetKeyAsync(_projectId, Arg.Any<CancellationToken>()).Returns(ProjectKey);
+
+        // Mặc định cấp số 1. Test nào quan tâm tới việc đánh số thì override.
+        _counterRepo.NextNumberAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(1);
+
+        // ExecuteInTransactionAsync nhận delegate; substitute mặc định KHÔNG gọi nó, nên
+        // toàn bộ thân CreateAsync sẽ im lặng không chạy và mọi assert đều rỗng. Phải bảo
+        // substitute thực thi delegate để test kiểm đúng thứ code thật làm.
+        _uow.ExecuteInTransactionAsync(Arg.Any<Func<Task>>(), Arg.Any<CancellationToken>())
+            .Returns(call => call.Arg<Func<Task>>()!.Invoke());
 
         _sut = new TaskService(
             _uow, _authz, _currentUser, _activityLog,
@@ -108,6 +124,57 @@ public class TaskServiceTests
             () => _sut.CreateAsync(NewRequest() with { SprintId = sprint.Id }));
 
         await _uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    // ---------- ADR-033/034: đánh số task và mã hiển thị ----------
+
+    [Fact]
+    public async Task CreateAsync_lay_so_tu_bo_dem_va_ghep_ma_dang_KEY_so()
+    {
+        _counterRepo.NextNumberAsync(_projectId, Arg.Any<CancellationToken>()).Returns(42);
+
+        var result = await _sut.CreateAsync(NewRequest());
+
+        result.Number.ShouldBe(42);
+        result.Code.ShouldBe("PMS-42");
+    }
+
+    [Fact]
+    public async Task CreateAsync_cap_so_BEN_TRONG_transaction_chu_khong_phai_ngoai()
+    {
+        // Đây là điểm mấu chốt của ADR-033: câu UPDATE...OUTPUT chỉ giữ được X lock tới
+        // hết transaction. Gọi ngoài transaction thì lock nhả ngay sau câu lệnh và hai
+        // người tạo task cùng lúc có thể nhận cùng một số. Test này đỏ nếu ai đó "dọn dẹp"
+        // bằng cách bỏ ExecuteInTransactionAsync đi.
+        var insideTransaction = false;
+        _counterRepo.NextNumberAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(_ => { insideTransaction = true; return 1; });
+
+        _uow.ExecuteInTransactionAsync(Arg.Any<Func<Task>>(), Arg.Any<CancellationToken>())
+            .Returns(async call =>
+            {
+                insideTransaction.ShouldBeFalse("phải lấy số BÊN TRONG transaction");
+                await call.Arg<Func<Task>>()!.Invoke();
+                insideTransaction.ShouldBeTrue();
+            });
+
+        await _sut.CreateAsync(NewRequest());
+
+        await _uow.Received(1).ExecuteInTransactionAsync(
+            Arg.Any<Func<Task>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_mo_ta_toan_khoang_trang_luu_thanh_null()
+    {
+        TaskItem? captured = null;
+        await _taskRepo.AddAsync(Arg.Do<TaskItem>(t => captured = t));
+
+        await _sut.CreateAsync(NewRequest() with { Description = "   " });
+
+        // "" và null cùng nghĩa "chưa có mô tả"; lưu cả hai thì frontend phải kiểm cả hai.
+        captured.ShouldNotBeNull();
+        captured.Description.ShouldBeNull();
     }
 
     // ---------- UpdateAsync ----------
@@ -257,17 +324,26 @@ public class TaskServiceTests
         Name: "  Task mới  ", ProjectId: _projectId,
         SprintId: null, ParentTaskId: null, DueDate: null, Priority: Priority.Medium);
 
-    private TaskItem NewTask() => new()
+    private TaskItem NewTask()
     {
-        Id = Guid.NewGuid(), Name = "Task test",
-        ProjectId = _projectId, ReporterId = _userId
-    };
+        var task = new TaskItem
+        {
+            Id = Guid.NewGuid(), Name = "Task test",
+            ProjectId = _projectId, ReporterId = _userId
+        };
+        task.AssignNumber(1);
+        return task;
+    }
 
-    /// <summary>ToDetail map Reporter.Name nên navigation phải có sẵn (prod do EF Include nạp).</summary>
+    /// <summary>
+    /// ToDetail map Reporter.Name và Project.Key nên cả hai navigation phải có sẵn
+    /// (ở prod do <c>GetWithDetailsAsync</c> Include nạp).
+    /// </summary>
     private TaskItem NewTaskWithReporter()
     {
         var task = NewTask();
         task.Reporter = new Employee { Id = _userId, Name = "Reporter", Email = "r@pms.test" };
+        task.Project = new Project { Id = _projectId, Name = "Project test", Key = ProjectKey };
         return task;
     }
 

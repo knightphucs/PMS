@@ -12,6 +12,8 @@ export const AUTH_PATH = {
   refresh: '/auth/refresh',
   logout: '/auth/logout',
   me: '/auth/me',
+  forgotPassword: '/auth/forgot-password',
+  resetPassword: '/auth/reset-password',
 } as const;
 
 const rawBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;

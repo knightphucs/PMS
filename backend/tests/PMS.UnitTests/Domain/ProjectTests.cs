@@ -11,7 +11,7 @@ public class ProjectTests
     {
         var creatorId = Guid.NewGuid();
 
-        var project = Project.Create("PMS", "Mô tả", DateTime.UtcNow.AddDays(30), creatorId);
+        var project = Project.Create("PMS", "Mô tả", DateTime.UtcNow.AddDays(30), creatorId, "PMS");
 
         var pm = project.Members.ShouldHaveSingleItem();
         pm.EmployeeId.ShouldBe(creatorId);
@@ -23,7 +23,7 @@ public class ProjectTests
     [Fact]
     public void Invite_tao_loi_moi_o_trang_thai_Pending()
     {
-        var project = Project.Create("PMS", "Mô tả", DateTime.UtcNow.AddDays(30), Guid.NewGuid());
+        var project = Project.Create("PMS", "Mô tả", DateTime.UtcNow.AddDays(30), Guid.NewGuid(), "PMS");
         var invitee = new Employee { Id = Guid.NewGuid(), Name = "B", Email = "b@pms.test" };
 
         var member = project.Invite(invitee, RoleInProject.Member);
@@ -36,7 +36,7 @@ public class ProjectTests
     [Fact]
     public void GetRoleOf_tra_null_cho_nguoi_ngoai_project()
     {
-        var project = Project.Create("PMS", "Mô tả", DateTime.UtcNow.AddDays(30), Guid.NewGuid());
+        var project = Project.Create("PMS", "Mô tả", DateTime.UtcNow.AddDays(30), Guid.NewGuid(), "PMS");
 
         project.GetRoleOf(Guid.NewGuid()).ShouldBeNull();
     }

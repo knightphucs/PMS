@@ -1,0 +1,34 @@
+$kind: http-request
+name: Create task link
+description: "Tạo liên kết. linkType: Blocks | IsBlockedBy | RelatesTo | Duplicates (TÊN, không phải số — ADR-022).\n\nBốn nhánh lỗi: 400 tự liên kết hoặc khác project; 409 trùng (kể cả trùng NGỮ NGHĨA sau chuẩn hóa); 409 tạo vòng chặn; 404 task đích không tồn tại."
+url: "{{api_url}}/tasks/:task_id/links"
+method: POST
+pathVariables:
+  - key: task_id
+    value: 8DD5602C-EB76-4E72-BFF4-707011B0E6AF
+    description: Task liên quan
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: |-
+    {
+        "targetTaskId": "A1B2C3D4-E5F6-4708-9A0B-1C2D3E4F5061",
+        "linkType": "Blocks"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1785500013000

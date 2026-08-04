@@ -1,0 +1,27 @@
+$kind: http-request
+name: List task links
+description: "Liên kết của task, đã diễn giải hướng theo task đang hỏi: cùng một hàng Blocks(A,B) trả Blocks khi hỏi từ A và IsBlockedBy khi hỏi từ B."
+url: "{{api_url}}/tasks/:task_id/links"
+method: GET
+pathVariables:
+  - key: task_id
+    value: 8DD5602C-EB76-4E72-BFF4-707011B0E6AF
+    description: Task liên quan
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1785500012000

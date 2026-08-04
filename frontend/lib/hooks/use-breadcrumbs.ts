@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 
 import { useProjectOverview } from '@/lib/hooks/use-projects';
+import { useTaskCached } from '@/lib/hooks/use-tasks';
 
 export interface Crumb {
   label: string | null;
@@ -41,7 +42,13 @@ export function useBreadcrumbs(): Crumb[] {
   const projectId = isProjectRoute && segments[1] ? segments[1] : null;
   const tab = segments[2];
 
+  const isTaskRoute = tab === 'tasks';
+  const taskId = isTaskRoute && segments[3] ? segments[3] : null;
+
   const overview = useProjectOverview(projectId);
+  // Quan sát ghé cache của `TaskDetailContent` — `enabled: false` nên không phát request
+  // nào. Khi dialog mở đè lên board, URL đã là `/tasks/{id}` nên breadcrumb đổi theo.
+  const task = useTaskCached(projectId ?? '', taskId);
 
   if (!isProjectRoute) return [];
 
@@ -56,6 +63,10 @@ export function useBreadcrumbs(): Crumb[] {
 
   if (tab && TAB_LABEL[tab]) {
     crumbs.push({ label: TAB_LABEL[tab] });
+  } else if (isTaskRoute) {
+    // Không có `loading: true` khi thiếu dữ liệu: hook này không fetch nên chờ mãi cũng
+    // không có gì tới — hiện nhãn chung còn hơn một skeleton đứng im vĩnh viễn.
+    crumbs.push({ label: task.data?.code ?? 'Chi tiết task' });
   }
 
   return crumbs;

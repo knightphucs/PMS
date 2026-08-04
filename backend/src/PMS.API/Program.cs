@@ -6,9 +6,11 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using PMS.API.BackgroundJobs;
 using PMS.API.Filters;
 using PMS.API.Middleware;
 using PMS.API.Services;
@@ -23,7 +25,12 @@ using Serilog;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddInfrastructure(builder.Configuration);
+// useFakeEmailSender: CHỈ Development/Testing. Bản giả lập ghi token đặt lại mật khẩu dạng
+// thô ra log — xem chú thích trong AddInfrastructure (ADR-041).
+builder.Services.AddInfrastructure(
+    builder.Configuration,
+    useFakeEmailSender: builder.Environment.IsDevelopment()
+                     || builder.Environment.IsEnvironment("Testing"));
 builder.Services.AddApplication();
 
 builder.Services.AddHttpContextAccessor();
@@ -111,9 +118,30 @@ builder.Services.AddRateLimiter(options =>
                 PermitLimit = 10,
                 QueueLimit = 0
             }));
+    // Đặt lại mật khẩu (ADR-041). Chặt hơn login (3/phút): forgot-password là bề mặt để
+    // DÒ email nào đã đăng ký, và reset-password là bề mặt để đoán token. Cả hai đều không
+    // có lý do chính đáng nào để gọi nhiều lần trong một phút.
+    options.AddPolicy("forgot-password", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 3,
+                QueueLimit = 0
+            }));
 });
 
 builder.Services.AddHealthChecks();
+
+// Job quét task sắp/đã quá hạn -> Notification DueSoon (ADR-040).
+// Đăng ký BÊN TRONG nhánh này, cùng kiểu gác với UseRateLimiter phía dưới: dưới
+// PmsWebApplicationFactory (UseEnvironment("Testing")) hosted service đơn giản là KHÔNG
+// TỒN TẠI. Nếu nó chạy, mỗi bộ integration test sẽ có một luồng nền ghi Notification xen
+// vào giữa, và những test đếm delta thông báo sẽ đỏ ngẫu nhiên — loại hỏng khó chẩn đoán
+// nhất vì nó phụ thuộc thời điểm.
+if (!builder.Environment.IsEnvironment("Testing"))
+    builder.Services.AddHostedService<DueDateNotificationWorker>();
 
 // ADR-022: enum đi qua JSON dưới dạng TÊN, không phải số thứ tự. Converter có tác dụng
 // hai chiều và vẫn nhận được số ở chiều request, nên client cũ không vỡ; đổi lại response
@@ -122,6 +150,18 @@ builder.Services.AddHealthChecks();
 builder.Services.AddControllers(options => options.Filters.Add<ValidationFilter>())
     .AddJsonOptions(options =>
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
+// Giới hạn multipart cho upload file đính kèm (ADR-035).
+// 🔴 CỐ Ý đặt CAO HƠN FileStorage:MaxFileBytes (20 MB): file quá khổ phải chạm tới luật
+// nghiệp vụ và nhận 413 kèm thông điệp tiếng Việt, thay vì bị Kestrel/model binder cắt
+// ngang bằng một lỗi khó hiểu. Mặc định MaxRequestBodySize của Kestrel là 30 MB nên vẫn
+// còn khoảng trống — nếu sau này nâng quá 30 MB thì phải chỉnh cả Kestrel.
+// ⚠️ TUYỆT ĐỐI không dùng [DisableRequestSizeLimit]: đó là bỏ hẳn chốt chặn cuối cùng
+// chống upload làm cạn đĩa.
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 25 * 1024 * 1024;
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
