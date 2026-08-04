@@ -27,6 +27,21 @@ public class EmployeeRepository : Repository<Employee>, IEmployeeRepository
         return await DbSet.FirstOrDefaultAsync(e => e.Email.ToLower() == normalized, ct); 
     }
 
+    public async Task<IReadOnlyList<Employee>> SearchActiveAsync(
+        string keyword, int limit, CancellationToken ct = default)
+    {
+        var trimmed = keyword.Trim();
+
+        return await DbSet
+            .AsNoTracking()
+            .Where(e => !e.IsLocked
+                     && (e.Name.Contains(trimmed) || e.Email.Contains(trimmed)))
+            .OrderBy(e => e.Name)
+            .ThenBy(e => e.Id)
+            .Take(limit)
+            .ToListAsync(ct);
+    }
+
     public async Task<PagedResult<Employee>> GetPagedAsync(
         PagedRequest request, CancellationToken ct = default)
     {

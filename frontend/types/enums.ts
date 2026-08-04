@@ -41,7 +41,11 @@ export type NotificationType =
   | 'InvitationDeclined'
   | 'RoleChanged'
   | 'RemovedFromProject'
-  | 'MemberLeftProject';
+  | 'MemberLeftProject'
+  /** Dự án được đánh dấu hoàn thành hoặc mở lại — điều hướng tới Project, không phải Task. */
+  | 'ProjectStatusChanged'
+  /** Được nhắc tên (@mention) trong một bình luận. */
+  | 'Mentioned';
 
 /**
  * Loại liên kết giữa hai task.
@@ -155,6 +159,8 @@ export const NOTIFICATION_TYPE_LABEL: Record<NotificationType, string> = {
   RoleChanged: 'Đổi vai trò',
   RemovedFromProject: 'Bị gỡ khỏi dự án',
   MemberLeftProject: 'Thành viên rời dự án',
+  ProjectStatusChanged: 'Dự án đổi trạng thái',
+  Mentioned: 'Được nhắc tên',
 };
 
 export const ACTIVITY_ACTION_LABEL: Record<ActivityAction, string> = {

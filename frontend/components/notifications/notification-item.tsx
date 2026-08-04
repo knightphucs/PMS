@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  AtSignIcon,
   BellIcon,
   ClockAlertIcon,
   LogOutIcon,
@@ -37,6 +38,8 @@ const TYPE_ICON: Record<NotificationType, LucideIcon> = {
   RoleChanged: ShieldIcon,
   RemovedFromProject: UserMinusIcon,
   MemberLeftProject: LogOutIcon,
+  ProjectStatusChanged: RefreshCwIcon,
+  Mentioned: AtSignIcon,
 };
 
 export function NotificationItem({

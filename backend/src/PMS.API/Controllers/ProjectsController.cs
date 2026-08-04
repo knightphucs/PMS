@@ -26,6 +26,31 @@ public class ProjectsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
+    /// <summary>
+    /// Đánh dấu dự án hoàn thành. PM-only. Idempotent — gọi lại trên dự án đã xong trả 200.
+    /// </summary>
+    /// <remarks>
+    /// Tách khỏi <c>PUT /projects/{id}</c> và KHÔNG cần <c>RowVersion</c>: đây là chuyển
+    /// trạng thái, không ghi đè trường nào người khác có thể đang sửa song song — cùng lý do
+    /// với <c>PATCH /tasks/{id}/status</c> (ADR-021).
+    /// </remarks>
+    [HttpPost("{id:guid}/complete")]
+    [ProducesResponseType(typeof(ProjectDetailResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ProjectDetailResponse>> Complete(Guid id, CancellationToken ct)
+        => Ok(await _projects.CompleteAsync(id, ct));
+
+    /// <summary>Mở lại dự án đã hoàn thành (về <c>InProgress</c>). PM-only.</summary>
+    /// <response code="409">Dự án không ở trạng thái Hoàn thành nên không có gì để mở lại.</response>
+    [HttpPost("{id:guid}/reopen")]
+    [ProducesResponseType(typeof(ProjectDetailResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ProjectDetailResponse>> Reopen(Guid id, CancellationToken ct)
+        => Ok(await _projects.ReopenAsync(id, ct));
+
     [HttpGet]
     [ProducesResponseType(typeof(PagedResult<ProjectSummaryResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResult<ProjectSummaryResponse>>> GetMine(

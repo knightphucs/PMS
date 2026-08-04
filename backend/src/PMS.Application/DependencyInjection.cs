@@ -8,6 +8,7 @@ using PMS.Application.Features.Admin;
 using PMS.Application.Features.Attachments;
 using PMS.Application.Features.Auth;
 using PMS.Application.Features.Comments;
+using PMS.Application.Features.Employees;
 using PMS.Application.Features.Labels;
 using PMS.Application.Features.Notifications;
 using PMS.Application.Features.Projects;
@@ -62,6 +63,7 @@ public static class DependencyInjection
 
         // Đợt 2026-08-04: phân quyền tầng 1 lưu trong DB (ADR-045).
         services.AddScoped<IRolePermissionAdminService, RolePermissionAdminService>();
+        services.AddScoped<IEmployeeLookupService, EmployeeLookupService>();
 
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
         return services;

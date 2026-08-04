@@ -8,8 +8,8 @@
 > Cập nhật lần cuối: 2026-08-04 (phiên Phân quyền permission — nhóm Admin, Thống kê, mật khẩu, vá nợ backend)
 
 > ## 🧭 Bắt đầu phiên mới ở đây
-> **Trạng thái: KHÔNG CÒN MÀN HÌNH NÀO ⬜ trong lộ trình ban đầu.** 471 test backend
-> (232 unit + 239 integration) + 79 test frontend, build 0 warning **và nay có
+> **Trạng thái: KHÔNG CÒN MÀN HÌNH NÀO ⬜ trong lộ trình ban đầu.** 489 test backend
+> (232 unit + 257 integration) + 79 test frontend, build 0 warning **và nay có
 > `TreatWarningsAsErrors`** nên con số đó là một điều kiện chứ không còn là một quan sát.
 >
 > Phiên 2026-08-04 làm sáu việc: đổi mô hình phân quyền tầng 1 sang **claim `permission` lấy
@@ -37,9 +37,10 @@
 >   grid item).
 >
 > ### ➡️ Phiên tiếp theo — chọn một trong ba, không cái nào chặn cái nào
-> 1. **Backend tầng 3** — bốn tính năng đã khảo sát xong, chưa làm. Chi tiết đầy đủ ở §1 mục
->    E. Nặng nhất là **vòng đời Sprint** (cần ADR riêng trước khi code); nhẹ nhất là
->    `Project.Status` (hiện **không route nào đổi được**, một trường chết đội lốt tính năng).
+> 1. **Vòng đời Sprint** — hạng mục cuối còn lại của backend tầng 3 (ba cái kia đã xong,
+>    ADR-048). ⚠️ Cần một **quyết định sản phẩm** trước khi gõ code: *task chưa xong đi đâu
+>    khi đóng sprint?* — về Backlog, sang sprint kế, hay hỏi người dùng lúc đóng như Jira.
+>    Nhiều câu trả lời đều bảo vệ được, nên **chốt và viết ADR riêng trước**. Chi tiết §1 mục E.
 > 2. **Nhóm báo cáo kiểu Jira** — backlog insight, velocity, report, timeline. Phiên riêng.
 > 3. **Áp kỹ thuật DB** — trigger, stored procedure, view, index. Phiên riêng. *(Xa hơn:
 >    Elasticsearch cho Search toàn cục, Redis cho cache + rate limit phân tán.)*
@@ -209,7 +210,8 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | ~~9~~ | ~~Frontend — nhóm Admin~~ | ✅ 2026-08-04 | **Bốn** màn, không phải ba: thêm màn Phân quyền |
 | ~~A~~ | ~~Authorization — claim kiểu Permission~~ | ✅ 2026-08-04 | ADR-045. Đã chốt cả bốn điểm căng trước khi gõ code |
 | — | **Vá nợ backend + lệch múi giờ** | ✅ 2026-08-04 | ADR-046 / 046b. Kèm sửa endpoint thống kê hỏng 500 từ ngày viết |
-| **10** | **Backend tầng 3 — bốn tính năng còn thiếu** | ⬜ **Việc tiếp theo** | Đã khảo sát xong, chưa làm: `Project.Status` không route nào đổi được · vòng đời Sprint (cần ADR riêng) · endpoint tra nhân viên cho người thường · @mention trong comment. Chi tiết ở "Việc còn dang dở" mục E |
+| — | **Backend tầng 3 — ba trên bốn** | ✅ 2026-08-04 | ADR-048. `Project.Status` có đường ghi · `GET /employees?search=` · @mention (server lọc id, đã mutation test) |
+| **10** | **Vòng đời Sprint** | ⬜ **Việc tiếp theo** | Hạng mục cuối của tầng 3. Cần một **quyết định sản phẩm** trước khi code (*task chưa xong đi đâu khi đóng sprint?*) → **viết ADR riêng trước**. Chi tiết ở "Việc còn dang dở" mục E |
 | 11 | **Nhóm báo cáo kiểu Jira** | ⬜ | Backlog insight · velocity · report · timeline. **Phiên riêng** — yêu cầu 2026-08-04 |
 | 12 | **Áp kỹ thuật DB** | ⬜ | Trigger · stored procedure · view · index. **Phiên riêng** — yêu cầu 2026-08-04 |
 | 13 | **Real-time (SignalR)** | ⬜ | Theo §6, chỉ làm sau khi core CRUD **và** frontend đã ổn định |
@@ -335,28 +337,59 @@ xong 2026-08-04.** Không còn màn hình nào trong lộ trình ban đầu ở 
 - Hai file `backend/postman/.../Login|Logout.request.yaml` đang có thay đổi **chưa commit**
   — chỉ là đổi ký tự xuống dòng do công cụ Postman sinh ra, không phải thay đổi nội dung.
 
-#### E. Backend tầng 3 — bốn tính năng đã khảo sát, CHƯA làm
+#### E. Backend tầng 3 — **ba trên bốn đã xong**, còn lại vòng đời Sprint
 
-Cắt ra khỏi phiên 2026-08-04 một cách có ý thức, không phải bỏ quên. Cả bốn đều không chặn
-màn hình nào đang có.
+✅ **Đã làm 2026-08-04:**
 
-1. **`Project.Status` KHÔNG route nào đổi được.** `Project.Complete()` chỉ có duy nhất một
-   caller trong toàn bộ solution: `DbSeeder.cs:138`. Trường này vẫn nằm trong DTO, vẫn là
-   khóa `sortBy` hợp lệ, và mọi project tạo qua API vĩnh viễn ở `ToDo` — một **trường chết
-   đội lốt tính năng**. Cần `POST /projects/{id}/complete` + `/reopen`, PM-only qua
-   `ProjectAction.Update`, có ActivityLog + notification cho thành viên.
-2. **Vòng đời Sprint.** `Sprint` không có trường trạng thái nào; `IsActive` suy từ ngày. Không
-   có start / complete / đẩy task chưa xong sang sprint kế — tức **vòng lặp Scrum cốt lõi**.
-   Hạng mục lớn nhất trong bốn cái: cần cột `Sprint.Status` + migration + một quyết định
-   "task chưa xong đi đâu khi đóng sprint". **Phải viết ADR riêng trước khi code.**
-3. **Không có endpoint tra nhân viên cho người thường.** Chỉ có `GET /admin/employees` (cần
-   `employees:manage`), nên mời thành viên đang phải gõ **đúng email** bằng tay. Cần
-   `GET /employees?search=` trả tối thiểu `{id, name, email}` — ⚠️ **bắt buộc `search` tối
-   thiểu 2 ký tự**, nếu không nó thành API dump toàn bộ danh bạ công ty.
-4. **@mention trong comment không tồn tại.** Viết `@ai` không báo cho ai cả trừ khi họ đã
-   watch sẵn. Cách làm đã chốt: **frontend gửi kèm `mentionedEmployeeIds`**, KHÔNG parse tên
-   ở server — đoán định danh từ chuỗi hiển thị là sai từ gốc. Cần thêm
-   `NotificationType.Mentioned`.
+1. **`Project.Status` nay đổi được** — `POST /projects/{id}/complete` + `/reopen`, PM-only,
+   có ActivityLog và thông báo cho thành viên. Trước đó `Project.Complete()` có đúng MỘT
+   caller trong toàn bộ solution (`DbSeeder`), nên mọi project tạo qua API vĩnh viễn ở `ToDo`
+   trong khi `Status` vẫn nằm trong DTO và vẫn là khóa `sortBy` — một **trường chết đội lốt
+   tính năng**. `Complete()` idempotent; `Reopen()` đưa về `InProgress` chứ không về `ToDo`
+   (project từng chạy tới Done thì công việc đã diễn ra) và trả **409** nếu chưa Done.
+
+   > 🔴 Dùng `NotificationType.**ProjectStatusChanged**` chứ không phải `StatusChanged`:
+   > `RelatedEntityKind` được SUY RA từ `Type` (ADR-025), và `StatusChanged` suy ra `Task` —
+   > dùng nhầm sẽ khiến chuông điều hướng tới `/tasks/{projectId}`, một id không tồn tại.
+   > Đây đúng là loại lệch mà việc suy ra (thay vì lưu hai cột) sinh ra để chặn.
+
+2. **`GET /employees?search=`** — tra nhân viên cho ô gợi ý khi mời thành viên, mở cho mọi
+   người đã đăng nhập. Trước đó chỉ có `GET /admin/employees` sau quyền `employees:manage`,
+   nên PM bình thường phải gõ **đúng email** bằng tay.
+
+   > 🔴 Ba ràng buộc là **lý do nó được phép tồn tại**, không phải chi tiết cài đặt: từ khóa
+   > **≥ 2 ký tự** (một ký tự khớp phần lớn danh bạ, lặp 26 lần là có toàn bộ), **trần kết
+   > quả cứng ở server** (không nhận từ client), và DTO **chỉ ba trường** — không
+   > `systemRole`, không `isLocked`. Có test khẳng định trên **JSON thô**, vì deserialize vào
+   > record sẽ âm thầm bỏ qua trường thừa và test vẫn xanh. Chỉ trả người chưa bị khóa.
+
+3. **@mention trong comment** — client gửi `mentionedEmployeeIds`, server **không parse
+   `@tên`** từ nội dung (tên hiển thị không phải định danh: trùng tên, đổi tên, `@abc` có thể
+   chỉ là một mẩu email).
+
+   > 🔴 **Nhưng server BẮT BUỘC lọc lại.** Id do client gửi, nên không lọc nghĩa là bất kỳ ai
+   > cũng bắn được thông báo tới bất kỳ ai bằng cách nhét id lạ vào body — người nhận sẽ thấy
+   > tên một task thuộc dự án họ không có quyền mở. Vừa rò rỉ, vừa là kênh quấy rối. Chỉ giữ
+   > thành viên `Accepted`. Người được nhắc bị loại khỏi lượt `CommentAdded` để không nhận
+   > hai thông báo cho cùng một hành động. **Đã mutation test**: bỏ bộ lọc làm 2 test đỏ.
+   >
+   > Nhắc tên người ngoài dự án vẫn trả **thành công** (bình luận hợp lệ, chỉ phần nhắc tên
+   > bị lọc bỏ) — trả 400 sẽ tiết lộ "id này có tồn tại nhưng không thuộc dự án", tức lại là
+   > rò rỉ.
+
+⬜ **Còn lại đúng một mục — vòng đời Sprint.**
+
+`Sprint` không có trường trạng thái nào; `IsActive` suy từ ngày. Không có start / complete /
+đẩy task chưa xong sang sprint kế — tức **vòng lặp Scrum cốt lõi**.
+
+Cắt ra khỏi phiên 2026-08-04 **có ý thức**, không phải bỏ quên: nó cần cột `Sprint.Status` +
+migration, và trước đó cần một **quyết định sản phẩm** mà nhiều câu trả lời đều bảo vệ được —
+*task chưa xong đi đâu khi đóng sprint?* (về Backlog · sang sprint kế · hỏi người dùng lúc
+đóng, như Jira). Đó là lựa chọn của người sở hữu sản phẩm chứ không phải của người viết code,
+nên **phải chốt và viết ADR riêng trước khi gõ dòng đầu tiên**.
+
+⚠️ **Phụ thuộc:** hạng mục "velocity" của nhóm báo cáo kiểu Jira **cần cái này trước** —
+không có mốc "đóng sprint" thì không có gì để đo tốc độ theo.
 
 📌 **Hai món nợ khác, ghi rõ chứ không im lặng:**
 - **`AuthService` không ghi một dòng `ActivityLog` nào.** Đăng ký, đăng xuất và **đặt lại mật
@@ -1064,13 +1097,13 @@ project khác nhau):
 
 ### Hiện trạng (2026-08-04, sau phiên Phân quyền permission)
 
-**471 test pass** — 232 unit + 239 integration, build 0 warning **và nay có
+**489 test pass** — 232 unit + 257 integration, build 0 warning **và nay có
 `TreatWarningsAsErrors`** (`backend/Directory.Build.props`), nên "0 warning" từ một quan sát
 đã thành một điều kiện.
-*(+52 so với phiên trước: `SystemPermissionsCatalogTests` 6, `RolePermissionAdminServiceTests`
+*(+70 so với phiên trước: `SystemPermissionsCatalogTests` 6, `RolePermissionAdminServiceTests`
 6, `PermissionSeedTests` 5, `RolePermissionAdminTests` 11, `PermissionClaimTests` 5,
-`StatisticsTests` 5, `LabelsTests` 7, `ActivityLogsTests` 6, cộng một dòng nới ở
-`SystemAdminScopeTests`.)*
+`StatisticsTests` 5, `LabelsTests` 7, `ActivityLogsTests` 6, `ProjectStatusTests` 6,
+`EmployeeLookupTests` 7, `CommentMentionTests` 5, cộng một dòng nới ở `SystemAdminScopeTests`.)*
 
 🆕 **Ba vùng trước đây KHÔNG có file test nào (10 route) nay đã có** — và việc viết chúng
 lập tức có lãi: `StatisticsTests` bắt được `GET /projects/{id}/statistics` **hỏng 500 từ ngày
@@ -1403,6 +1436,7 @@ CLI, xem `docs/uml/README.md`. Trước đây nguồn chỉ nằm trong thuộc 
 | **2026-08-04** | **(ADR-045)** Phân quyền tầng 1 chuyển sang **claim `permission` lấy từ hai bảng DB** (`Permission` + `RolePermission`), quản trị qua UI; tầng 2 giữ nguyên đọc `ProjectMember` mỗi request | Vai trò trong claim không tách được quyền admin, mà quyền project-scoped thì không thể vào token: token phình theo số project và cũ đi ngay khi PM đổi vai trò — chi tiết bên dưới |
 | **2026-08-04** | **(ADR-046)** Kiểm kê nợ backend: 3 validator thiếu, `?search=` bị nuốt im lặng, `/health` luôn báo khỏe, `TreatWarningsAsErrors` chưa bật, và **`GET /projects/{id}/statistics` hỏng 500 từ ngày viết** | Lần thứ năm gặp cùng một hình dạng lỗi: *thứ cần kiểm chứng chưa có ai gọi tới* — chi tiết bên dưới |
 | **2026-08-04** | **(ADR-046b)** `ValueConverter` đóng dấu `Kind=Utc` cho MỌI cột `DateTime` lúc đọc, sửa ở tầng EF chứ không ở `JsonSerializerOptions` | `datetime2` không lưu Kind → JSON thiếu hậu tố → **mọi mốc thời gian lệch đúng bằng múi giờ**; giá trị `Unspecified` còn chảy vào `IsOverdue` và `DueDateNotifier` chứ không chỉ ra HTTP — chi tiết bên dưới |
+| **2026-08-04** | **(ADR-048)** `Project.Status` có đường ghi (`complete`/`reopen`, loại thông báo RIÊNG); `GET /employees?search=` mở cho mọi người nhưng ràng buộc 3 lớp; @mention do CLIENT gửi id còn SERVER lọc | Ba trường/luồng chết hoặc thiếu. Tái dùng `StatusChanged` cho project sẽ điều hướng sai; không lọc id @mention là cho bất kỳ ai bắn thông báo tới bất kỳ ai — chi tiết bên dưới |
 | **2026-08-04** | **(ADR-047)** Màu biểu đồ chia ba nhóm theo VIỆC (trạng thái / tuần tự / phân đoạn); chỉ nhóm thứ ba cần validator; thẻ số và thanh mức KHÔNG phải biểu đồ | Một bảng màu chung cho mọi biểu đồ là dùng màu để nói bốn thứ khác nhau; và thang có thứ tự vẽ bằng màu rời rạc là mời người đọc hiểu sai — chi tiết bên dưới |
 
 | | | |
@@ -2853,6 +2887,69 @@ với nhau — tức mời họ đọc sai.
 > **Rút ra:** quy trình màu là thứ **tính được**, nên phải chạy validator thay vì nhìn. Nhưng
 > validator chỉ kiểm màu — bố cục thì bắt buộc phải **mở ra nhìn**. Cả hai lỗi trên đều chỉ
 > hiện ra ở bước chụp màn hình, sau khi mọi phép kiểm màu đã xanh.
+
+---
+
+#### ADR-048 (2026-08-04) — Ba tính năng tầng 3, và ba ranh giới an ninh trong đó
+
+**1. `Project.Status` — cho một trường chết một đường ghi.** `Project.Complete()` có đúng
+một caller trong toàn bộ solution (`DbSeeder`), nên mọi project tạo qua API vĩnh viễn ở
+`ToDo` — trong khi `Status` vẫn nằm trong DTO và vẫn là khóa `sortBy` hợp lệ.
+
+Tách thành `POST /complete` + `/reopen` chứ **không** thêm một trường vào
+`UpdateProjectRequest`: `Status` là chuyển trạng thái có luật riêng (mở lại project chưa xong
+là vô nghĩa → 409), còn Update là ghi đè thông tin mô tả. Gộp lại thì mỗi lần sửa tên project
+cũng phải gửi kèm status, và quên gửi là đặt lại trạng thái — **đúng lỗi ADR-044 đã trả giá**
+với `description` của task. Cùng lý do đó, hai endpoint này **không cần `RowVersion`**
+(ADR-021).
+
+> 🔴 Phải thêm `NotificationType.**ProjectStatusChanged**` chứ không tái dùng `StatusChanged`.
+> `RelatedEntityKind` được **suy ra** từ `Type` (ADR-025) và `StatusChanged` suy ra `Task`,
+> nên tái dùng sẽ khiến chuông điều hướng tới `/tasks/{projectId}` — một id không tồn tại.
+> Đây chính là loại lệch mà việc suy-ra (thay vì lưu hai cột độc lập) sinh ra để chặn: nó
+> biến một lỗi thầm lặng thành một quyết định phải nghĩ.
+
+**2. `GET /employees?search=` — mở cho mọi người, nên ràng buộc LÀ tính năng.** Trước đó chỉ
+có `GET /admin/employees` sau quyền `employees:manage`, nên PM bình thường muốn mời ai vào dự
+án phải **gõ đúng địa chỉ email**.
+
+Ba ràng buộc, và cả ba đều là lý do endpoint được phép tồn tại chứ không phải chi tiết cài đặt:
+
+| Ràng buộc | Bỏ đi thì sao |
+|---|---|
+| Từ khóa **≥ 2 ký tự** (400 nếu ngắn hơn) | Một ký tự khớp phần lớn danh bạ; lặp 26 lần là có toàn bộ |
+| **Trần kết quả cứng ở server**, không nhận từ client | Client tự chọn `limit=10000` là mở lại đúng cánh cửa vừa khép |
+| DTO **chỉ 3 trường** (`id`, `name`, `email`) | Mỗi trường thêm vào là một mẩu thông tin nhân sự phát cho toàn công ty |
+
+Trả **400** chứ không phải danh sách rỗng khi từ khóa ngắn: rỗng khiến người dùng tưởng
+"không có ai tên vậy", trong khi thật ra họ mới gõ chưa đủ.
+
+> 📌 Test cho ràng buộc thứ ba khẳng định trên **JSON thô**, không deserialize vào record —
+> deserialize sẽ âm thầm bỏ qua mọi trường thừa và test vẫn xanh trong khi API vẫn đang rò rỉ.
+> Cùng lớp bài học với ADR-046b: khi một giá trị đi ra ngoài dưới dạng **chuỗi**, phải có ít
+> nhất một test chạm vào chuỗi đó.
+
+**3. @mention — client gửi ID, server LỌC.** Server cố ý **không parse `@tên`** từ nội dung:
+tên hiển thị không phải định danh (trùng tên, đổi tên, `@abc` có thể chỉ là một mẩu email).
+Client vốn đã biết chính xác id — nó lấy từ chính ô gợi ý người dùng vừa chọn.
+
+> 🔴 **Nhưng chính vì id do client gửi, server bắt buộc phải lọc lại.** Không lọc nghĩa là
+> bất kỳ ai cũng bắn được thông báo tới bất kỳ ai bằng cách nhét id lạ vào body, và người
+> nhận sẽ thấy **tên một task thuộc dự án họ không có quyền mở** — vừa là rò rỉ thông tin,
+> vừa là một kênh quấy rối. Chỉ giữ lại thành viên `Accepted` của đúng dự án đó.
+>
+> **Đã mutation test**: bỏ bộ lọc làm 2 test đỏ.
+
+Hai chi tiết nhỏ nhưng có chủ đích:
+- Người được nhắc **bị loại khỏi lượt `CommentAdded`** — hai thông báo cho cùng một hành động
+  là nhiễu, và cái cụ thể hơn ("bạn được nhắc tên") thắng.
+- Nhắc tên người ngoài dự án vẫn trả **thành công**. Bình luận là hợp lệ, chỉ phần nhắc tên
+  bị lọc bỏ; trả 400 ở đây sẽ tiết lộ "id này có tồn tại nhưng không thuộc dự án" — tức lại
+  là rò rỉ, chỉ đổi hình dạng.
+
+**Hạng mục thứ tư của tầng 3 — vòng đời Sprint — CHƯA làm**, và đó là quyết định chứ không
+phải bỏ sót: nó cần một lựa chọn sản phẩm (*task chưa xong đi đâu khi đóng sprint?*) mà nhiều
+câu trả lời đều bảo vệ được. Chi tiết và phụ thuộc ở §1 mục E.
 
 ---
 

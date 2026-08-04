@@ -62,9 +62,29 @@ public class CommentService : ICommentService
         _activityLog.Log(nameof(TaskItem), taskId, ActivityAction.Commented,
             $"Bình luận trên task '{task.Name}'");
 
+        // @mention (2026-08-04). Danh sách do CLIENT gửi lên — server không parse `@tên` từ
+        // nội dung, vì tên hiển thị không phải định danh (xem `CreateCommentRequest`).
+        //
+        // 🔴 Nhưng server BẮT BUỘC phải lọc: id do client gửi nên không lọc nghĩa là bất kỳ
+        // ai cũng bắn được thông báo tới bất kỳ ai bằng cách nhét id lạ vào body, và người
+        // nhận thấy tên một task họ không có quyền mở — vừa là rò rỉ, vừa là kênh quấy rối.
+        var mentioned = await _uow.ProjectMembers.FilterActiveMemberIdsAsync(
+            task.ProjectId,
+            request.MentionedEmployeeIds.Where(id => id != authorId).Distinct().ToList(),
+            ct);
+
+        if (mentioned.Count > 0)
+            _notifications.NotifyMany(mentioned, NotificationType.Mentioned,
+                $"Bạn được nhắc tên trong một bình luận ở task '{task.Name}'", taskId);
+
         // Cùng danh sách người nhận với luồng đổi trạng thái — dùng lại
         // TaskNotificationExtensions thay vì viết bản sao thứ hai sẽ lệch dần.
-        _notifications.NotifyMany(task.InterestedEmployeeIds(), NotificationType.CommentAdded,
+        //
+        // Người vừa nhận thông báo @mention bị loại khỏi lượt này: hai thông báo cho cùng
+        // một hành động là nhiễu, và cái cụ thể hơn ("bạn được nhắc tên") thắng.
+        var alsoInterested = task.InterestedEmployeeIds().Except(mentioned);
+
+        _notifications.NotifyMany(alsoInterested, NotificationType.CommentAdded,
             $"Có bình luận mới trên task '{task.Name}'", taskId);
 
         await _uow.SaveChangesAsync(ct);
