@@ -46,7 +46,7 @@ public class DueDateNotifierTests
 
         var created = new List<Notification>();
         _notificationRepo.When(r => r.Add(Arg.Any<Notification>()))
-                         .Do(call => created.Add(call.Arg<Notification>()));
+                         .Do(call => created.Add(call.Arg<Notification>()!));
 
         (await _sut.RunAsync()).ShouldBe(3);
 
@@ -84,7 +84,7 @@ public class DueDateNotifierTests
         _notificationRepo.When(r => r.Add(Arg.Any<Notification>()))
             .Do(call =>
             {
-                var n = call.Arg<Notification>();
+                var n = call.Arg<Notification>()!;
                 sent.Add((n.EmployeeId, n.RelatedEntityId!.Value));
             });
         _notificationRepo.GetNotifiedPairsSinceAsync(
@@ -113,7 +113,7 @@ public class DueDateNotifierTests
 
         var created = new List<Notification>();
         _notificationRepo.When(r => r.Add(Arg.Any<Notification>()))
-                         .Do(call => created.Add(call.Arg<Notification>()));
+                         .Do(call => created.Add(call.Arg<Notification>()!));
 
         await _sut.RunAsync();
 
