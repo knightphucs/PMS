@@ -48,7 +48,7 @@ public class ProjectMemberServiceTests
     /// <summary>Project có creator (_pmId) là PM Accepted, Employee đã gán để mapper không NRE.</summary>
     private Project ProjectOf(params (Guid Id, RoleInProject Role, InvitationStatus Status)[] others)
     {
-        var project = Project.Create("PMS", "Mô tả", DateTime.UtcNow.AddDays(30), _pmId);
+        var project = Project.Create("PMS", "Mô tả", DateTime.UtcNow.AddDays(30), _pmId, "PMS");
 
         foreach (var (id, role, status) in others)
         {

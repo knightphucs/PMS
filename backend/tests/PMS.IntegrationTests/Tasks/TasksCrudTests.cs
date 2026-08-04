@@ -30,6 +30,93 @@ public class TasksCrudTests : IntegrationTestBase
         detail.RowVersion.ShouldNotBeEmpty();
     }
 
+    // ---------- ADR-033/034: mã task PMS-12 ----------
+
+    [Fact]
+    public async Task Ma_task_danh_so_tang_dan_va_dat_lai_tu_dau_o_moi_project()
+    {
+        var pm = await CreateUserAsync();
+        var projectA = await CreateProjectAsync(pm.Client, "Hệ thống kho");
+        var projectB = await CreateProjectAsync(pm.Client, "Website bán hàng");
+
+        var a1 = await GetSummaryAsync(pm.Client, await CreateTaskAsync(pm.Client, projectA, "Task A1"));
+        var a2 = await GetSummaryAsync(pm.Client, await CreateTaskAsync(pm.Client, projectA, "Task A2"));
+        var b1 = await GetSummaryAsync(pm.Client, await CreateTaskAsync(pm.Client, projectB, "Task B1"));
+
+        a1.Number.ShouldBe(1);
+        a2.Number.ShouldBe(2);
+        b1.Number.ShouldBe(1);   // hai project đánh số ĐỘC LẬP
+
+        // Mã ghép sẵn ở backend, không bắt frontend tự nối (ADR-034)
+        a2.Code.ShouldBe($"{a2.ProjectKey}-2");
+        a1.ProjectKey.ShouldNotBe(b1.ProjectKey);   // mã project duy nhất toàn hệ thống
+    }
+
+    [Fact]
+    public async Task Ma_project_sinh_tu_ten_va_bo_dau_tieng_Viet()
+    {
+        var pm = await CreateUserAsync();
+        var projectId = await CreateProjectAsync(pm.Client, $"Hệ thống kho {Guid.NewGuid():N}");
+        var taskId = await CreateTaskAsync(pm.Client, projectId);
+
+        var detail = await GetSummaryAsync(pm.Client, taskId);
+
+        // "Hệ thống kho ..." -> chữ cái đầu mỗi từ, đã bóc dấu: H, T, K (+ hậu tố nếu trùng)
+        detail.ProjectKey.ShouldStartWith("HTK");
+        detail.ProjectKey.ShouldBe(detail.ProjectKey.ToUpperInvariant());
+    }
+
+    [Fact]
+    public async Task So_task_khong_tai_su_dung_sau_khi_task_bi_xoa_mem()
+    {
+        // Mã PMS-12 đã phát tán ra comment/URL/tài liệu ngoài — cấp lại số đó cho task
+        // khác là làm sai lệch mọi tham chiếu cũ (ADR-033).
+        var pm = await CreateUserAsync();
+        var projectId = await CreateProjectAsync(pm.Client);
+
+        var firstId = await CreateTaskAsync(pm.Client, projectId, "Task sẽ bị xóa");
+        (await GetSummaryAsync(pm.Client, firstId)).Number.ShouldBe(1);
+
+        (await pm.Client.DeleteAsync($"/api/v1/tasks/{firstId}")).StatusCode
+            .ShouldBe(HttpStatusCode.NoContent);
+
+        var secondId = await CreateTaskAsync(pm.Client, projectId, "Task mới");
+        (await GetSummaryAsync(pm.Client, secondId)).Number.ShouldBe(2);   // KHÔNG phải 1
+    }
+
+    [Fact]
+    public async Task Description_luu_va_tra_ve_dung_qua_ca_tao_lan_sua()
+    {
+        var pm = await CreateUserAsync();
+        var projectId = await CreateProjectAsync(pm.Client);
+
+        var res = await pm.Client.PostAsJsonAsync("/api/v1/tasks",
+            new CreateTaskRequest("Task có mô tả", projectId, null, null, null,
+                Priority.Medium, "Mô tả chi tiết công việc"));
+        res.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var created = await res.Content.ReadFromJsonAsync<TaskSummaryResponse>(TestJson.Options);
+
+        var detail = await pm.Client.GetFromJsonAsync<TaskDetailResponse>(
+            $"/api/v1/tasks/{created!.Id}", TestJson.Options);
+        detail!.Description.ShouldBe("Mô tả chi tiết công việc");
+
+        var updated = await pm.Client.PutAsJsonAsync($"/api/v1/tasks/{created.Id}",
+            new UpdateTaskRequest("Task có mô tả", null, Priority.Medium,
+                detail.RowVersion, "Mô tả đã sửa"));
+        updated.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var after = await updated.Content.ReadFromJsonAsync<TaskDetailResponse>(TestJson.Options);
+        after!.Description.ShouldBe("Mô tả đã sửa");
+    }
+
+    /// <summary>Lấy chi tiết task rồi rút gọn về đúng ba trường mà nhóm test mã task quan tâm.</summary>
+    private static async Task<(int Number, string Code, string ProjectKey)> GetSummaryAsync(
+        HttpClient client, Guid taskId)
+    {
+        var detail = await client.GetFromJsonAsync<TaskDetailResponse>(
+            $"/api/v1/tasks/{taskId}", TestJson.Options);
+        return (detail!.Number, detail.Code, detail.ProjectKey);
+    }
+
     [Fact]
     public async Task Sua_task_voi_RowVersion_cu_thi_bi_chan_409()
     {

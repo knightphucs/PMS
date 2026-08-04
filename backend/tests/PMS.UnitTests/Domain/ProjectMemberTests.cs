@@ -11,7 +11,7 @@ public class ProjectMemberTests
     private readonly Guid _creatorId = Guid.NewGuid();
 
     private Project NewProject() =>
-        Project.Create("PMS", "Mô tả", DateTime.UtcNow.AddDays(30), _creatorId);
+        Project.Create("PMS", "Mô tả", DateTime.UtcNow.AddDays(30), _creatorId, "PMS");
 
     private static Employee NewEmployee(string name = "Nguyen Van B") =>
         new() { Id = Guid.NewGuid(), Name = name, Email = $"{Guid.NewGuid():N}@pms.test" };

@@ -32,6 +32,14 @@ public class PmsWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
     /// </summary>
     public const string TestFrontendOrigin = "http://localhost:3000";
 
+    /// <summary>
+    /// Thư mục tạm riêng cho mỗi lần chạy test. Không trỏ vào <c>App_Data/attachments</c>
+    /// mặc định: test upload sẽ rải file thật vào cây mã nguồn và chúng còn lại sau khi
+    /// test kết thúc.
+    /// </summary>
+    private static readonly string TestFileStorageRoot =
+        Path.Combine(Path.GetTempPath(), $"pms-test-attachments-{Guid.NewGuid():N}");
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -45,7 +53,11 @@ public class PmsWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
                 ["Jwt:Audience"]       = TestJwtAudience,
                 ["Jwt:AccessTokenMinutes"]  = "15",
                 ["Jwt:RefreshTokenDays"]    = "7",
-                ["Cors:AllowedOrigins:0"]   = TestFrontendOrigin
+                ["Cors:AllowedOrigins:0"]   = TestFrontendOrigin,
+                ["FileStorage:Root"]        = TestFileStorageRoot,
+                // Nhỏ hơn hẳn 20 MB của production: test 413 không nên phải dựng một
+                // MemoryStream 20 MB chỉ để chứng minh giới hạn có hiệu lực.
+                ["FileStorage:MaxFileBytes"] = "1048576"   // 1 MB
             }));
 
         builder.ConfigureServices(services =>
@@ -83,5 +95,18 @@ public class PmsWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
         await db.Database.MigrateAsync();
     }
 
-    public new async Task DisposeAsync() => await base.DisposeAsync();
+    public new async Task DisposeAsync()
+    {
+        await base.DisposeAsync();
+
+        // Dọn file test đã ghi ra đĩa. Nuốt lỗi: thư mục tạm còn lại là phiền toái nhỏ,
+        // còn ném exception ở đây sẽ che mất kết quả thật của cả bộ test.
+        try
+        {
+            if (Directory.Exists(TestFileStorageRoot))
+                Directory.Delete(TestFileStorageRoot, recursive: true);
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+    }
 }

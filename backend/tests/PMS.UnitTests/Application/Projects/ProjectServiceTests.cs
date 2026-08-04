@@ -19,6 +19,8 @@ public class ProjectServiceTests
     private readonly ISprintRepository _sprintRepo = Substitute.For<ISprintRepository>();
     private readonly IProjectAuthorizationService _authz = Substitute.For<IProjectAuthorizationService>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
+    private readonly IActivityLogger _activityLog = Substitute.For<IActivityLogger>();
+    private readonly IProjectTaskCounterRepository _counterRepo = Substitute.For<IProjectTaskCounterRepository>();
 
     private readonly Guid _userId = Guid.NewGuid();
     private readonly ProjectService _sut;   // sut = System Under Test, đối tượng đang kiểm thử
@@ -28,11 +30,12 @@ public class ProjectServiceTests
         _uow.Projects.Returns(_projectRepo);
         _uow.Tasks.Returns(_taskRepo);
         _uow.Sprints.Returns(_sprintRepo);
+        _uow.ProjectTaskCounters.Returns(_counterRepo);
 
         _currentUser.EmployeeId.Returns(_userId);
 
         _sut = new ProjectService(
-            _uow, _authz, _currentUser,
+            _uow, _authz, _currentUser, _activityLog,
             new ProjectMapper(),
             NullLogger<ProjectService>.Instance);
     }
@@ -60,7 +63,7 @@ public class ProjectServiceTests
 
     private Project ProjectWith(params object[] children)
     {
-        var project = Project.Create("PMS", "Mô tả", DateTime.UtcNow.AddDays(30), _userId);
+        var project = Project.Create("PMS", "Mô tả", DateTime.UtcNow.AddDays(30), _userId, "PMS");
 
         // ProjectMapper.ToMemberResponse cần member.Employee.Name (EF Include ở prod nạp sẵn) ->
         // gán tay để giả lập, nếu không NRE khi map ToDetail().
