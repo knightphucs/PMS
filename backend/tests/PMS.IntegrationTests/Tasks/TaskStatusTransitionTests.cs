@@ -27,11 +27,11 @@ public class TaskStatusTransitionTests : IntegrationTestBase
         await AssignAsync(pm.Client, taskId, member.EmployeeId);
 
         var res = await member.Client.PatchAsJsonAsync($"/api/v1/tasks/{taskId}/status",
-            new ChangeTaskStatusRequest(Status.InProgress));
+            new ChangeTaskStatusRequest(await ColumnOfTaskAsync(taskId, 1)));
 
         res.StatusCode.ShouldBe(HttpStatusCode.OK);
         var body = await res.Content.ReadFromJsonAsync<TaskSummaryResponse>(TestJson.Options);
-        body!.Status.ShouldBe(Status.InProgress);
+        body!.Status.Name.ShouldBe("Đang làm");
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public class TaskStatusTransitionTests : IntegrationTestBase
         await AssignAsync(pm.Client, taskId, member.EmployeeId);
 
         var res = await pm.Client.PatchAsJsonAsync($"/api/v1/tasks/{taskId}/status",
-            new ChangeTaskStatusRequest(Status.InProgress));
+            new ChangeTaskStatusRequest(await ColumnOfTaskAsync(taskId, 1)));
 
         res.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
@@ -64,13 +64,13 @@ public class TaskStatusTransitionTests : IntegrationTestBase
         await AssignAsync(pm.Client, taskId, assignee.EmployeeId);
 
         var res = await buiKhac.Client.PatchAsJsonAsync($"/api/v1/tasks/{taskId}/status",
-            new ChangeTaskStatusRequest(Status.InProgress));
+            new ChangeTaskStatusRequest(await ColumnOfTaskAsync(taskId, 1)));
 
         res.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
 
         var status = await WithDbAsync(db => db.Tasks
-            .Where(t => t.Id == taskId).Select(t => t.Status).SingleAsync());
-        status.ShouldBe(Status.ToDo);
+            .Where(t => t.Id == taskId).Select(t => t.Category).SingleAsync());
+        status.ShouldBe(StatusCategory.ToDo);
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public class TaskStatusTransitionTests : IntegrationTestBase
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         var res = await viewer.Client.PatchAsJsonAsync($"/api/v1/tasks/{taskId}/status",
-            new ChangeTaskStatusRequest(Status.InProgress));
+            new ChangeTaskStatusRequest(await ColumnOfTaskAsync(taskId, 1)));
 
         res.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
@@ -97,54 +97,72 @@ public class TaskStatusTransitionTests : IntegrationTestBase
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         var res = await outsider.Client.PatchAsJsonAsync($"/api/v1/tasks/{taskId}/status",
-            new ChangeTaskStatusRequest(Status.InProgress));
+            new ChangeTaskStatusRequest(await ColumnOfTaskAsync(taskId, 1)));
 
         res.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
-    // ---------- Workflow Transition Rules ----------
+    // ---------- Chuyển cột (ADR-052 thay thế ma trận chuyển trạng thái của ADR-021) ----------
 
     [Fact]
-    public async Task Nhay_thang_ToDo_sang_Done_bi_chan_409()
+    public async Task Nhay_thang_tu_cot_dau_sang_cot_cuoi_la_hop_le()
     {
+        // 🔄 Test này TRƯỚC ĐÂY khẳng định điều ngược lại (`Nhay_thang_ToDo_sang_Done_bi_chan_409`).
+        // Đảo chiều là có chủ đích, không phải nới lỏng cho dễ: với cột do NGƯỜI DÙNG tạo thì
+        // hệ thống không còn cơ sở nào để nói cặp nào hợp lệ — nó không biết "Chờ QA" đứng
+        // trước hay sau "Đang sửa". Ép một luật lên đó là đoán hộ quy trình của người khác.
         var pm = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         var res = await pm.Client.PatchAsJsonAsync($"/api/v1/tasks/{taskId}/status",
-            new ChangeTaskStatusRequest(Status.Done));
+            new ChangeTaskStatusRequest(await ColumnOfTaskAsync(taskId, 3)));
 
-        res.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        res.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var detail = await pm.Client.GetFromJsonAsync<TaskDetailResponse>(
+            $"/api/v1/tasks/{taskId}", TestJson.Options);
+        detail!.Status.Name.ShouldBe("Hoàn thành");
+        detail.Status.Category.ShouldBe(StatusCategory.Done);
     }
 
     [Fact]
-    public async Task Di_du_ToDo_InProgress_Review_Done_thi_thanh_cong()
+    public async Task Doi_ve_dung_cot_dang_dung_tra_200_chu_khong_con_409()
     {
+        // 🔄 Cũng đảo chiều so với `Doi_status_khong_can_RowVersion_nhung_lan_hai_cung_dich_bi_chan_409`.
+        // ADR-021 từng dùng chính đặc điểm "đứng yên là lỗi" làm chốt chặn concurrency thay
+        // cho RowVersion. Sau ADR-052 chốt đó không còn — và đó là đánh đổi được ghi nhận:
+        // đổi trạng thái là thao tác idempotent, hai người cùng kéo về một cột thì kết quả
+        // giống hệt nhau nên không có gì để tranh chấp.
         var pm = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
+        var doing = await ColumnOfTaskAsync(taskId, 1);
 
-        await AdvanceStatusAsync(pm.Client, taskId, Status.Done);
-
-        var detail = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{taskId}", TestJson.Options);
-        detail!.Status.ShouldBe(Status.Done);
-    }
-
-    [Fact]
-    public async Task Doi_status_khong_can_RowVersion_nhung_lan_hai_cung_dich_bi_chan_409()
-    {
-        // ADR-021: state machine tự là chốt chặn concurrency, không cần round-trip token.
-        var pm = await CreateUserAsync();
-        var projectId = await CreateProjectAsync(pm.Client);
-        var taskId = await CreateTaskAsync(pm.Client, projectId);
-
-        var first = await pm.Client.PatchAsJsonAsync($"/api/v1/tasks/{taskId}/status",
-            new ChangeTaskStatusRequest(Status.InProgress));
+        var first = await pm.Client.PatchAsJsonAsync(
+            $"/api/v1/tasks/{taskId}/status", new ChangeTaskStatusRequest(doing));
         first.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var second = await pm.Client.PatchAsJsonAsync($"/api/v1/tasks/{taskId}/status",
-            new ChangeTaskStatusRequest(Status.InProgress));
-        second.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        var second = await pm.Client.PatchAsJsonAsync(
+            $"/api/v1/tasks/{taskId}/status", new ChangeTaskStatusRequest(doing));
+        second.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Cot_cua_project_khac_tra_404()
+    {
+        // 404 chứ không 409: cột của project khác thì với người gọi nó không tồn tại. Trả
+        // 409 sẽ xác nhận "id này có thật, chỉ là không thuộc project của bạn" (ADR-019).
+        var pm = await CreateUserAsync();
+        var projectId = await CreateProjectAsync(pm.Client);
+        var otherProjectId = await CreateProjectAsync(pm.Client, "Project khác");
+        var taskId = await CreateTaskAsync(pm.Client, projectId);
+        var foreignColumn = await ColumnIdAsync(otherProjectId, 1);
+
+        var res = await pm.Client.PatchAsJsonAsync($"/api/v1/tasks/{taskId}/status",
+            new ChangeTaskStatusRequest(foreignColumn));
+
+        res.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     // ---------- Blocker (TaskLink) ----------
@@ -159,7 +177,7 @@ public class TaskStatusTransitionTests : IntegrationTestBase
         await LinkAsync(blockerId, blockedId, LinkType.Blocks);
 
         var res = await pm.Client.PatchAsJsonAsync($"/api/v1/tasks/{blockedId}/status",
-            new ChangeTaskStatusRequest(Status.InProgress));
+            new ChangeTaskStatusRequest(await ColumnOfTaskAsync(blockedId, 1)));
 
         res.StatusCode.ShouldBe(HttpStatusCode.Conflict);
         (await res.Content.ReadAsStringAsync()).ShouldContain("Task chặn");
@@ -174,10 +192,10 @@ public class TaskStatusTransitionTests : IntegrationTestBase
         var blockedId = await CreateTaskAsync(pm.Client, projectId, "Task bị chặn");
         await LinkAsync(blockerId, blockedId, LinkType.Blocks);
 
-        await AdvanceStatusAsync(pm.Client, blockerId, Status.Done);
+        await MoveToColumnAsync(pm.Client, blockerId, 3);
 
         var res = await pm.Client.PatchAsJsonAsync($"/api/v1/tasks/{blockedId}/status",
-            new ChangeTaskStatusRequest(Status.InProgress));
+            new ChangeTaskStatusRequest(await ColumnOfTaskAsync(blockedId, 1)));
 
         res.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
@@ -199,7 +217,7 @@ public class TaskStatusTransitionTests : IntegrationTestBase
         var memberNotisBefore = await CountNotificationsAsync(member.EmployeeId);
 
         await member.Client.PatchAsJsonAsync($"/api/v1/tasks/{taskId}/status",
-            new ChangeTaskStatusRequest(Status.InProgress));
+            new ChangeTaskStatusRequest(await ColumnOfTaskAsync(taskId, 1)));
 
         (await CountActivityLogsAsync(taskId)).ShouldBe(logsBefore + 1);
         (await CountNotificationsAsync(pm.EmployeeId)).ShouldBe(pmNotisBefore + 1);

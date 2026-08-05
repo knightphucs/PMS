@@ -132,10 +132,15 @@ public class TaskAssignmentServiceTests
     {
         AddAcceptedMember(RoleInProject.Member, _actorId);
         var task = ArrangeTask();
-        task.ChangeStatus(Status.InProgress);
+        task.MoveTo(new BoardColumn
+        {
+            Id = Guid.NewGuid(), ProjectId = task.ProjectId,
+            Name = "Đang làm", Category = StatusCategory.InProgress,
+        });
 
         var ex = await Should.ThrowAsync<ConflictException>(() => _sut.SelfAssignAsync(task.Id));
-        ex.Message.ShouldContain("ToDo");
+        // Thông điệp nay nói theo TÊN CỘT chứ không theo tên enum (ADR-052).
+        ex.Message.ShouldContain("chưa bắt đầu");
 
         task.Assignments.ShouldBeEmpty();
         await _uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());

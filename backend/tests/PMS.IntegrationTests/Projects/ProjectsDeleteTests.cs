@@ -44,7 +44,7 @@ public class ProjectsDeleteTests : IntegrationTestBase
     {
         var a = await CreateUserAsync();
         var id = await CreateProjectAsync(a.Client);
-        var taskId = await SeedTaskAsync(id, a.EmployeeId, Status.InProgress);
+        var taskId = await SeedTaskAsync(id, a.EmployeeId, 1);
 
         var res = await a.Client.DeleteAsync($"/api/v1/Projects/{id}");
 
@@ -68,7 +68,7 @@ public class ProjectsDeleteTests : IntegrationTestBase
     {
         var a = await CreateUserAsync();
         var id = await CreateProjectAsync(a.Client);
-        var taskId = await SeedTaskAsync(id, a.EmployeeId, Status.Done);
+        var taskId = await SeedTaskAsync(id, a.EmployeeId, 3);
 
         var sprintId = Guid.NewGuid();
         await WithDbAsync(async db =>
@@ -109,7 +109,7 @@ public class ProjectsDeleteTests : IntegrationTestBase
     {
         var a = await CreateUserAsync();
         var id = await CreateProjectAsync(a.Client);
-        var oldTaskId = await SeedTaskAsync(id, a.EmployeeId, Status.Done);
+        var oldTaskId = await SeedTaskAsync(id, a.EmployeeId, 3);
 
         // Xóa lẻ task trước, bằng chính interceptor
         await WithDbAsync(async db =>

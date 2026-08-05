@@ -45,7 +45,7 @@ public class ActivityLogsTests : IntegrationTestBase
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         // Sinh thêm một loại hoạt động khác để trang có ít nhất hai dòng khác nội dung.
-        await AdvanceStatusAsync(pm.Client, taskId, Status.InProgress);
+        await MoveToColumnAsync(pm.Client, taskId, 1);
 
         var all = await pm.Client.GetFromJsonAsync<PagedResult<ActivityLogResponse>>(
             $"/api/v1/tasks/{taskId}/activity?pageSize=100", TestJson.Options);
@@ -124,7 +124,7 @@ public class ActivityLogsTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
-        await AdvanceStatusAsync(pm.Client, taskId, Status.InProgress);
+        await MoveToColumnAsync(pm.Client, taskId, 1);
 
         var first = await pm.Client.GetFromJsonAsync<PagedResult<ActivityLogResponse>>(
             $"/api/v1/tasks/{taskId}/activity?pageSize=100", TestJson.Options);

@@ -23,7 +23,7 @@ public class TasksCrudTests : IntegrationTestBase
         var taskId = await CreateTaskAsync(pm.Client, projectId, "Dựng API");
 
         var detail = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{taskId}", TestJson.Options);
-        detail!.Status.ShouldBe(Status.ToDo);
+        detail!.Status.Name.ShouldBe("Cần làm");
         detail.ReporterId.ShouldBe(pm.EmployeeId);
         detail.ProjectId.ShouldBe(projectId);
         detail.Assignees.ShouldBeEmpty();

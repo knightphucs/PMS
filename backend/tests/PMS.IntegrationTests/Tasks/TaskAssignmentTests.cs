@@ -150,12 +150,14 @@ public class TaskAssignmentTests : IntegrationTestBase
         var projectId = await CreateProjectAsync(pm.Client);
         await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
-        await AdvanceStatusAsync(pm.Client, taskId, Status.InProgress);
+        await MoveToColumnAsync(pm.Client, taskId, 1);
 
         var res = await member.Client.PostAsync($"/api/v1/tasks/{taskId}/assignees/me", null);
 
         res.StatusCode.ShouldBe(HttpStatusCode.Conflict);
-        (await res.Content.ReadAsStringAsync()).ShouldContain("ToDo");
+        // ADR-052: thông điệp nói theo TÊN CỘT chứ không theo tên enum — người dùng đặt cột
+        // tên gì thì lỗi phải nhắc đúng tên đó, không phải một định danh nội bộ.
+        (await res.Content.ReadAsStringAsync()).ShouldContain("chưa bắt đầu");
     }
 
     [Fact]

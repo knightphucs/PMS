@@ -41,26 +41,22 @@ public class ProjectServiceTests
             NullLogger<ProjectService>.Instance);
     }
 
-    private static TaskItem TaskWithStatus(Status target)
+    /// <summary>
+    /// Task giả ở một NHÓM trạng thái (ADR-052). Không còn state machine để đi từng bước —
+    /// `MoveTo` đặt thẳng, và nó là người ghi duy nhất giữ BoardColumnId khớp Category.
+    /// </summary>
+    private static TaskItem TaskWithStatus(StatusCategory category)
     {
         var task = new TaskItem { Id = Guid.NewGuid(), Name = "Task test" };
-
-        // Status là private set và chỉ đổi qua ChangeStatus() với state machine
-        // ToDo -> InProgress -> Review -> Done. Không nhảy tắt được.
-        foreach (var step in PathTo(target))
-            task.ChangeStatus(step);
-
+        task.MoveTo(new BoardColumn
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = task.ProjectId,
+            Name = category.ToString(),
+            Category = category,
+        });
         return task;
     }
-
-    private static Status[] PathTo(Status target) => target switch
-    {
-        Status.ToDo       => [],
-        Status.InProgress => [Status.InProgress],
-        Status.Review     => [Status.InProgress, Status.Review],
-        Status.Done       => [Status.InProgress, Status.Review, Status.Done],
-        _ => throw new ArgumentOutOfRangeException(nameof(target))
-    };
 
     private Project ProjectWith(params object[] children)
     {
@@ -150,7 +146,7 @@ public class ProjectServiceTests
     [Fact]
     public async Task DeleteAsync_con_task_chua_Done_thi_nem_Conflict_va_khong_luu_gi()
     {
-        var project = ProjectWith(TaskWithStatus(Status.InProgress));
+        var project = ProjectWith(TaskWithStatus(StatusCategory.InProgress));
         _authz.AuthorizeAsync(project.Id, ProjectAction.Delete, Arg.Any<CancellationToken>())
               .Returns(RoleInProject.ProjectManager);
         _projectRepo.GetForDeletionAsync(project.Id, Arg.Any<CancellationToken>()).Returns(project);
@@ -166,7 +162,7 @@ public class ProjectServiceTests
     [Fact]
     public async Task DeleteAsync_chi_con_task_Done_thi_cascade_ca_task_va_sprint()
     {
-        var task = TaskWithStatus(Status.Done);
+        var task = TaskWithStatus(StatusCategory.Done);
         var sprint = new Sprint { Id = Guid.NewGuid(), Name = "Sprint 1" };
         var project = ProjectWith(task, sprint);
         _authz.AuthorizeAsync(project.Id, ProjectAction.Delete, Arg.Any<CancellationToken>())
