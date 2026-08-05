@@ -6,6 +6,7 @@ import { Suspense } from 'react';
 
 import { BoardSkeleton } from '@/components/board/board-skeleton';
 import { BoardView } from '@/components/board/board-view';
+import { ManageColumnsDialog } from '@/components/board/manage-columns-dialog';
 import { SprintSwitcher } from '@/components/board/sprint-switcher';
 import { PageHeader } from '@/components/common/page-header';
 import { QueryError } from '@/components/common/query-error';
@@ -60,7 +61,16 @@ function BoardContent() {
   const taskCount = board.data?.columns.reduce((sum, column) => sum + column.tasks.length, 0);
 
   return (
-    <div className="grid gap-4">
+    // 🔴 `grid-cols-[minmax(0,1fr)]` là BẮT BUỘC, không phải trang trí.
+    //
+    // `BoardView` là một grid item cuộn ngang. `min-w-0` trên chính nó chưa đủ: một grid
+    // `grid` trần có track ngầm cỡ `auto`, và `auto` phân giải thành **max-content** — tức
+    // là track vẫn phồng theo tổng bề rộng mọi cột rồi đẩy tràn cả trang. Ràng track về
+    // `minmax(0,1fr)` mới cắt được đường đó.
+    //
+    // Đã đo: thiếu dòng này thì ở 375px `scrollWidth = 657` trong khi `clientWidth = 375`.
+    // Đây đúng lớp lỗi `min-width:auto` đã cắn dự án ba lần trong một phiên (xem §0a).
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4">
       <PageHeader
         title="Bảng công việc"
         count={taskCount}
@@ -73,9 +83,13 @@ function BoardContent() {
               value={sprintId}
               onChange={handleSprintChange}
             />
+            {/* Quản lý cột: PM-only, cùng ngưỡng quyền với tạo task
+                (`ProjectAction.ManageBoardColumns`, ADR-052). */}
+            {taskActions.canManage ? <ManageColumnsDialog projectId={id} /> : null}
+
             {/* MỘT nút tạo task ở đây, KHÔNG phải nút `+` trên từng cột:
-                `CreateTaskRequest` không có trường status nên task mới luôn là `ToDo` —
-                nút `+` trên cột Hoàn thành sẽ là một lời nói dối. */}
+                `CreateTaskRequest` không có trường cột nên task mới luôn rơi vào cột TRÁI
+                NHẤT — nút `+` trên cột "Hoàn thành" sẽ là một lời nói dối. */}
             {taskActions.canManage ? (
               <Button size="sm" onClick={taskActions.openCreate}>
                 <PlusIcon className="size-4" />
