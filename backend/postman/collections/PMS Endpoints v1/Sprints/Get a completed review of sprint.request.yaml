@@ -1,0 +1,26 @@
+$kind: http-request
+name: Get a completed review of sprint
+url: "{{api_url}}/sprints/:id/completion-review"
+method: GET
+pathVariables:
+  - key: id
+    value: ""
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4500565763863381

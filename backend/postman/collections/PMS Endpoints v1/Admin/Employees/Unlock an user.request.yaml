@@ -1,10 +1,10 @@
 $kind: http-request
-name: Change system role
-url: "{{api_url}}/admin/employees/:id/system-role"
-method: PUT
+name: Unlock an user
+url: "{{api_url}}/admin/employees/:id/unlock"
+method: POST
 pathVariables:
   - key: id
-    value: ""
+    value: cc7a6f95-251c-4d72-90cd-d397b70aadbc
     description: ""
     $type: |-
       {
@@ -19,10 +19,8 @@ pathVariables:
           "value"
         ]
       }
-body:
-  type: json
-  content: |-
-    {
-        "role": "User"
-    }
-order: 4176008205644637
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4026345559291799
