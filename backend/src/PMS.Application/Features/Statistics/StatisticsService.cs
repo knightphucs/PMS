@@ -30,7 +30,9 @@ public class StatisticsService : IStatisticsService
         var byAssignee = await _stats.TallyByAssigneeAsync(projectId, ct);
         var sprints = await _stats.TallyBySprintAsync(projectId, ct);
 
-        var done = byStatus.FirstOrDefault(s => s.Status == Status.Done)?.Count ?? 0;
+        // Cộng MỌI cột thuộc nhóm Done — sau ADR-052 một project có thể có nhiều cột kết
+        // thúc ("Đã ship", "Hủy bỏ"), nên lấy đúng một cột là đếm thiếu.
+        var done = byStatus.Where(s => s.Category == StatusCategory.Done).Sum(s => s.Count);
 
         var today = DateTime.UtcNow.Date;
 
@@ -39,8 +41,12 @@ public class StatisticsService : IStatisticsService
             total,
             overdue,
             total == 0 ? 0m : Math.Round((decimal)done / total * 100, 2),
-            ZeroFill(byStatus, t => t.Status, t => t.Count,
-                (status, count) => new StatusCount(status, count)),
+            // KHÔNG ZeroFill: `TallyByStatusAsync` đã bắt đầu từ bảng cột nên cột rỗng
+            // vốn đã có mặt với số 0. Danh mục cột nằm trong DB, không phải trong enum.
+            byStatus
+                .Select(s => new StatusCount(
+                    s.ColumnId, s.Name, s.Color, s.Order, s.Category, s.Count))
+                .ToList(),
             ZeroFill(byPriority, t => t.Priority, t => t.Count,
                 (priority, count) => new PriorityCount(priority, count)),
             byAssignee

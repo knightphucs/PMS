@@ -80,9 +80,12 @@ public class TaskAssignmentService : ITaskAssignmentService
 
         await _authz.AuthorizeTaskAsync(task, ProjectAction.SelfAssign, ct);
 
-        if (task.Status != Status.ToDo)
+        // ADR-052: kiểm theo NHÓM của cột, không theo tên cột. Một project đặt cột đầu tiên
+        // tên "Ý tưởng" hay "Chờ xếp lịch" vẫn tự nhận được, miễn nhóm là ToDo — còn so tên
+        // thì luật này sẽ chỉ chạy đúng với những project chưa đổi cấu hình board.
+        if (task.Category != StatusCategory.ToDo)
             throw new ConflictException(
-                $"Chỉ tự nhận được task đang ở trạng thái ToDo; task này đang {task.Status}. " +
+                $"Chỉ tự nhận được task chưa bắt đầu; task này đang ở '{task.BoardColumn.Name}'. " +
                 "Hãy nhờ ProjectManager gán nếu vẫn cần tham gia.");
 
         if (task.Assignments.Any(a => a.EmployeeId == actorId))

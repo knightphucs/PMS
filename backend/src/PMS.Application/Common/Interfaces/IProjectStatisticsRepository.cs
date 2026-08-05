@@ -7,7 +7,13 @@ namespace PMS.Application.Common.Interfaces;
 /// đổi tên. Tách riêng khỏi các repository CRUD vì đây thuần là truy vấn đọc/tổng hợp,
 /// không phục vụ vòng đời entity nào.
 /// </summary>
-public record StatusTally(Status Status, int Count);
+/// <summary>
+/// Đếm task theo CỘT (ADR-052) — trước đây là theo enum <c>Status</c>.
+/// Mang theo tên và màu vì biểu đồ phải vẽ đúng cột người dùng đã đặt, và
+/// <c>Category</c> để tính tỉ lệ hoàn thành mà không phải đoán từ tên.
+/// </summary>
+public record StatusTally(
+    Guid ColumnId, string Name, string Color, int Order, StatusCategory Category, int Count);
 public record PriorityTally(Priority Priority, int Count);
 public record AssigneeTally(Guid EmployeeId, string EmployeeName, int Total, int Done, int Overdue);
 public record SprintTally(

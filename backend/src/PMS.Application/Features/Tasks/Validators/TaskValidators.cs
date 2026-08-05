@@ -26,8 +26,11 @@ public class CreateTaskRequestValidator : AbstractValidator<CreateTaskRequest>
 public class ChangeTaskStatusRequestValidator : AbstractValidator<ChangeTaskStatusRequest>
 {
     public ChangeTaskStatusRequestValidator()
-        => RuleFor(x => x.Target)
-            .IsInEnum().WithMessage("Trạng thái đích không hợp lệ.");
+        // ADR-052: cột đích là dữ liệu của project, không còn là enum nên `IsInEnum`
+        // không còn nghĩa. Validator chỉ chặn được Guid rỗng; "cột này có thuộc project của
+        // task không" là câu hỏi cần DB nên nằm ở Service (trả 404).
+        => RuleFor(x => x.TargetColumnId)
+            .NotEmpty().WithMessage("Phải chọn cột đích.");
 }
 
 public class AssignTaskRequestValidator : AbstractValidator<AssignTaskRequest>

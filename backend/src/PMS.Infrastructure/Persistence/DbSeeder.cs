@@ -52,23 +52,23 @@ public static class DbSeeder
         // Task đã Done — đi qua đúng state machine, không gán thẳng Status
         var t1 = NewTask(project1, sprint1, an, "Thiết kế Class Diagram và ERD",
             Priority.High, dueOffset: -10);
-        Advance(t1, Status.Done);
+        Advance(t1, project1, Status.Done);
         t1.Labels.Add(lblBackend);
 
         var t2 = NewTask(project1, sprint1, an, "Cài đặt tầng Domain",
             Priority.Highest, dueOffset: -5);
-        Advance(t2, Status.Done);
+        Advance(t2, project1, Status.Done);
         t2.Labels.Add(lblBackend);
 
         var t3 = NewTask(project1, sprint1, binh, "Cấu hình EF Core và migration",
             Priority.High, dueOffset: 2);
-        Advance(t3, Status.Review);
+        Advance(t3, project1, Status.Review);
         t3.Labels.Add(lblBackend);
 
         // Task QUÁ HẠN — để demo Notification/IsOverdue
         var t4 = NewTask(project1, sprint1, an, "Viết tài liệu API",
             Priority.Medium, dueOffset: -3);
-        Advance(t4, Status.InProgress);
+        Advance(t4, project1, Status.InProgress);
         t4.Labels.Add(lblUrgent);
 
         var t5 = NewTask(project1, sprint2, binh, "Xây dựng ProjectController",
@@ -84,7 +84,7 @@ public static class DbSeeder
         t6.AddSubtask(sub1);
         t6.AddSubtask(sub2);
         t6.AddSubtask(sub3);
-        Advance(sub1, Status.Done);      // 1/3 = 33.33%
+        Advance(sub1, project1, Status.Done);      // 1/3 = 33.33%
 
         // Task ở Backlog (SprintId = null)
         var t7 = NewTask(project1, null, an, "Tích hợp SignalR real-time",
@@ -126,7 +126,7 @@ public static class DbSeeder
             "Dựng layout chính", startOffset: -7, endOffset: 7);
 
         var t9 = NewTask(project2, sprint3, binh, "Thiết kế trang chủ", Priority.High, dueOffset: 3);
-        Advance(t9, Status.InProgress);
+        Advance(t9, project2, Status.InProgress);
         t9.Labels.Add(lblFrontend);
 
         var t10 = NewTask(project2, sprint3, binh, "Tối ưu SEO", Priority.Low, dueOffset: 6);
@@ -140,7 +140,7 @@ public static class DbSeeder
         AddMember(project3, an,    RoleInProject.Member,         accepted: true);
 
         var t11 = NewTask(project3, null, cuong, "Dựng Docker Compose", Priority.High, dueOffset: -15);
-        Advance(t11, Status.Done);
+        Advance(t11, project3, Status.Done);
 
         await context.Projects.AddRangeAsync(new[] { project1, project2, project3 }, ct);
         await context.Sprints.AddRangeAsync(new[] { sprint1, sprint2, sprint3 }, ct);
@@ -191,11 +191,22 @@ public static class DbSeeder
     }
 
     private static Project NewProject(string name, string key, string description, int daysFromNow)
-        => new()
+    {
+        var project = new Project
         {
             Id = Guid.NewGuid(), Name = name, Key = key, Description = description,
             ExpectedCompletionDate = DateTime.UtcNow.AddDays(daysFromNow)
         };
+
+        // ⚠️ Hàm này dựng Project bằng object initializer chứ KHÔNG qua `Project.Create`
+        // (nó cần đặt sẵn Id và Key cho dữ liệu mẫu), nên phải tự cấp bốn cột mặc định —
+        // `Create` làm việc đó hộ, đường này thì không. Thiếu bước này thì mọi task seed
+        // không có cột nào để đứng và `Advance` ném ngay ở project đầu tiên.
+        foreach (var column in BoardColumn.CreateDefaults(project.Id))
+            project.BoardColumns.Add(column);
+
+        return project;
+    }
 
     private static void AddMember(Project project, Employee employee, RoleInProject role, bool accepted)
     {
@@ -238,23 +249,27 @@ public static class DbSeeder
     }
 
     /// <summary>
-    /// Đưa task tới trạng thái đích bằng cách đi ĐÚNG state machine (ToDo->InProgress->Review->Done).
-    /// Không gán thẳng Status vì setter là private — encapsulation vẫn được tôn trọng kể cả khi seed.
+    /// Đưa task tới cột tương ứng với một trạng thái mặc định (ADR-052).
+    ///
+    /// <para>
+    /// Trước đây hàm này đi từng bước qua state machine <c>ToDo→InProgress→Review→Done</c>
+    /// vì setter của <c>Status</c> là private. Nay không còn state machine — cột do người
+    /// dùng định nghĩa thì không có "bước kề" nào để đi — nên nó chỉ việc tìm đúng cột trong
+    /// bốn cột mặc định của project rồi gọi <c>MoveTo</c>.
+    /// </para>
+    /// <para>
+    /// ⚠️ Vẫn đi qua <c>MoveTo</c> chứ không gán thẳng hai trường: đó là người ghi DUY NHẤT
+    /// giữ <c>BoardColumnId</c> và <c>Category</c> khớp nhau. Seed data lệch bản sao đó sẽ
+    /// tạo ra một database dev mà mọi phép kiểm "xong chưa" trả lời sai — và vì nó là dữ
+    /// liệu mẫu nên sai đó sẽ theo vào mọi ảnh chụp màn hình lẫn mọi lần thử tay.
+    /// </para>
     /// </summary>
-    private static void Advance(TaskItem task, Status target)
+    private static void Advance(TaskItem task, Project project, Status target)
     {
-        var guard = 0;
-        while (task.Status != target && guard++ < 5)
-        {
-            var next = task.Status switch
-            {
-                Status.ToDo       => Status.InProgress,
-                Status.InProgress => Status.Review,
-                Status.Review     => Status.Done,
-                _                 => target
-            };
-            task.ChangeStatus(next);
-        }
+        // Bốn cột mặc định của `Project.Create` được cấp đúng theo thứ tự enum cũ, nên chỉ
+        // số của enum chính là `Order` của cột. Chỉ đúng với project vừa tạo qua
+        // `Project.Create` — seeder thì luôn như vậy.
+        task.MoveTo(project.BoardColumns.Single(c => c.Order == (int)target));
     }
 
     private static Comment NewComment(TaskItem task, Employee author, string content)

@@ -41,6 +41,13 @@ public interface ITaskRepository : IRepository<TaskItem>
         Guid projectId, CancellationToken ct = default);
     Task<IReadOnlyList<TaskItem>> GetBySprintAsync(Guid sprintId, CancellationToken ct = default);
     Task<IReadOnlyList<TaskItem>> GetUnfinishedBlockersAsync(Guid taskId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Việc của một người xuyên mọi dự án — chưa xong và có hạn ≤ <paramref name="todayUtc"/>
+    /// (gồm cả quá hạn). Nguồn của màn "Việc của tôi" (ADR-053).
+    /// </summary>
+    Task<IReadOnlyList<TaskItem>> GetMyDueTasksAsync(
+        Guid employeeId, DateTime todayUtc, CancellationToken ct = default);
     Task<IReadOnlyList<TaskItem>> GetOverdueAsync(CancellationToken ct = default);
 
     /// <summary>

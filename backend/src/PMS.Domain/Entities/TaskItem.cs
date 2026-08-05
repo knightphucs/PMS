@@ -8,8 +8,40 @@ public class TaskItem : BaseEntity, ISoftDeletable
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public DateTime? DueDate { get; set; }
-    public Status Status { get; private set; } = Status.ToDo;
     public Priority Priority { get; set; } = Priority.Medium;
+
+    /// <summary>Cột board mà task đang đứng — thay cho enum <c>Status</c> cũ (ADR-052).</summary>
+    public Guid BoardColumnId { get; set; }
+    public BoardColumn BoardColumn { get; set; } = null!;
+
+    /// <summary>
+    /// Nhóm ngữ nghĩa của cột hiện tại — <b>bản sao có chủ đích</b> của
+    /// <c>BoardColumn.Category</c>.
+    ///
+    /// <para>
+    /// 🔴 <b>Vì sao chấp nhận dữ liệu trùng, ngược với thói quen chuẩn hóa:</b> hai lý do,
+    /// cả hai đều đã có tiền lệ trả giá trong dự án này.
+    /// </para>
+    /// <para>
+    /// <b>1. Computed property đọc navigation là NRE chờ sẵn.</b> <see cref="IsOverdue"/> và
+    /// <see cref="SubtaskProgress"/> phải biết task đã kết thúc chưa. Nếu chúng đọc
+    /// <c>BoardColumn.Category</c> thì mọi query nào quên <c>Include(BoardColumn)</c> sẽ nổ
+    /// lúc chạy — đúng cái bẫy mà comment về <c>Project.Key</c> ở trên đã mô tả, và là lý do
+    /// mã task phải ghép ở Mapper chứ không ở entity (ADR-034).
+    /// </para>
+    /// <para>
+    /// <b>2. EF dịch được thành SQL phẳng.</b> 39 chỗ trong solution hỏi "xong chưa" bằng
+    /// <c>t.Status != Status.Done</c>; với cột này chúng thành <c>t.Category != Done</c> —
+    /// đổi đúng một định danh, <b>không phải viết lại query nào</b> và không thêm JOIN vào
+    /// những truy vấn nóng nhất (board, backlog, thống kê, job task quá hạn).
+    /// </para>
+    /// <para>
+    /// ⚠️ Cái giá là nó <b>trôi được</b>. Chốt chặn: <c>private set</c>, và người ghi duy
+    /// nhất là <see cref="MoveTo"/>. Khi sửa <c>Category</c> của một cột thì phải cập nhật
+    /// mọi task trong cột đó — <c>BoardColumnService</c> chịu trách nhiệm, và có test khóa.
+    /// </para>
+    /// </summary>
+    public StatusCategory Category { get; private set; } = StatusCategory.ToDo;
 
     /// <summary>
     /// Số thứ tự của task TRONG project — nửa sau của mã hiển thị kiểu Jira (<c>PMS-12</c>).
@@ -97,40 +129,61 @@ public class TaskItem : BaseEntity, ISoftDeletable
 
     public bool IsSubtask => ParentTaskId is not null;
 
-    public bool CanTransitionTo(Status target) => (Status, target) switch
+    /// <summary>
+    /// Chuyển task sang một cột khác. <b>Người ghi DUY NHẤT</b> của
+    /// <see cref="BoardColumnId"/> và <see cref="Category"/> — hai trường đó phải luôn đi
+    /// cùng nhau, nên không ai được đặt riêng lẻ.
+    ///
+    /// <para>
+    /// 🔴 <b>KHÔNG còn ma trận chuyển trạng thái</b> (ADR-052 thay thế ADR-021). Trước đây
+    /// <c>CanTransitionTo</c> liệt kê sáu cặp hợp lệ, và đó là luật đúng khi chỉ có bốn
+    /// trạng thái do hệ thống định nghĩa. Với cột do <b>người dùng</b> tạo thì không còn cơ
+    /// sở nào để nói cặp nào hợp lệ: hệ thống không biết "Chờ QA" đứng trước hay sau
+    /// "Đang sửa". Ép một luật lên đó là đoán hộ quy trình của người khác.
+    /// </para>
+    /// <para>
+    /// Hệ quả cần biết: <b>kéo thẻ về đúng cột nó đang đứng nay là no-op hợp lệ</b>, không
+    /// còn 409. Guard duy nhất còn lại là "task bị chặn thì không được sang cột
+    /// <see cref="StatusCategory.InProgress"/>", và nó nằm ở tầng Service vì cần truy vấn
+    /// TaskLink chứ không đọc được từ entity này.
+    /// </para>
+    /// </summary>
+    public void MoveTo(BoardColumn column)
     {
-        (Status.ToDo, Status.InProgress)   => true,
-        (Status.InProgress, Status.Review) => true,
-        (Status.InProgress, Status.ToDo)   => true,
-        (Status.Review, Status.Done)       => true,
-        (Status.Review, Status.InProgress) => true, 
-        (Status.Done, Status.Review)       => true,
-        _ => false
-    };
+        // DomainException chứ không phải ArgumentException: middleware chỉ map
+        // DomainException thành 409, ngoại lệ khác rơi vào catch-all và trả 500 (ADR-011).
+        if (column.ProjectId != ProjectId)
+            throw new DomainException("Không thể chuyển task sang cột của một project khác.");
 
-    public void ChangeStatus(Status target)
-    {
-        if (!CanTransitionTo(target))
-            throw new DomainException(
-                $"Không thể chuyển trạng thái từ {Status} sang {target}.");
-        Status = target;
+        BoardColumnId = column.Id;
+        BoardColumn = column;
+        Category = column.Category;
     }
+
+    /// <summary>
+    /// Đồng bộ lại <see cref="Category"/> khi cột ĐỔI NHÓM mà task không đi đâu cả.
+    /// Chỉ <c>BoardColumnService</c> gọi, ngay sau khi ghi nhóm mới lên cột.
+    /// </summary>
+    public void SyncCategory(StatusCategory category) => Category = category;
 
     // IsOverdue/SubtaskProgress là property computed (không lưu cứng - xem §5 ARCHITECTURE).
     // Để là property thay vì method vì Mapperly chỉ map được property; nhờ đó TaskMapper
     // không cần map thủ công. EF Core bỏ qua property get-only không có backing field —
     // IsSubtask ở dưới đã chứng minh điều đó chạy được với cấu hình hiện tại.
+    //
+    // 📌 Cả hai đọc `Category` (trường lưu cứng trên chính task) chứ KHÔNG đọc
+    // `BoardColumn.Category` — xem chú thích dài ở `Category` để biết vì sao.
     public bool IsOverdue
         => DueDate.HasValue
            && DueDate.Value.Date < DateTime.UtcNow.Date
-           && Status != Status.Done;
+           && Category != StatusCategory.Done;
 
     public decimal SubtaskProgress
     {
         get
         {
             if (Subtasks.Count == 0) return 0m;
-            var done = Subtasks.Count(s => s.Status == Status.Done);
+            var done = Subtasks.Count(s => s.Category == StatusCategory.Done);
             return Math.Round((decimal)done / Subtasks.Count * 100, 2);
         }
     }

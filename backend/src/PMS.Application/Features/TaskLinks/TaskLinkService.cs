@@ -146,6 +146,6 @@ public class TaskLinkService : ITaskLinkService
             related.Id,
             TaskMapper.FormatCode(related.Project.Key, related.Number),
             related.Name,
-            related.Status);
+            TaskMapper.ToStatusRef(related));
     }
 }

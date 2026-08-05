@@ -1,3 +1,4 @@
+using PMS.Application.Features.BoardColumns;
 using PMS.Application.Features.Labels;
 using PMS.Domain.Enums;
 
@@ -31,6 +32,23 @@ public record AssignTaskRequest(Guid EmployeeId, RoleInTask Role);
 /// </summary>
 public record TaskCardAssignee(Guid EmployeeId, string EmployeeName);
 
+/// <summary>
+/// Trạng thái đính trên MỘT task — rút gọn từ <c>BoardColumn</c> (ADR-052).
+///
+/// <para>
+/// Cố ý bỏ <c>Order</c>: thẻ không cần biết cột đứng thứ mấy, và board trả về hàng chục
+/// thẻ một lượt nên mỗi trường thừa nhân lên theo số thẻ — cùng lý do
+/// <see cref="TaskCardAssignee"/> đã bị cắt gọn. Cần danh sách cột đầy đủ (để dựng ô chọn
+/// hay quản lý cột) thì gọi <c>GET /projects/{id}/columns</c>.
+/// </para>
+/// <para>
+/// 🔴 <c>Category</c> phải có mặt ở đây: frontend cần biết task đã kết thúc chưa để gạch
+/// ngang tên, ẩn nút, tô màu quá hạn — và nó <b>không được suy từ TÊN cột</b>, vì tên là
+/// chuỗi do người dùng đặt.
+/// </para>
+/// </summary>
+public record TaskStatusRef(Guid ColumnId, string Name, string Color, StatusCategory Category);
+
 public record TaskSummaryResponse(
     Guid Id,
     /// <summary>Số thứ tự trong project. Cần khi muốn sắp xếp hoặc tra cứu bằng số.</summary>
@@ -42,7 +60,7 @@ public record TaskSummaryResponse(
     /// </summary>
     string Code,
     string Name,
-    Status Status,
+    TaskStatusRef Status,
     Priority Priority,
     DateTime? DueDate,
     bool IsOverdue,
@@ -52,15 +70,63 @@ public record TaskSummaryResponse(
     IReadOnlyList<TaskCardAssignee> Assignees,
     IReadOnlyList<LabelResponse> Labels);
 
+/// <summary>
+/// Một task trong màn "Việc của tôi" — task tóm tắt kèm DỰ ÁN chứa nó.
+///
+/// <para>
+/// Đây là endpoint XUYÊN DỰ ÁN duy nhất của hệ thống, nên nó là chỗ duy nhất mà
+/// <c>TaskSummaryResponse</c> không đủ: mọi endpoint task khác đều nằm dưới
+/// <c>/projects/{id}/…</c> nên client đã biết project từ URL, còn ở đây thì không.
+/// </para>
+/// </summary>
+public record MyTaskResponse(
+    TaskSummaryResponse Task,
+    Guid ProjectId,
+    string ProjectName,
+    string ProjectKey);
+
+/// <summary>
+/// Kết quả gom sẵn theo dự án. Gom ở SERVER chứ không để client tự <c>groupBy</c>: thứ tự
+/// dự án và cách đếm phải giống nhau giữa mọi màn hình, và client gom sẽ phải tự quyết định
+/// những thứ đó một lần nữa.
+/// </summary>
+public record MyWorkGroup(
+    Guid ProjectId,
+    string ProjectName,
+    string ProjectKey,
+    IReadOnlyList<TaskSummaryResponse> Tasks);
+
+public record MyWorkResponse(
+    /// <summary>Mốc "hôm nay" mà SERVER dùng để lọc, theo UTC. Trả về để client hiển thị
+    /// đúng phạm vi đang xem thay vì tự tính lại rồi lệch múi giờ (ADR-046b).</summary>
+    DateTime Today,
+    int TotalTasks,
+    int OverdueTasks,
+    IReadOnlyList<MyWorkGroup> Groups);
+
 public record TaskAssigneeResponse(
     Guid EmployeeId,
     string EmployeeName,
     RoleInTask RoleInTask,
     DateTime AssignedDate);
 
-public record BoardColumn(Status Status, IReadOnlyList<TaskSummaryResponse> Tasks);
+/// <summary>
+/// Một cột trên board kèm các task trong đó.
+///
+/// ⚠️ Tên cũ của record này là <c>BoardColumn</c>; đổi thành <c>BoardColumnGroup</c> vì
+/// ADR-052 đưa <c>BoardColumn</c> thành một ENTITY thật trong <c>PMS.Domain.Entities</c>.
+/// Giữ nguyên tên sẽ là hai kiểu cùng tên ở hai namespace mà file nào cũng <c>using</c> cả
+/// hai — kiểu va chạm chỉ hiện ra bằng lỗi biên dịch khó đọc.
+/// </summary>
+public record BoardColumnGroup(BoardColumnResponse Column, IReadOnlyList<TaskSummaryResponse> Tasks);
 
-public record BoardResponse(Guid ProjectId, Guid? SprintId, IReadOnlyList<BoardColumn> Columns);
+/// <summary>
+/// Board <b>luôn trả đủ MỌI cột của project</b>, kể cả cột rỗng — hợp đồng này có từ trước
+/// ADR-052 và không đổi, chỉ khác là số cột nay do người dùng quyết định chứ không cố định 4.
+/// Frontend không phải tự dựng cột thiếu, và thứ tự trái→phải lấy từ <c>Column.Order</c>.
+/// </summary>
+public record BoardResponse(
+    Guid ProjectId, Guid? SprintId, IReadOnlyList<BoardColumnGroup> Columns);
 
 public record TaskDetailResponse(
     Guid Id,
@@ -68,7 +134,7 @@ public record TaskDetailResponse(
     string Code,
     string Name,
     string? Description,
-    Status Status,
+    TaskStatusRef Status,
     Priority Priority,
     DateTime? DueDate,
     bool IsOverdue,
