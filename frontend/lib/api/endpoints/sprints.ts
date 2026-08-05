@@ -1,4 +1,10 @@
-import type { CreateSprintRequest, SprintResponse, UpdateSprintRequest } from '@/types/sprint';
+import type {
+  CompleteSprintRequest,
+  CreateSprintRequest,
+  SprintCompletionPreview,
+  SprintResponse,
+  UpdateSprintRequest,
+} from '@/types/sprint';
 
 import { apiFetch } from '../http';
 
@@ -26,4 +32,33 @@ export function updateSprint(id: string, body: UpdateSprintRequest) {
  */
 export function deleteSprint(id: string) {
   return apiFetch<void>(`/sprints/${id}`, { method: 'DELETE' });
+}
+
+/**
+ * Bắt đầu sprint (ADR-050). Idempotent — gọi lại trên sprint đang chạy trả 200.
+ *
+ * **409** khi project đã có sprint KHÁC đang chạy (tối đa một), hoặc sprint này đã đóng.
+ */
+export function startSprint(id: string) {
+  return apiFetch<SprintResponse>(`/sprints/${id}/start`, { method: 'POST' });
+}
+
+/**
+ * Xem trước việc đóng sprint — số task chưa xong và danh sách sprint đích hợp lệ.
+ *
+ * Gọi TRƯỚC khi mở dialog đóng: hỏi "task chưa xong đi đâu" mà không nói có bao nhiêu task
+ * và đi được sang đâu thì người dùng không có cơ sở nào để chọn.
+ */
+export function previewSprintCompletion(id: string, signal?: AbortSignal) {
+  return apiFetch<SprintCompletionPreview>(`/sprints/${id}/completion-preview`, { signal });
+}
+
+/**
+ * Đóng sprint (ADR-050).
+ *
+ * **409** khi sprint chưa bắt đầu hoặc đã đóng · **400** khi sprint đích đã đóng hoặc trùng
+ * chính nó · **404** khi sprint đích thuộc project khác.
+ */
+export function completeSprint(id: string, body: CompleteSprintRequest) {
+  return apiFetch<SprintResponse>(`/sprints/${id}/complete`, { method: 'POST', body });
 }
