@@ -5,7 +5,7 @@ import Link from 'next/link';
 
 import { AvatarStack } from '@/components/common/avatar-stack';
 import { PriorityLabel } from '@/components/tasks/priority-icon';
-import { StatusBadge } from '@/components/projects/status-badge';
+import { TaskStatusChip } from '@/components/tasks/task-status-chip';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -71,7 +71,9 @@ export function BacklogTable({
                   </Link>
                 </TableCell>
                 <TableCell>
-                  <StatusBadge status={task.status} />
+                  {/* 🔴 KHÔNG dùng `StatusBadge` — đó là badge của trạng thái PROJECT (enum
+                      bốn giá trị). Trạng thái task nay là một CỘT mang màu riêng (ADR-052). */}
+                  <TaskStatusChip status={task.status} />
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   <PriorityLabel priority={task.priority} />

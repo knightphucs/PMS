@@ -1,4 +1,3 @@
-import type { Status } from '@/types/enums';
 import type { BoardResponse, TaskSummaryResponse } from '@/types/task';
 
 /**
@@ -9,7 +8,7 @@ import type { BoardResponse, TaskSummaryResponse } from '@/types/task';
  */
 
 /**
- * Gỡ task khỏi cột nguồn, thêm vào CUỐI cột đích, đổi `status`.
+ * Gỡ task khỏi cột nguồn, thêm vào CUỐI cột đích, đổi tham chiếu cột trong `status`.
  *
  * Trả về chính `board` nếu không tìm thấy task — người gọi so sánh tham chiếu được và
  * TanStack sẽ không re-render vô ích.
@@ -17,30 +16,30 @@ import type { BoardResponse, TaskSummaryResponse } from '@/types/task';
 export function moveTaskInBoard(
   board: BoardResponse,
   taskId: string,
-  target: Status,
+  targetColumnId: string,
 ): BoardResponse {
   const moved = board.columns.flatMap((column) => column.tasks).find((t) => t.id === taskId);
-  if (!moved || moved.status === target) return board;
+  if (!moved || moved.status.columnId === targetColumnId) return board;
+  const targetColumn = board.columns.find((group) => group.column.id === targetColumnId)?.column;
+  if (!targetColumn) return board;
 
   const updated: TaskSummaryResponse = {
     ...moved,
-    status: target,
-    // ⚠️ Trường tính sẵn DUY NHẤT được phép sờ vào ở đây, và chỉ vì luật của nó nằm
-    // ngay trong entity: `TaskItem.IsOverdue` có `&& Status != Status.Done`. Task chuyển
-    // sang Done thì hết quá hạn, tức khắc.
-    //
-    // Mọi trường tính sẵn khác (`subtaskProgress`) giữ NGUYÊN — không có luật nào cho
-    // phép suy ra giá trị mới ở client, và lượt invalidate ở `onSettled` sẽ chữa lành.
-    isOverdue: target === 'Done' ? false : moved.isOverdue,
+    status: {
+      columnId: targetColumn.id,
+      name: targetColumn.name,
+      color: targetColumn.color,
+      category: targetColumn.category,
+    },
   };
 
   return {
     ...board,
     columns: board.columns.map((column) => {
-      if (column.status === moved.status) {
+      if (column.column.id === moved.status.columnId) {
         return { ...column, tasks: column.tasks.filter((t) => t.id !== taskId) };
       }
-      if (column.status === target) {
+      if (column.column.id === targetColumnId) {
         return { ...column, tasks: [...column.tasks, updated] };
       }
       return column;
@@ -62,14 +61,23 @@ export function patchTaskInBoard(board: BoardResponse, task: TaskSummaryResponse
     column.tasks.some((t) => t.id === task.id),
   );
   if (!current) return board;
-  if (current.status !== task.status) {
-    return patchTaskInBoard(moveTaskInBoard(board, task.id, task.status), task);
+
+  if (current.column.id !== task.status.columnId) {
+    const movedBoard = moveTaskInBoard(board, task.id, task.status.columnId);
+
+    // 🔴 Chốt chặn ĐỆ QUY VÔ HẠN, không phải phòng thủ thừa. `moveTaskInBoard` trả về CHÍNH
+    // `board` khi cột đích không có trên board đang xem — chuyện xảy ra thật sau ADR-052:
+    // người khác vừa tạo một cột mới, hoặc board đang lọc theo sprint. Không có dòng này
+    // thì hàm gọi lại chính nó với đúng đối số cũ, mãi mãi, và tab treo cứng.
+    if (movedBoard === board) return board;
+
+    return patchTaskInBoard(movedBoard, task);
   }
 
   return {
     ...board,
     columns: board.columns.map((column) =>
-      column.status === task.status
+      column.column.id === task.status.columnId
         ? { ...column, tasks: column.tasks.map((t) => (t.id === task.id ? task : t)) }
         : column,
     ),

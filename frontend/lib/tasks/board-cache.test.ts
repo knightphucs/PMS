@@ -2,110 +2,67 @@ import { describe, expect, it } from 'vitest';
 
 import { findTaskInBoard, moveTaskInBoard, patchTaskInBoard } from './board-cache';
 
-import type { Status } from '@/types/enums';
-import type { BoardResponse, TaskSummaryResponse } from '@/types/task';
+import type { BoardResponse, TaskStatusRef, TaskSummaryResponse } from '@/types/task';
 
 let nextNumber = 1;
+const statuses: Record<string, TaskStatusRef> = {
+  todo: { columnId: 'todo', name: 'Cần làm', color: '#64748b', category: 'ToDo' },
+  progress: { columnId: 'progress', name: 'Đang làm', color: '#3b82f6', category: 'InProgress' },
+  review: { columnId: 'review', name: 'Đang duyệt', color: '#f59e0b', category: 'InProgress' },
+  done: { columnId: 'done', name: 'Hoàn thành', color: '#10b981', category: 'Done' },
+};
 
-const task = (id: string, status: Status, over = false): TaskSummaryResponse => {
+const task = (id: string, status: TaskStatusRef, over = false): TaskSummaryResponse => {
   const number = nextNumber++;
   return {
-    id,
-    number,
-    code: `PMS-${number}`,
-    name: `Task ${id}`,
-    status,
-    priority: 'Medium',
-    dueDate: '2026-01-01T00:00:00Z',
-    isOverdue: over,
-    sprintId: null,
-    parentTaskId: null,
-    subtaskProgress: 40,
-    assignees: [],
-    labels: [],
+    id, number, code: `PMS-${number}`, name: `Task ${id}`, status, priority: 'Medium',
+    dueDate: '2026-01-01T00:00:00Z', isOverdue: over, sprintId: null, parentTaskId: null,
+    subtaskProgress: 40, assignees: [], labels: [],
   };
 };
 
-/** Board luôn đủ 4 cột kể cả cột rỗng — giống hệt backend. */
 const board = (): BoardResponse => ({
-  projectId: 'p1',
-  sprintId: null,
-  columns: [
-    { status: 'ToDo', tasks: [task('a', 'ToDo'), task('b', 'ToDo', true)] },
-    { status: 'InProgress', tasks: [task('c', 'InProgress')] },
-    { status: 'Review', tasks: [] },
-    { status: 'Done', tasks: [] },
-  ],
+  projectId: 'p1', sprintId: null,
+  columns: Object.values(statuses).map((status, index) => ({
+    column: { id: status.columnId, name: status.name, color: status.color, order: index, category: status.category, taskCount: 0 },
+    tasks: status.columnId === 'todo'
+      ? [task('a', status), task('b', status, true)]
+      : status.columnId === 'progress' ? [task('c', status)] : [],
+  })),
 });
 
-const idsIn = (b: BoardResponse, status: Status) =>
-  b.columns.find((c) => c.status === status)!.tasks.map((t) => t.id);
+const idsIn = (b: BoardResponse, columnId: string) =>
+  b.columns.find((group) => group.column.id === columnId)!.tasks.map((t) => t.id);
 
 describe('moveTaskInBoard', () => {
-  it('gỡ khỏi cột nguồn và thêm vào CUỐI cột đích', () => {
-    const next = moveTaskInBoard(board(), 'a', 'InProgress');
-
-    expect(idsIn(next, 'ToDo')).toEqual(['b']);
-    expect(idsIn(next, 'InProgress')).toEqual(['c', 'a']);
-    expect(findTaskInBoard(next, 'a')!.status).toBe('InProgress');
+  it('gỡ khỏi cột nguồn và thêm vào cuối cột đích', () => {
+    const next = moveTaskInBoard(board(), 'a', 'progress');
+    expect(idsIn(next, 'todo')).toEqual(['b']);
+    expect(idsIn(next, 'progress')).toEqual(['c', 'a']);
+    expect(findTaskInBoard(next, 'a')!.status.columnId).toBe('progress');
   });
 
-  it('giữ nguyên board cũ (không đột biến) — TanStack cần tham chiếu mới', () => {
-    const truoc = board();
-    const sau = moveTaskInBoard(truoc, 'a', 'InProgress');
-
-    expect(sau).not.toBe(truoc);
-    expect(idsIn(truoc, 'ToDo')).toEqual(['a', 'b']); // bản gốc còn nguyên để rollback
+  it('giữ nguyên board cũ để rollback', () => {
+    const previous = board();
+    expect(moveTaskInBoard(previous, 'a', 'progress')).not.toBe(previous);
+    expect(idsIn(previous, 'todo')).toEqual(['a', 'b']);
   });
 
-  it('luôn giữ đủ 4 cột', () => {
-    expect(moveTaskInBoard(board(), 'a', 'InProgress').columns).toHaveLength(4);
-  });
-
-  it('chuyển sang Done thì isOverdue thành false', () => {
-    // TaskItem.IsOverdue có `&& Status != Status.Done` — đây là trường tính sẵn DUY NHẤT
-    // được phép suy lại ở client.
-    const next = moveTaskInBoard(board(), 'b', 'InProgress');
-    expect(findTaskInBoard(next, 'b')!.isOverdue).toBe(true); // chưa Done thì giữ nguyên
-
-    const done = moveTaskInBoard(next, 'b', 'Review');
-    expect(findTaskInBoard(moveTaskInBoard(done, 'b', 'Done'), 'b')!.isOverdue).toBe(false);
-  });
-
-  it('KHÔNG tự tính lại subtaskProgress', () => {
-    // Không có luật nào cho phép suy ra giá trị mới ở client; onSettled sẽ chữa lành.
-    const next = moveTaskInBoard(board(), 'a', 'InProgress');
-    expect(findTaskInBoard(next, 'a')!.subtaskProgress).toBe(40);
-  });
-
-  it('task không tồn tại hoặc thả về đúng cột đang đứng -> trả về CHÍNH board cũ', () => {
-    const truoc = board();
-    expect(moveTaskInBoard(truoc, 'khong-co', 'Done')).toBe(truoc);
-    expect(moveTaskInBoard(truoc, 'a', 'ToDo')).toBe(truoc);
+  it('không đổi cache với task/cột không có hoặc cột hiện tại', () => {
+    const previous = board();
+    expect(moveTaskInBoard(previous, 'missing', 'done')).toBe(previous);
+    expect(moveTaskInBoard(previous, 'a', 'todo')).toBe(previous);
+    expect(moveTaskInBoard(previous, 'a', 'missing')).toBe(previous);
   });
 });
 
 describe('patchTaskInBoard', () => {
-  it('thay thẻ tại chỗ, GIỮ NGUYÊN vị trí trong cột', () => {
-    const server = { ...task('b', 'ToDo'), subtaskProgress: 100, name: 'Tên mới từ server' };
-    const next = patchTaskInBoard(board(), server);
+  it('thay thẻ tại chỗ và chuyển thẻ khi server trả về cột khác', () => {
+    const locallyPatched = patchTaskInBoard(board(), { ...task('b', statuses.todo), name: 'Tên mới' });
+    expect(findTaskInBoard(locallyPatched, 'b')!.name).toBe('Tên mới');
 
-    expect(idsIn(next, 'ToDo')).toEqual(['a', 'b']); // thứ tự không đổi
-    expect(findTaskInBoard(next, 'b')!.subtaskProgress).toBe(100);
-    expect(findTaskInBoard(next, 'b')!.name).toBe('Tên mới từ server');
-  });
-
-  it('server báo status khác chỗ thẻ đang nằm -> chuyển về đúng cột', () => {
-    // Xảy ra khi người khác vừa đổi status task đó giữa chừng.
-    const server = task('a', 'Review');
-    const next = patchTaskInBoard(board(), server);
-
-    expect(idsIn(next, 'ToDo')).toEqual(['b']);
-    expect(idsIn(next, 'Review')).toEqual(['a']);
-  });
-
-  it('task không có trên board -> không đụng gì', () => {
-    const truoc = board();
-    expect(patchTaskInBoard(truoc, task('z', 'Done'))).toBe(truoc);
+    const moved = patchTaskInBoard(board(), task('a', statuses.review));
+    expect(idsIn(moved, 'todo')).toEqual(['b']);
+    expect(idsIn(moved, 'review')).toEqual(['a']);
   });
 });

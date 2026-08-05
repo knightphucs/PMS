@@ -5,13 +5,11 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { PriorityIcon } from '@/components/tasks/priority-icon';
-import { STATUS_TONE } from '@/components/tasks/status-tone';
+import { TaskStatusDot } from '@/components/tasks/task-status-chip';
 import { TaskFormDialog } from '@/components/tasks/task-form-dialog';
 import { TaskSection } from '@/components/tasks/task-section';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { cn } from '@/lib/utils';
-import { STATUS_LABEL } from '@/types/enums';
 import type { TaskDetailResponse } from '@/types/task';
 
 export function TaskSubtasks({
@@ -69,10 +67,9 @@ export function TaskSubtasks({
                   href={`/projects/${projectId}/tasks/${subtask.id}`}
                   className="hover:bg-accent flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors"
                 >
-                  <span
-                    className={cn('size-2 shrink-0 rounded-full', STATUS_TONE[subtask.status].dot)}
-                    title={STATUS_LABEL[subtask.status]}
-                  />
+                  {/* Chấm màu lấy từ CỘT (ADR-052) — không tra bảng enum nữa. `title` mang
+                      tên cột do người dùng đặt, nên nó cũng là chú thích duy nhất đúng. */}
+                  <TaskStatusDot status={subtask.status} />
                   {/* Mã do backend ghép sẵn (ADR-034) — đừng nối projectKey + number. */}
                   <span className="text-muted-foreground shrink-0 font-medium tabular-nums">
                     {subtask.code}
