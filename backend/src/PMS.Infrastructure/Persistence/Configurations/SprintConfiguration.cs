@@ -14,8 +14,11 @@ public class SprintConfiguration : IEntityTypeConfiguration<Sprint>
         builder.Property(s => s.Name).IsRequired().HasMaxLength(200);
         builder.Property(s => s.Goal).HasMaxLength(500);
         builder.Property(s => s.IsDeleted).HasDefaultValue(false);
+        builder.Property(s => s.Status).IsRequired();
 
         builder.HasIndex(s => s.ProjectId);
+        // Tra "sprint đang chạy của project này" là truy vấn nóng của mọi màn Sprint/Backlog.
+        builder.HasIndex(s => new { s.ProjectId, s.Status });
         builder.HasIndex(s => s.IsDeleted);
 
         // Restrict: nếu SetNull sẽ tạo 2 đường cascade từ Projects tới Tasks
