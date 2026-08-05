@@ -13,7 +13,14 @@ import { useSelectedLayoutSegment } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
 
-const TABS: { segment: string; label: string; icon: LucideIcon }[] = [
+/**
+ * Năm khu vực của MỘT dự án — nguồn sự thật duy nhất.
+ *
+ * Export vì `SidebarNav` dựng lại đúng năm mục này thành khối "ngữ cảnh dự án" (2026-08-05).
+ * Chép tay sang đó thì thêm một tab ở đây sẽ âm thầm để sidebar thiếu một mục — đúng lớp
+ * lỗi "hai nơi định dạng thì chắc chắn có lúc lệch" mà ADR-034 đã trả giá một lần.
+ */
+export const PROJECT_SECTIONS: { segment: string; label: string; icon: LucideIcon }[] = [
   { segment: 'board', label: 'Bảng', icon: KanbanSquareIcon },
   { segment: 'backlog', label: 'Backlog', icon: ListTodoIcon },
   { segment: 'sprints', label: 'Sprint', icon: TimerIcon },
@@ -38,7 +45,7 @@ export function ProjectTabs({ projectId }: { projectId: string }) {
 
   return (
     <nav aria-label="Khu vực của dự án" className="-mb-px flex gap-1 overflow-x-auto">
-      {TABS.map(({ segment, label, icon: Icon }) => {
+      {PROJECT_SECTIONS.map(({ segment, label, icon: Icon }) => {
         const isActive = active === segment;
 
         return (
