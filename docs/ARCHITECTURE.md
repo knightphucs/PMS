@@ -5,18 +5,23 @@
 > Mục đích: đảm bảo tính nhất quán xuyên suốt quá trình phát triển, và làm tài liệu
 > tham chiếu cho báo cáo thực tập tốt nghiệp.
 >
-> Cập nhật lần cuối: 2026-08-04 (phiên Phân quyền permission — nhóm Admin, Thống kê, mật khẩu, vá nợ backend)
+> Cập nhật lần cuối: **2026-08-05** (phiên **cột board tuỳ biến + vòng đời Sprint + Việc của tôi** — ADR-050/052/053)
 
 > ## 🧭 Bắt đầu phiên mới ở đây
-> **Trạng thái: KHÔNG CÒN MÀN HÌNH NÀO ⬜ trong lộ trình ban đầu.** 489 test backend
-> (232 unit + 257 integration) + 79 test frontend, build 0 warning **và nay có
+> **Trạng thái: KHÔNG CÒN MÀN HÌNH NÀO ⬜ trong lộ trình ban đầu.** **480 test backend
+> (223 unit + 257 integration) + 69 test frontend**, build 0 warning **và có
 > `TreatWarningsAsErrors`** nên con số đó là một điều kiện chứ không còn là một quan sát.
 >
-> Phiên 2026-08-04 làm sáu việc: đổi mô hình phân quyền tầng 1 sang **claim `permission` lấy
-> từ DB**, dựng **nhóm Quản trị 4 màn**, **tab Thống kê**, **hai màn mật khẩu**, vá **nợ
-> backend**, và sửa một lỗi chạm tới mọi màn hình.
+> ⚠️ **Hai con số test GIẢM so với bản trước (489 → 480 backend, 89 → 69 frontend) và đó là
+> ĐÚNG, không phải mất test.** ADR-052 gỡ ma trận chuyển trạng thái, nên ~29 test khóa một
+> luật **không còn tồn tại** đã bị xóa cùng thứ chúng bảo vệ. Ba trong số đó bị **đảo chiều**
+> chứ không xóa (409 → 200) — xem bảng trong ADR-052. Đừng "khôi phục" chúng.
 >
-> ### 🔑 Bốn điều của phiên này phải biết trước khi đụng vào code
+> Phiên 2026-08-05 làm ba việc lớn: **cột board tuỳ biến theo từng project** (ADR-052 — thay
+> đổi lớn nhất dự án tính tới nay), **vòng đời Sprint** (ADR-050, mở khóa velocity), và
+> **"Việc của tôi" xuyên dự án** (ADR-053).
+>
+> ### 🔑 Sáu điều phải biết trước khi đụng vào code
 > - **Phân quyền tầng 1 nay là DỮ LIỆU, không phải code** (ADR-045). Năm mã trong danh mục
 >   **ĐÓNG** ở `SystemPermissions.cs`, lưu ở hai bảng seed bằng `HasData`, sửa được ở
 >   `/admin/roles`. Tên policy **chính là** mã quyền; `require-system-admin` và
@@ -30,20 +35,35 @@
 > - 🔴 **Mọi cột `DateTime` có `ValueConverter`** đóng dấu `Kind=Utc` lúc đọc (ADR-046b). Hệ
 >   quả bắt buộc nhớ: **EF KHÔNG dịch được `.Date` trên cột đã chuyển đổi** — nó ném lúc chạy
 >   thành HTTP 500. Lọc theo ngày phải so thẳng với mốc nửa đêm (`DueDate < today`).
-> - 🔴 **`min-width:auto` của grid/flex item** là lớp lỗi bố cục đã cắn **ba lần** trong một
->   phiên (dialog Task tràn chữ, board lệch 8px, thống kê lệch 104px). Và **`break-words`
->   KHÔNG sửa được nó**: `overflow-wrap` cho phép ngắt để khỏi tràn nhưng **không làm giảm
->   min-content**. Cách sửa gốc là `min-w-0` (+ `grid-cols-[minmax(0,1fr)]` khi con lại là
->   grid item).
+> - 🔴 **`min-width:auto` của grid/flex item** là lớp lỗi bố cục đã cắn **năm lần** (dialog
+>   Task tràn chữ, board lệch 8px, thống kê lệch 104px, và 2026-08-05 thêm hai lần: board
+>   cuộn ngang, hàng nút `PageHeader` ba nút ở 375px). Và **`break-words` KHÔNG sửa được
+>   nó**: `overflow-wrap` cho phép ngắt để khỏi tràn nhưng **không làm giảm min-content**.
+>   Cách sửa gốc là `min-w-0` (+ `grid-cols-[minmax(0,1fr)]` khi con lại là grid item, +
+>   `flex-wrap` khi là hàng nút).
+> - 🔴 **Trạng thái task KHÔNG còn là enum** (ADR-052). Nó là một **cột** thuộc project, mang
+>   `columnId`/`name`/`color` do người dùng đặt. Mọi phép kiểm "task xong chưa" phải đọc
+>   `category` (`ToDo`/`InProgress`/`Done`), **không so tên cột và không so id với hằng nào**.
+>   `STATUS_TONE` ở frontend nay CHỈ dùng cho trạng thái **project**; task dùng
+>   `TaskStatusChip`.
+> - 🔴 **`TaskItem.Category` là bản sao CÓ CHỦ ĐÍCH của `BoardColumn.Category`** — xem ADR-052
+>   để biết vì sao chấp nhận dữ liệu trùng. Người ghi duy nhất là `TaskItem.MoveTo`; đổi nhóm
+>   của một cột **bắt buộc** gọi `SyncTaskCategoriesAsync` cho mọi task trong cột đó.
 >
-> ### ➡️ Phiên tiếp theo — chọn một trong ba, không cái nào chặn cái nào
-> 1. **Vòng đời Sprint** — hạng mục cuối còn lại của backend tầng 3 (ba cái kia đã xong,
->    ADR-048). ⚠️ Cần một **quyết định sản phẩm** trước khi gõ code: *task chưa xong đi đâu
->    khi đóng sprint?* — về Backlog, sang sprint kế, hay hỏi người dùng lúc đóng như Jira.
->    Nhiều câu trả lời đều bảo vệ được, nên **chốt và viết ADR riêng trước**. Chi tiết §1 mục E.
-> 2. **Nhóm báo cáo kiểu Jira** — backlog insight, velocity, report, timeline. Phiên riêng.
-> 3. **Áp kỹ thuật DB** — trigger, stored procedure, view, index. Phiên riêng. *(Xa hơn:
->    Elasticsearch cho Search toàn cục, Redis cho cache + rate limit phân tán.)*
+> ### ➡️ Phiên tiếp theo — hai hạng mục, không cái nào chặn cái nào
+> 1. **Nhóm báo cáo kiểu Jira** — backlog insight, velocity, report, timeline.
+>    ✅ **Velocity nay ĐÃ mở khóa**: `Sprint.CompletedAt` là mốc đo (ADR-050 đã cài đặt
+>    2026-08-05). Sidebar đã có sẵn nhóm **LẬP KẾ HOẠCH** để thêm mục "Báo cáo" (ADR-051).
+>    ⚠️ Đọc ADR-052 trước khi tính toán bất cứ thứ gì theo trạng thái: **cột là dữ liệu của
+>    từng project**, nên biểu đồ phải gom theo `columnId`/`category`, không theo một enum
+>    cố định — và số cột khác nhau giữa các project.
+> 2. **Áp kỹ thuật DB** — trigger, stored procedure, view, index. ⚠️ **Không có giao diện
+>    nào** — đừng kỳ vọng nó lấp chỗ trên sidebar. *(Xa hơn: Elasticsearch cho Search toàn
+>    cục, Redis cho cache + rate limit phân tán.)*
+>
+> Còn lại, nhỏ hơn: **đường GHI cho hồ sơ cá nhân** (`PUT /employees/me` + đổi mật khẩu khi
+> đã đăng nhập) — đọc **ADR-049** trước, vấn đề không nằm ở endpoint mà ở chỗ `/auth/me`
+> dựng DTO từ claim. Và **SignalR** (§6).
 >
 > ### 🪤 Ba cái bẫy mới, đã trả giá — đừng phát hiện lại
 > - **`AuthController.Me()` dựng DTO từ CLAIM chứ không đọc DB.** Thêm trường vào
@@ -69,11 +89,15 @@
 > - **Chi tiết Task có hai vỏ** (dialog chặn route + trang thật) dùng chung một
 >   `TaskDetailContent` — ADR-043. Tiền tố intercepting route là **`(.)`**, và
 >   `@modal/default.tsx` là **bắt buộc** (thiếu nó thì *board* 404).
+>   🆕 Từ 2026-08-05 hai vỏ **khác nhau về bố cục** (ADR-051): ở trang thật, khối
+>   `Bình luận | Lịch sử` xuống dưới hai cột và lấy trọn bề ngang. Chung *nội dung*, không
+>   chung *bố cục* — `variant` là thứ quyết định, đừng gộp lại cho "nhất quán".
 > - **Đừng gom các tab vào route group `(tabs)/`** — `useSelectedLayoutSegment()` sẽ trả
 >   `'(tabs)'` và thanh tab mất trạng thái active, hỏng im lặng. Áp cho cả `/admin`.
 >
-> ⚠️ Trước khi làm Kanban hay đụng vào state machine của task: `docs/frontend-next-session.md`
-> §6 có **một đính chính quan trọng** — quy tắc chuyển trạng thái **KHÔNG PHẢI** "cột kề".
+> ⚠️ Trước khi làm Kanban: `docs/frontend-next-session.md` §6 có khối "Bẫy đã biết", trong đó
+> **ba mục đầu đã bị gạch ngang** vì ADR-052 gỡ ma trận chuyển trạng thái. Đọc phần gạch để
+> hiểu code cũ, nhưng **đừng cài theo**.
 >
 > ### ⚠️ TRƯỚC KHI CHẠY LẦN ĐẦU TRÊN MÁY MỚI — hai lệnh bắt buộc
 > Cả hai đều ghi vào kho chứng chỉ tin cậy của Windows nên **phải tự chạy tay** trong
@@ -87,17 +111,22 @@
 > **hai site khác nhau** — chạy Next trên http thì cookie không bao giờ được gửi và toàn
 > bộ luồng refresh hỏng **im lặng** (401 mà không có gì chỉ ra nguyên nhân).
 >
-> **Ba cái bẫy của Kanban — đọc trước khi đụng vào state machine của task:**
-> - Kéo thẻ về **đúng cột nó đang đứng** nhận **409** (state machine từ chối "đứng yên").
->   UI phải chặn **trước**, đừng bắn request rồi hiện toast đỏ.
-> - ⚠️ Quy tắc chuyển trạng thái **KHÔNG PHẢI "cột kề"** — tài liệu cũ ghi sai, đã đính
->   chính ở `docs/frontend-next-session.md` §6. `Done → Review` là **bước lùi hợp lệ**,
->   còn `ToDo → Review` trông kề nhưng **không** hợp lệ. Nguồn sự thật:
->   `TaskItem.CanTransitionTo` (`TaskItem.cs:77-86`); bản sao frontend có test ở
->   `frontend/lib/tasks/status-transitions.test.ts`.
+> **Bốn điều về Kanban — đọc trước khi đụng vào việc chuyển cột của task:**
+>
+> 🔴 **KHÔNG CÒN state machine.** Khối này trước 2026-08-05 dạy một ma trận sáu-cặp-hợp-lệ
+> (`Done → Review` hợp lệ, `ToDo → Review` thì không). **ADR-052 đã gỡ nó cùng với enum
+> `Status`.** `TaskItem.CanTransitionTo`, `ALLOWED_TRANSITIONS`, `canTransition` đều **không
+> còn tồn tại**. Đừng đi tìm, và đừng dựng lại.
+>
+> - **Mọi cột đều là đích hợp lệ**, kể cả "nhảy bước". Kéo thẻ về đúng cột nó đang đứng nay
+>   trả **200** (no-op) chứ không 409 — vẫn nên chặn ở client để khỏi bắn request thừa.
+> - Guard **duy nhất** còn lại: task đang bị `Blocks`/`IsBlockedBy` chặn thì không vào được
+>   cột thuộc **nhóm `InProgress`** → **409**. Điều kiện là `category`, **không phải tên cột**.
 > - `PATCH /tasks/{id}/status` và `PUT /tasks/{id}/sprint` **KHÔNG** cần `RowVersion`
 >   (ADR-021), nhưng `PUT /tasks/{id}` thì **bắt buộc**.
-> - Board luôn trả **đủ 4 cột** kể cả cột rỗng — không phải tự dựng cột thiếu.
+>   ⚠️ Thân request nay là `{ targetColumnId }` (Guid), **không phải** `{ target }` (enum).
+> - Board luôn trả **đủ MỌI cột của project** kể cả cột rỗng, sắp sẵn theo `order` — không
+>   phải tự dựng cột thiếu và không phải tự sắp xếp. **Số cột không cố định 4.**
 >
 > **Đọc theo thứ tự:**
 > 1. `docs/frontend-next-session.md` §6 — danh sách bẫy đã trả giá, gồm cả bẫy của
@@ -156,11 +185,11 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | Auth (Register/Login/Refresh/Logout/Me) | ✅ | Chi tiết xem bảng ở §10 — chỉ còn Reset Password ⬜, khóa/mở tài khoản đã xong |
 | Project (CRUD + phân quyền 2 tầng + soft delete + optimistic concurrency) | ✅ | Có Unit + Integration Test. `RowVersion` đã wire đầy đủ qua DTO (không chỉ có ở schema) — xem ADR-016 |
 | Project — quản lý thành viên (mời/accept/decline/đổi role/gỡ) | ✅ | `ProjectMemberService`/`ProjectMembersController`, có Integration Test (seq-04/05) — *bảng này từng ghi ⬜ dù đã code xong từ commit `ca8ff0b`, đã sửa lại 2026-07-29* |
-| Sprint (CRUD + Backlog ↔ Sprint) | ✅ | `SprintService`/`SprintsController`, có Unit + Integration Test. Xóa sprint đẩy task về Backlog — ADR-020 |
+| Sprint (CRUD + Backlog ↔ Sprint + **vòng đời**) | ✅ | `SprintService`/`SprintsController`, có Unit + Integration Test. Xóa sprint đẩy task về Backlog (ADR-020). 🆕 2026-08-05: `Status` + `CompletedAt`, start/complete, **đóng sprint HỎI task chưa xong đi đâu** (ADR-050) |
 | Task (CRUD + Subtask + optimistic concurrency) | ✅ | `TaskService`/`TasksController`. `RowVersion` wire đầy đủ qua DTO, đóng lại "giới hạn đã biết" của ADR-016 |
-| Task — Workflow Transition Rules | ✅ | `TaskStatusTransitionService`, quyền theo ADR-017 (Assignee HOẶC PM), chặn task đang bị `Blocks`/`IsBlockedBy` |
+| Task — chuyển cột | ✅ | `TaskStatusTransitionService`, quyền theo ADR-017 (Assignee HOẶC PM), chặn task đang bị `Blocks`/`IsBlockedBy`. ⚠️ 2026-08-05: **ma trận chuyển trạng thái đã GỠ** (ADR-052 thay ADR-021) — mọi cột đều tới thẳng được, guard duy nhất còn lại là nhóm `InProgress` khi task bị chặn |
 | Task — giao việc (gán/tự nhận/gỡ) | ✅ | `TaskAssignmentService`, đúng bảng "Quy tắc gán việc" ở §5 và seq-02 |
-| Board (Kanban) + Backlog | ✅ | `GET /projects/{id}/board?sprintId=` và `/backlog`; board luôn trả đủ 4 cột kể cả cột rỗng |
+| Board (Kanban) + Backlog | ✅ | `GET /projects/{id}/board?sprintId=` và `/backlog`; board luôn trả đủ **mọi cột của project** kể cả cột rỗng. ⚠️ Số cột **không còn cố định 4** kể từ ADR-052 |
 | Comment — API | ✅ | `CommentService`/`CommentsController`, có Unit + Integration Test. Quyền theo ADR-026: viết = PM/Member, sửa = chỉ tác giả, xóa = tác giả hoặc PM. Xóa cứng |
 | Watcher / Label / TaskLink — API | ✅ | Xong 2026-08-03. `Label` thêm `Color` + phân quyền theo bán kính ảnh hưởng (ADR-037); `Watcher` có repository riêng vì không phải `BaseEntity` (ADR-036); `TaskLink` chuẩn hóa lúc ghi + guard chu trình (ADR-038) |
 | Task — `Description` + mã `PMS-12` | ✅ | Xong 2026-08-03. Bảng đếm riêng `ProjectTaskCounters` (ADR-033), mã ghép ở Mapper (ADR-034). Migration có backfill, đã kiểm tay trên DB có dữ liệu |
@@ -187,6 +216,10 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | Frontend — Admin (nhân sự / nhãn / audit log / **phân quyền**) | ✅ | Xong 2026-08-04. **Bốn** màn dưới `/admin`, gác bằng PERMISSION chứ không bằng `systemRole` (ADR-045). Tầng dữ liệu `AdminEmployees` viết mới trong phiên này |
 | **Authorization — claim `permission` lưu DB** | ✅ | Mới 2026-08-04 (ADR-045). Hai bảng `Permission` + `RolePermission` seed bằng `HasData`, policy đăng ký bằng vòng lặp trên danh mục ĐÓNG, quản trị ở `/admin/roles`. Tầng 2 không sửa một dòng |
 | **Frontend — nhóm Admin (4 màn)** | ✅ | Mới 2026-08-04. Nhân sự · Phân quyền · Nhãn toàn cục · Nhật ký hệ thống |
+| **Frontend — ba tính năng ADR-048 + ba lỗ hổng UI** | ✅ | Mới 2026-08-05. Nút đổi `Project.Status` (PM-only) · ô gợi ý nhân sự khi mời · @mention (`reconcileMentions` + 6 test) · "Mở trang riêng" điều hướng cứng · `/profile` chỉ đọc (ADR-049) · sidebar theo ngữ cảnh dự án. **Kèm sửa lỗi có sẵn: `UserMenu` sập khi mở** |
+| **Cột board tuỳ biến (ADR-052)** | ✅ | Mới 2026-08-05. `BoardColumns` theo từng project + `StatusCategory` ĐÓNG. Thêm/sửa/xóa/đổi thứ tự, thu cột, xóa bắt buộc chọn cột đích. **Gỡ ma trận chuyển trạng thái** — thay thế ADR-021 |
+| **Vòng đời Sprint (ADR-050)** | ✅ | Mới 2026-08-05. `Sprint.Status` + `CompletedAt` + migration. Start (tối đa MỘT Active/project) · preview · complete **hỏi task chưa xong đi đâu**. Tab Sprint kiểu Jira: thu/mở, dòng task inline. **Mở khóa velocity** cho nhóm báo cáo |
+| **"Việc của tôi" (ADR-053)** | ✅ | Mới 2026-08-05. `GET /tasks/my` — endpoint xuyên dự án đầu tiên. Trang `/my-work` gom theo dự án, đổi view được |
 | Real-time (SignalR) | ⬜ | Có chủ đích — chỉ làm sau khi core CRUD ổn định (xem §6) |
 
 ### Lộ trình các phiên tiếp theo
@@ -211,10 +244,12 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | ~~A~~ | ~~Authorization — claim kiểu Permission~~ | ✅ 2026-08-04 | ADR-045. Đã chốt cả bốn điểm căng trước khi gõ code |
 | — | **Vá nợ backend + lệch múi giờ** | ✅ 2026-08-04 | ADR-046 / 046b. Kèm sửa endpoint thống kê hỏng 500 từ ngày viết |
 | — | **Backend tầng 3 — ba trên bốn** | ✅ 2026-08-04 | ADR-048. `Project.Status` có đường ghi · `GET /employees?search=` · @mention (server lọc id, đã mutation test) |
-| **9b** | **Frontend — ba tính năng ADR-048 + ba lỗ hổng UI** | ⬜ **Việc tiếp theo** | Backend xong 2026-08-04 nhưng **frontend chưa dựng gì**: đổi `Project.Status`, ô tra nhân viên khi mời, @mention. Cộng ba chỗ "bấm vào không thấy gì" phát hiện 2026-08-05 — chi tiết ở "Việc còn dang dở" mục B |
-| **10** | **Vòng đời Sprint** | ⬜ | Hạng mục cuối của tầng 3. Cần một **quyết định sản phẩm** trước khi code (*task chưa xong đi đâu khi đóng sprint?*) → **viết ADR riêng trước**. Chi tiết ở "Việc còn dang dở" mục E |
-| 11 | **Nhóm báo cáo kiểu Jira** | ⬜ | Backlog insight · velocity · report · timeline. **Phiên riêng** — yêu cầu 2026-08-04 |
-| 12 | **Áp kỹ thuật DB** | ⬜ | Trigger · stored procedure · view · index. **Phiên riêng** — yêu cầu 2026-08-04 |
+| ~~9b~~ | ~~Frontend — ba tính năng ADR-048 + ba lỗ hổng UI~~ | ✅ 2026-08-05 | Cả sáu: `Project.Status` có nút, ô tra nhân viên khi mời, @mention (kèm `reconcileMentions` + 6 test), nút "Mở trang riêng" điều hướng cứng, `/profile` chỉ đọc (**ADR-049**), sidebar theo ngữ cảnh dự án. **Kèm sửa một lỗi có sẵn: `UserMenu` SẬP khi mở** — xem ADR-049 |
+| ~~10~~ | ~~Vòng đời Sprint~~ | ✅ 2026-08-05 | **ADR-050 đã cài đặt.** `Sprint.Status {Planned/Active/Completed}` + `CompletedAt` + migration · `POST /sprints/{id}/start` (tối đa MỘT sprint Active mỗi project) · `/completion-preview` · `/complete` **hỏi task chưa xong đi đâu**. UI: tab Sprint kiểu Jira, thu/mở, dòng task inline, dialog đóng sprint |
+| ~~—~~ | ~~**Cột board tuỳ biến**~~ | ✅ 2026-08-05 | **ADR-052** — ngoài kế hoạch ban đầu, theo yêu cầu. Thêm/sửa/xóa/đổi thứ tự cột, thu cột, xóa cột bắt buộc chọn cột đích. **Thay thế ADR-021** (gỡ ma trận chuyển trạng thái) |
+| ~~—~~ | ~~**"Việc của tôi" xuyên dự án**~~ | ✅ 2026-08-05 | **ADR-053** — `GET /tasks/my`, trang `/my-work` gom theo dự án, đổi được view (theo dự án / theo hạn) |
+| **11** | **Nhóm báo cáo kiểu Jira** | ⬜ **Việc tiếp theo** | Backlog insight · velocity · report · timeline. **Velocity nay ĐÃ mở khóa** — `Sprint.CompletedAt` là mốc đo. Sidebar đã có sẵn nhóm **LẬP KẾ HOẠCH** để thêm mục "Báo cáo" |
+| 12 | **Áp kỹ thuật DB** | ⬜ | Trigger · stored procedure · view · index. **Phiên riêng** — yêu cầu 2026-08-04. ⚠️ Không có giao diện nào |
 | 13 | **Real-time (SignalR)** | ⬜ | Theo §6, chỉ làm sau khi core CRUD **và** frontend đã ổn định |
 | 14 | **Elasticsearch + Redis** | ⬜ | Định hướng xa. Elasticsearch là lời giải thật cho "Search toàn cục"; Redis cho cache + rate limit phân tán |
 
@@ -293,9 +328,15 @@ xong 2026-08-04.** Không còn màn hình nào trong lộ trình ban đầu ở 
 
 **Còn lại:**
 
-1. 🆕 **Ba tính năng backend đã xong mà frontend chưa có gì (ADR-048, 2026-08-04).** Không
-   bị chặn, không cần quyết định nào — chỉ là chưa dựng. Ghi ra đây vì cả ba đều **vô hình**
-   nếu chỉ nhìn UI: backend có đường đi, người dùng không có nút.
+> ✅ **Cả mục 1 và mục 2 dưới đây đã XONG 2026-08-05.** Giữ lại nguyên văn làm hồ sơ vì phần
+> mô tả bẫy vẫn còn giá trị tra cứu; trạng thái mới nằm ở hạng mục 9b của bảng lộ trình và ở
+> ADR-049. ⚠️ **Cập nhật 2026-08-05 tối:** mục E (vòng đời Sprint) nay cũng đã XONG (ADR-050).
+> Việc còn lại của §1 chỉ còn **mục 3 (search toàn cục)**.
+
+1. ~~🆕 **Ba tính năng backend đã xong mà frontend chưa có gì (ADR-048, 2026-08-04).**~~
+   ✅ **đã dựng 2026-08-05.** Không bị chặn, không cần quyết định nào — chỉ là chưa dựng.
+   Ghi ra đây vì cả ba đều **vô hình** nếu chỉ nhìn UI: backend có đường đi, người dùng không
+   có nút.
 
    | Backend đã có | Frontend hiện tại |
    |---|---|
@@ -303,7 +344,8 @@ xong 2026-08-04.** Không còn màn hình nào trong lộ trình ban đầu ở 
    | `GET /employees?search=` (mọi người đã đăng nhập) | Ô mời thành viên vẫn bắt gõ **đúng email** bằng tay. Từ khóa **≥ 2 ký tự**, ngắn hơn trả **400** |
    | `mentionedEmployeeIds` trong comment | `types/comment.ts` đã có trường, **chưa có ô chọn**. Client **gửi id**; server **không** parse `@tên` từ nội dung |
 
-2. 🆕 **Ba chỗ "bấm vào không thấy gì" — rà giao diện 2026-08-05.**
+2. ~~🆕 **Ba chỗ "bấm vào không thấy gì" — rà giao diện 2026-08-05.**~~ ✅ **đã gỡ cả ba
+   cùng ngày.** Cộng một chỗ thứ tư không ai đi tìm: **menu người dùng SẬP khi mở** (ADR-049).
 
    a. 🔴 **Nút "Mở trang riêng" trong dialog chi tiết Task là một no-op.**
       `components/tasks/task-detail-header.tsx` dùng `<Link>` trỏ tới
@@ -377,7 +419,7 @@ xong 2026-08-04.** Không còn màn hình nào trong lộ trình ban đầu ở 
 - Hai file `backend/postman/.../Login|Logout.request.yaml` đang có thay đổi **chưa commit**
   — chỉ là đổi ký tự xuống dòng do công cụ Postman sinh ra, không phải thay đổi nội dung.
 
-#### E. Backend tầng 3 — **ba trên bốn đã xong**, còn lại vòng đời Sprint
+#### E. Backend tầng 3 — ✅ **CẢ BỐN ĐÃ XONG** (2026-08-05)
 
 ✅ **Đã làm 2026-08-04:**
 
@@ -417,7 +459,21 @@ xong 2026-08-04.** Không còn màn hình nào trong lộ trình ban đầu ở 
    > bị lọc bỏ) — trả 400 sẽ tiết lộ "id này có tồn tại nhưng không thuộc dự án", tức lại là
    > rò rỉ.
 
-⬜ **Còn lại đúng một mục — vòng đời Sprint.**
+✅ **Mục thứ tư — vòng đời Sprint — XONG 2026-08-05 (ADR-050).**
+
+Đã có: `Sprint.Status {Planned/Active/Completed}` + `CompletedAt` + migration ·
+`POST /sprints/{id}/start` (bất biến: tối đa **MỘT** sprint `Active` mỗi project, 409 nếu vi
+phạm) · `GET /sprints/{id}/completion-preview` · `POST /sprints/{id}/complete` **hỏi task
+chưa xong đi đâu** (`targetSprintId: null` = Backlog, và đó là lựa chọn hợp lệ chứ không
+phải "chưa chọn").
+
+⚠️ **Migration cố ý KHÔNG backfill** — mọi sprint cũ ở `Planned`. Đặt `Active` theo ngày sẽ
+phá bất biến "một sprint đang chạy" bằng dữ liệu; đặt `Completed` phải bịa `CompletedAt`, mà
+đó chính là mốc velocity đo theo. Người dùng bấm "Bắt đầu" một lần cho sprint hiện tại — một
+thao tác thật, thay cho một lịch sử giả.
+
+<details>
+<summary>Mô tả gốc của hạng mục (giữ làm hồ sơ thiết kế)</summary>
 
 `Sprint` không có trường trạng thái nào; `IsActive` suy từ ngày. Không có start / complete /
 đẩy task chưa xong sang sprint kế — tức **vòng lặp Scrum cốt lõi**.
@@ -430,6 +486,8 @@ nên **phải chốt và viết ADR riêng trước khi gõ dòng đầu tiên**
 
 ⚠️ **Phụ thuộc:** hạng mục "velocity" của nhóm báo cáo kiểu Jira **cần cái này trước** —
 không có mốc "đóng sprint" thì không có gì để đo tốc độ theo.
+
+</details>
 
 📌 **Hai món nợ khác, ghi rõ chứ không im lặng:**
 - **`AuthService` không ghi một dòng `ActivityLog` nào.** Đăng ký, đăng xuất và **đặt lại mật
@@ -819,12 +877,23 @@ nên chúng **miễn nhiễm CSRF**; cookie chỉ đi tới 4 endpoint auth nh�
   và luồng 409 "còn task chưa hoàn thành" của ADR-008)
 - ✅ Chi tiết Project — bốn tab là **segment định tuyến thật** (`[id]/board|backlog|sprints|members`),
   không phải tab state: mỗi tab giữ query riêng (`?sprint=`), chia sẻ link được, Back đúng
-- ✅ **Board Kanban** kéo–thả (`@dnd-kit`) + cập nhật lạc quan; ba bẫy 409 chặn bằng
-  **cấu trúc** (`useDroppable disabled` khiến cột không phải ứng viên va chạm) nên bước
-  đi không hợp lệ **không tạo ra request nào**
+- ✅ **Board Kanban** kéo–thả (`@dnd-kit`) + cập nhật lạc quan, **cột do người dùng cấu
+  hình** (ADR-052): thêm/sửa/xóa/đổi thứ tự qua dialog "Quản lý cột", thu từng cột, cuộn
+  ngang khi nhiều cột.
+  ⚠️ **Ba bẫy 409 mà `useDroppable disabled` từng chặn nay chỉ còn MỘT.** Sau ADR-052 mọi
+  cột đều là đích hợp lệ, nên `disabled` chỉ còn loại trừ chính cột nguồn. Guard duy nhất
+  không đoán trước được: cột đích thuộc nhóm `InProgress` khi task đang bị chặn
 - ✅ **Backlog** — chuyển task vào Sprint bằng **menu**, không kéo–thả: `PUT /tasks/{id}/sprint`
   không có ngữ nghĩa vị trí nên kéo–thả sẽ hứa một thứ tự mà backend không lưu được
+- ✅ **Tab Sprint kiểu Jira** (ADR-050) — mỗi sprint thu/mở được, mở ra hiện danh sách task
+  inline (mã · tên · chip trạng thái · hạn · người đảm nhận). Nút **Bắt đầu** / **Đóng
+  sprint** theo trạng thái; dialog đóng **hỏi task chưa xong đi đâu**.
+  📌 Task của sprint chỉ nạp khi sprint ĐANG MỞ (`useBoard(..., { enabled })`) — một project
+  vài chục sprint mà nạp hết là vài chục request cho dữ liệu không ai nhìn
 - ✅ Quản lý Sprint (CRUD đầy đủ) + quản lý Thành viên (mời / đổi vai trò / gỡ / rời dự án)
+- ✅ **"Việc của tôi"** (`/my-work`, ADR-053) — màn hình duy nhất KHÔNG nằm dưới
+  `/projects/{id}`, và là màn duy nhất trả lời được *"sáng nay tôi cần làm gì"*. Gom theo dự
+  án hoặc xếp phẳng theo hạn
 - ✅ Dark mode + màu thương hiệu (xanh Jira) + breadcrumb trên header
 - ✅ **Chi tiết Task** — hai vỏ dùng chung một `TaskDetailContent` (ADR-043): dialog chặn
   route khi bấm thẻ từ board/backlog, trang thật `/projects/{id}/tasks/{taskId}` khi mở link
@@ -848,16 +917,48 @@ nên chúng **miễn nhiễm CSRF**; cookie chỉ đi tới 4 endpoint auth nh�
   ⚠️ Chưa có API, và `?search=` hiện tại chỉ lọc MỘT trường ở mỗi endpoint nên không thay
   thế được — lời giải đúng là Elasticsearch (§1, hạng mục 14)
 
-> 🆕 **Sidebar không còn mục "Sắp có" nào** (2026-08-04). Bốn mục vô hiệu hóa trước đây hóa
-> ra là hai chuyện khác nhau: *Nhân sự*/*Thống kê* chỉ là chưa làm (nay đã có trang thật),
-> còn **Bảng Kanban / Backlog thì KHÔNG BAO GIỜ đặt được ở sidebar** — cả hai thuộc phạm vi
-> MỘT project mà `AppShell` không biết, vì nó nằm TRÊN segment `[id]`. Giữ chúng với nhãn
-> "Sắp có" là hứa một thứ sẽ không bao giờ tới, nên đã gỡ hẳn; đường vào là tab của trang
-> chi tiết dự án. `href` nay là **bắt buộc** trong kiểu `NavItem`, tức sai sót tương lai bị
-> chặn ở tầng kiểu chứ không bằng kỷ luật.
+- ✅ **Hồ sơ cá nhân** (`/profile`) — **CHỈ ĐỌC** (ADR-049). Tên, email, vai trò hệ thống và
+  danh sách quyền tầng 1. Không có nút Sửa, và đó là quyết định chứ không phải việc chưa làm
+
+> 🆕 **Sidebar ĐỔI HẲN theo ngữ cảnh, kiểu Jira** (2026-08-05, bản thứ hai trong ngày).
 >
-> ⚠️ Và đừng "sửa" bằng cách nhớ *project vừa mở* vào store: giá trị đó nói dối ngay khi
-> người dùng mở hai tab trình duyệt.
+> | Đang ở đâu | Sidebar hiện gì |
+> |---|---|
+> | Ngoài dự án (`/projects`, `/notifications`, `/admin`, `/profile`…) | Nav toàn cục: Dự án · Lời mời · Thông báo · Quản trị |
+> | Trong một dự án (`/projects/{id}/*`) | **Chỉ của dự án đó**: link "Tất cả dự án" · đầu đề dự án · **LẬP KẾ HOẠCH** (Bảng · Backlog · Sprint · Thống kê) · **QUẢN LÝ** (Thành viên) |
+>
+> **Vì sao đổi ngay sau khi vừa dựng bản trước:** bản đầu (sáng cùng ngày) giữ nav toàn cục
+> **cộng** khối dự án **cộng** danh sách "Dự án của tôi" — tức **ba đường tới cùng một chỗ**,
+> trong khi trang mặc định sau đăng nhập vốn đã là `/projects`. Sidebar dài gần hết cột mà
+> phần lớn là lối đi trùng nhau. Jira giải bằng cách **tách hai ngữ cảnh**, và đó là lý do
+> sidebar của họ ngắn mà vẫn đủ.
+>
+> 📌 Danh sách **"Dự án của tôi"** đã bỏ hẳn — nó là đường thứ ba và là đường thừa nhất.
+> (Nó cũng từng phải mang nhãn "của tôi" thay vì "gần đây" vì `ProjectRepository` không có
+> khóa sắp xếp theo thời gian nào; nay thì câu hỏi đó không còn đặt ra nữa.)
+>
+> ⚠️ **Bỏ nav toàn cục khỏi tầm mắt thì phải trả lại đường về ở chỗ NHÌN THẤY ĐƯỢC.** Có
+> breadcrumb trên header rồi vẫn thêm link "Tất cả dự án" ở đầu sidebar: breadcrumb là thứ
+> người ta đọc khi đã biết mình đang tìm gì, không phải thứ đập vào mắt khi đang lạc.
+>
+> 📌 Dòng phụ dưới tên dự án là **VAI TRÒ của chính người đang xem** (`useMyProjectRole`),
+> không phải trạng thái dự án — trạng thái đã nằm ngay trên header trang, còn vai trò thì
+> không hiện ở đâu khác, và nó là câu trả lời cho *"vì sao tôi không thấy nút Sửa"*.
+>
+> Các mục đọc từ hằng `PROJECT_SECTIONS` **dùng chung với `ProjectTabs`** — chép tay sang hai
+> nơi thì thêm một khu vực ở tab sẽ âm thầm để sidebar thiếu một mục.
+>
+> 🔴 **Đính chính một khẳng định sai từng nằm ở đây** (bản 2026-08-04): *"Bảng Kanban /
+> Backlog KHÔNG BAO GIỜ đặt được ở sidebar vì `AppShell` không biết project nào đang mở —
+> nó nằm TRÊN segment `[id]`"*. **Sai với client component.** `SidebarNav` vốn đã gọi
+> `usePathname()`, mà hàm ấy trả **toàn bộ** đường dẫn kể cả `[id]`; vị trí của component
+> trong cây layout không giới hạn cái nó đọc được từ URL.
+>
+> Cảnh báo đi kèm — *đừng nhớ "project vừa mở" vào store, giá trị đó nói dối khi mở hai tab*
+> — thì **vẫn đúng nguyên**. Nhưng nó là rủi ro của **store**, và khẳng định cũ đã gộp nhầm
+> hai thứ để rút ra một kết luận quá rộng. **URL vốn đã thuộc về từng tab.**
+>
+> `href` vẫn là **bắt buộc** trong kiểu `NavItem` — không còn mục "Sắp có" nào.
 
 **Quy ước ẩn/hiện nút theo quyền** (§10 là nguồn luật, đây là cách áp dụng):
 
@@ -1342,7 +1443,7 @@ mỗi nhóm đủ lớn để chiếm trọn một phiên.
 
 | Nhóm | Nội dung | Ghi chú khi bắt đầu |
 |---|---|---|
-| **Báo cáo kiểu Jira** | Backlog insight · velocity · report · timeline | Velocity cần **vòng đời Sprint** trước (§1 mục E, hạng mục 2) — không có mốc "đóng sprint" thì không có gì để đo tốc độ theo. Làm hạng mục đó trước |
+| **Báo cáo kiểu Jira** | Backlog insight · velocity · report · timeline | ✅ **Vòng đời Sprint đã xong 2026-08-05** (ADR-050), nên velocity **hết bị chặn** — mốc đo là `Sprint.CompletedAt`. ⚠️ Gom số liệu theo `columnId`/`category`, KHÔNG theo enum (ADR-052) |
 | **Kỹ thuật DB** | Trigger · stored procedure · view · index | ⚠️ Trigger đụng thẳng vào `ApplyAuditFields`/`ApplySoftDelete` của `PmsDbContext` và vào lệnh cấm bulk-update của ADR-024 — đọc cả hai trước khi viết trigger đầu tiên. View là chỗ hợp lý nhất để bắt đầu: các truy vấn tổng hợp ở `ProjectStatisticsRepository` là ứng viên sẵn |
 | **Elasticsearch + Redis** | Search toàn cục · cache + rate limit phân tán | Elasticsearch là **lời giải đúng** cho "Search toàn cục" (§1 mục B) — nới `?search=` không thay thế được vì nó chỉ lọc một trường mỗi endpoint. Redis: rate limit hiện là in-memory nên không đúng khi chạy nhiều instance |
 
@@ -1478,6 +1579,11 @@ CLI, xem `docs/uml/README.md`. Trước đây nguồn chỉ nằm trong thuộc 
 | **2026-08-04** | **(ADR-046b)** `ValueConverter` đóng dấu `Kind=Utc` cho MỌI cột `DateTime` lúc đọc, sửa ở tầng EF chứ không ở `JsonSerializerOptions` | `datetime2` không lưu Kind → JSON thiếu hậu tố → **mọi mốc thời gian lệch đúng bằng múi giờ**; giá trị `Unspecified` còn chảy vào `IsOverdue` và `DueDateNotifier` chứ không chỉ ra HTTP — chi tiết bên dưới |
 | **2026-08-04** | **(ADR-048)** `Project.Status` có đường ghi (`complete`/`reopen`, loại thông báo RIÊNG); `GET /employees?search=` mở cho mọi người nhưng ràng buộc 3 lớp; @mention do CLIENT gửi id còn SERVER lọc | Ba trường/luồng chết hoặc thiếu. Tái dùng `StatusChanged` cho project sẽ điều hướng sai; không lọc id @mention là cho bất kỳ ai bắn thông báo tới bất kỳ ai — chi tiết bên dưới |
 | **2026-08-04** | **(ADR-047)** Màu biểu đồ chia ba nhóm theo VIỆC (trạng thái / tuần tự / phân đoạn); chỉ nhóm thứ ba cần validator; thẻ số và thanh mức KHÔNG phải biểu đồ | Một bảng màu chung cho mọi biểu đồ là dùng màu để nói bốn thứ khác nhau; và thang có thứ tự vẽ bằng màu rời rạc là mời người đọc hiểu sai — chi tiết bên dưới |
+| **2026-08-05** | **(ADR-049)** Trang hồ sơ cá nhân **CHỈ ĐỌC**; hoãn mọi đường ghi sang phiên riêng. Kèm sửa một lỗi có sẵn làm **sập menu người dùng** | `/auth/me` dựng DTO từ **claim** chứ không đọc DB (ADR-045) + token sống 15 phút → nút "Lưu" ngây thơ sẽ báo thành công rồi vẫn hiện tên cũ. Không có nút thì người dùng biết đi hỏi ai; có nút mà nó nói dối thì không — chi tiết bên dưới |
+| **2026-08-05** | **(ADR-050)** Đóng sprint thì **HỎI** task chưa xong đi đâu, không tự đẩy về Backlog hay sprint kế. **Đã chốt, chưa cài đặt** | Cả hai phương án tự động đều quyết hộ một thứ chỉ người đóng sprint mới biết; và im lặng dồn việc sang sprint sau chính là cách làm sprint đó vỡ kế hoạch — chi tiết bên dưới |
+| **2026-08-05** | **(ADR-051)** Sidebar **đổi hẳn theo ngữ cảnh** kiểu Jira; hai vỏ chi tiết Task được cho **khác nhau thật** về bố cục | Ba đường tới cùng một chỗ trong một sidebar là thừa, không phải đầy đủ. Và hai vỏ nhìn y hệt nhau thì nút "Mở trang riêng" đang hứa một khác biệt không tồn tại — chi tiết bên dưới |
+| **2026-08-05** | **(ADR-052)** Cột board thành **DỮ LIỆU của từng project** (bảng `BoardColumns`) thay cho enum `Status`; mỗi cột khai một `StatusCategory` ĐÓNG; **gỡ ma trận chuyển trạng thái** (thay thế ADR-021) | Người dùng cần quy trình của riêng họ, mà 39 chỗ trong solution lại hỏi "task xong chưa" — `Category` là hợp đồng tối thiểu giữa tên do người dùng đặt và ngữ nghĩa mã nguồn cần. Với cột tuỳ biến thì không còn cơ sở nào nói cặp chuyển nào hợp lệ — chi tiết bên dưới |
+| **2026-08-05** | **(ADR-053)** `GET /tasks/my` — endpoint **xuyên dự án** đầu tiên, lọc "được gán cho tôi · chưa xong · hạn ≤ hôm nay" | Mọi endpoint task khác đều nằm dưới `/projects/{id}`, nên "sáng nay tôi cần làm gì" sẽ là N request rồi gộp ở client. Không nhận `employeeId` ở đâu cả — chi tiết bên dưới |
 
 | | | |
 
@@ -1797,7 +1903,18 @@ chưa wire qua DTO. Khi wire, câu hỏi là có bắt buộc cho **mọi** thao
 **Quyết định:** Bắt buộc cho `UpdateTaskRequest` (sửa tên/hạn/độ ưu tiên).
 **Không** bắt buộc cho `PATCH /tasks/{id}/status` và `PUT /tasks/{id}/sprint`.
 
-**Lý do:** Với đổi trạng thái, **chính state machine đã là chốt chặn concurrency**. Bảng
+> 🔴 **ĐÍNH CHÍNH 2026-08-05 (ADR-052): lý do gốc bên dưới KHÔNG CÒN ĐÚNG.** State machine
+> đã bị gỡ, nên "đứng yên là lỗi" không còn là chốt chặn nào cả — kéo hai lần tới cùng một
+> cột nay đều trả 200.
+>
+> **Kết luận vẫn giữ nguyên, nhưng vì một lý do KHÁC:** đổi cột nay là thao tác
+> **idempotent**. Hai người cùng kéo một thẻ tới cùng một cột thì kết quả giống hệt nhau,
+> nên không có gì để tranh chấp và `RowVersion` vẫn không thêm bảo đảm nào. Cái mất là khả
+> năng *phát hiện* rằng đã có người khác vừa chạm vào thẻ — đó là đánh đổi có ghi nhận, xem
+> ADR-052.
+
+**Lý do (bản gốc, đã hết hiệu lực — giữ làm hồ sơ):** Với đổi trạng thái, **chính state
+machine đã là chốt chặn concurrency**. Bảng
 chuyển đổi từ chối cả trường hợp "đứng yên" (`InProgress → InProgress` = `false`), nên hai
 người cùng kéo một thẻ tới cùng một cột thì người thứ hai load lại thấy trạng thái đã đổi và
 nhận 409. Bắt round-trip thêm `RowVersion` không thêm bảo đảm nào, nhưng buộc UI Kanban phải
@@ -2990,6 +3107,290 @@ Hai chi tiết nhỏ nhưng có chủ đích:
 **Hạng mục thứ tư của tầng 3 — vòng đời Sprint — CHƯA làm**, và đó là quyết định chứ không
 phải bỏ sót: nó cần một lựa chọn sản phẩm (*task chưa xong đi đâu khi đóng sprint?*) mà nhiều
 câu trả lời đều bảo vệ được. Chi tiết và phụ thuộc ở §1 mục E.
+
+> 🆕 **Frontend của cả ba đã dựng xong 2026-08-05.** Một điểm bổ sung mà chỉ lộ ra khi làm
+> giao diện: vì server nhận **id** còn người dùng sửa **chữ**, hai thứ đó **trôi khỏi nhau
+> được** — chọn `@Nam` rồi xóa chữ đó đi trước khi gửi thì id vẫn nằm trong state, và một
+> bình luận không hề nhắc ai vẫn bắn thông báo "bạn được nhắc tới". Client vì vậy phải lọc
+> lại lần nữa theo nội dung thật lúc submit (`lib/comments/mentions.ts`, `reconcileMentions`).
+>
+> Nói cách khác: **bộ lọc của server chống được kẻ xấu, nhưng không chống được người dùng
+> bình thường đổi ý** — hai bộ lọc giải hai bài toán khác nhau, không cái nào thay được cái
+> nào. Đã kiểm chứng trên máy chủ thật chứ không chỉ bằng unit test: chọn hai người, xóa chữ
+> của một người, gửi → chỉ người còn tên trong bài nhận `Mentioned`.
+
+---
+
+#### ADR-049 (2026-08-05) — Hồ sơ cá nhân CHỈ ĐỌC, vì `/auth/me` dựng từ claim
+
+**Quyết định:** dựng `/profile` **chỉ đọc** ngay, và **hoãn** toàn bộ đường ghi
+(`PUT /employees/me`, đổi mật khẩu khi đã đăng nhập) sang một phiên riêng.
+
+**Vấn đề không nằm ở endpoint còn thiếu.** Viết `PUT /employees/me` là việc của một buổi
+chiều. Thứ chặn là: `GET /auth/me` **dựng `EmployeeDto` từ CLAIM chứ không đọc DB** (ADR-045),
+và access token sống 15 phút (ADR-027). Ghép hai điều đó lại, một nút "Lưu" ngây thơ sẽ cho
+ra màn hình **báo lưu thành công rồi vẫn hiện tên cũ suốt tới 15 phút** — kể cả sau F5, vì
+phiên khôi phục bằng `/refresh` cũng lấy từ claim.
+
+Đó là một lời nói dối tệ hơn hẳn việc không có nút: người dùng bấm lại lần hai, lần ba, rồi
+kết luận hệ thống hỏng. **Không có nút thì họ biết phải đi hỏi ai; có nút mà nó nói dối thì
+họ không biết gì cả.**
+
+Hai đường ra, cả hai đều là quyết định kiến trúc chứ không phải chi tiết cài đặt — phiên sau
+chọn một, đừng vừa gõ vừa nghĩ:
+
+| Cách | Đổi lấy |
+|---|---|
+| Ghi xong thì **xoay token ngay** (trả `AuthenticatedResponse` mới từ chính endpoint ghi) | Giữ được claim là nguồn nhanh; nhưng mọi endpoint ghi hồ sơ nay phải biết về vòng đời token, và **các tab khác vẫn cũ tới 15 phút** |
+| Cho `/auth/me` **đọc DB** | Hết lệch ngay lập tức ở mọi tab; nhưng mất đúng cái lợi mà ADR-045 chọn claim để có, và thêm một truy vấn vào đường nóng |
+
+**Trang chỉ đọc không gọi `/auth/me`** — nó đọc `useAuthStore`. Cùng một bộ claim, nên thêm
+một request chỉ tốn thời gian mà không mang lại thông tin nào mới.
+
+> 🔴 **Kèm theo: một lỗi có sẵn được phát hiện đúng lúc gắn mục "Hồ sơ" vào `UserMenu` —
+> mở menu người dùng làm SẬP cả menu.**
+>
+> `DropdownMenuLabel` ánh xạ sang `Menu.GroupLabel` của Base UI, thứ **bắt buộc** phải nằm
+> trong một `Menu.Group`. `UserMenu` dùng nó trần từ ngày dựng → `MenuGroupContext is missing`
+> → menu sập, kéo theo **lối ra duy nhất để Đăng xuất**. Đã kiểm chứng là lỗi có sẵn chứ
+> không phải do phiên này: `git stash` thay đổi rồi mở lại — vẫn sập y hệt.
+>
+> **Cách sửa không phải bọc vào `Menu.Group`.** Khối đó hiển thị **danh tính** người đang
+> đăng nhập, không phải nhãn cho một nhóm mục nào; bọc `Group` cho hết lỗi là hứa với trình
+> đọc màn hình một quan hệ không tồn tại. Dùng `<div>` thường — bỏ hẳn chỗ dùng sai.
+>
+> Đây là lần thứ **sáu** dự án gặp đúng hình dạng lỗi §15 đã đặt tên từ 2026-07-30: *thứ cần
+> kiểm chứng chưa có ai gọi tới.* Và lần này nó nằm ở chỗ khó tin nhất — nút **Đăng xuất**,
+> thứ mà mọi phiên "đã kiểm chứng trên trình duyệt" đều nhìn thấy trên header mà **chưa ai
+> bấm mở**. Bảng tiến độ ghi ✅ cho `UserMenu` từ 2026-07-31.
+>
+> **Rút ra, cụ thể hơn lần trước:** "kiểm chứng trên trình duyệt" mà chỉ đi theo luồng nghiệp
+> vụ thì bỏ sót đúng những thứ nằm **ngoài** luồng — menu, dropdown, trang lỗi, trạng thái
+> rỗng. Chúng không thuộc kịch bản nào nên không phiên nào có lý do bấm vào.
+
+> 🆕 **Bổ sung cùng ngày:** khối "Quyền hệ thống" liệt kê `projects:create`,
+> `employees:manage`… đã **gỡ khỏi `/profile`**. Đó là màn hình cho **người viết code**:
+> người dùng cuối không hành động được gì với danh sách đó — họ không tự cấp quyền cho mình,
+> và khi thiếu quyền thì UI đã ẩn nút sẵn rồi. Badge vai trò hệ thống là đủ; ai cần đọc ma
+> trận quyền thì `/admin/roles` mới là chỗ của nó.
+
+---
+
+#### ADR-050 (2026-08-05) — Đóng sprint thì HỎI, không tự quyết hộ
+
+**Đã chốt, CHƯA cài đặt.** Ghi trước để phiên làm vòng đời Sprint không phải quyết lại — đây
+đúng là "quyết định sản phẩm phải chốt trước khi gõ dòng code đầu tiên" mà §1 mục E cảnh báo.
+
+**Quyết định:** khi đóng một sprint, hiện dialog liệt kê **task chưa xong** và để người dùng
+chọn nơi chúng đi tới — một sprint khác, hay về Backlog. Không tự động làm thay.
+
+**Vì sao không chọn hai phương án tự động:**
+
+| Phương án | Vì sao loại |
+|---|---|
+| Tự đẩy hết về Backlog | Đội chạy sprint liên tiếp phải kéo lại từng task vào sprint mới bằng tay — biến thao tác một lần thành thao tác N lần, đúng lúc người ta đang vội đóng sổ |
+| Tự đẩy sang "sprint kế tiếp" | Phải định nghĩa "kế tiếp" là gì khi chưa ai tạo nó. Và **im lặng dồn việc sang sprint sau chính là cách làm sprint đó vỡ kế hoạch** — người lập kế hoạch không thấy phần nợ mình vừa nhận |
+
+Điểm chung của cả hai: chúng quyết hộ một thứ mà **chỉ người đóng sprint mới biết** — task
+đó còn giá trị không, có ai đang làm dở không, có nên cắt bỏ không. Hỏi một lần lúc đóng thì
+rẻ; đoán sai thì người dùng phải đi dọn mà không biết là mình cần dọn.
+
+⚠️ Việc này **cần cột `Sprint.Status` + migration** (hiện `IsActive` chỉ suy từ ngày, không có
+mốc "đã đóng" nào). Và hạng mục **velocity** của nhóm báo cáo phụ thuộc nó: không có mốc đóng
+sprint thì không có gì để đo tốc độ theo.
+
+---
+
+#### ADR-051 (2026-08-05) — Sidebar đổi theo ngữ cảnh, và hai vỏ Task phải khác nhau thật
+
+Hai quyết định giao diện, chung một câu hỏi: *thứ này đang tồn tại để làm gì?*
+
+**1. Sidebar: ba đường tới cùng một chỗ là THỪA, không phải đầy đủ.**
+
+Bản dựng buổi sáng có đồng thời mục "Dự án", khối khu vực của dự án đang mở, và danh sách
+"Dự án của tôi" — cộng thêm trang mặc định sau đăng nhập vốn đã là `/projects`. Sidebar dài
+gần hết cột, mà phần lớn là lối đi trùng nhau.
+
+Jira giải bằng **tách hai ngữ cảnh**: ngoài dự án thì sidebar là điều hướng toàn cục, vào
+trong một dự án thì sidebar **thuộc về dự án đó**. Ta làm y vậy. Bảng đối chiếu ở §6.
+
+> ⚠️ **Điều kiện đi kèm, không phải tùy chọn:** đã bỏ nav toàn cục khỏi tầm mắt thì **phải
+> trả lại đường về ở chỗ nhìn thấy được** — link "Tất cả dự án" ở đầu sidebar. Có breadcrumb
+> rồi vẫn thêm, vì breadcrumb là thứ người ta đọc khi **đã biết** mình đang tìm gì, không
+> phải thứ đập vào mắt khi đang lạc.
+
+**2. Chi tiết Task: trang thật là BẮT BUỘC, nhưng "giống hệt dialog" thì không.**
+
+Câu hỏi đặt ra rất đúng: *nếu trang riêng không khác gì dialog thì nó tồn tại để làm gì?*
+
+Nửa đầu của câu trả lời là **nó không phải lựa chọn**. Intercepting route `(.)` chỉ chặn
+*soft navigation*; xóa `tasks/[taskId]/page.tsx` thì F5 → 404, chia sẻ link → 404, mở tab mới
+→ 404. Trang phải có.
+
+Nhưng nửa sau thì câu hỏi trúng đích: **hai vỏ nhìn y hệt nhau thì nút "Mở trang riêng" đang
+hứa một khác biệt không tồn tại** — và trớ trêu là nó vừa được sửa cho chạy đúng ở đầu cùng
+phiên, để rồi phần thưởng cho cú bấm là *không thấy gì đổi*.
+
+Nay hai vỏ khác nhau về **cấu trúc**, không phải trang trí: trong dialog, khối
+`Bình luận | Lịch sử` nằm trong cột trái; ở trang thật nó **xuống dưới hai cột và lấy trọn bề
+ngang**.
+
+| | Bề rộng ô soạn bình luận (đo ở viewport 1400px) |
+|---|---|
+| Dialog | **608px** |
+| Trang thật | **1096px** — hơn **80%** |
+
+Chọn đúng khối đó vì nó là phần **đọc-và-viết nhiều nhất** của màn hình, và cũng là phần chịu
+thiệt nhất khi hẹp: mỗi dòng có avatar + tên + mốc thời gian rồi mới tới nội dung, nên trong
+dialog một câu ngắn cũng xuống dòng ba lần.
+
+> 📌 Đặt khối đó **ngoài** lưới hai cột chứ không phải `lg:col-span-2` bên trong: cột phải là
+> `sticky`, cho khối này nằm cùng lưới sẽ kéo dài track và làm mốc dính nhảy khi đoạn bình
+> luận dài ra.
+
+---
+
+#### ADR-052 (2026-08-05) — Cột board là DỮ LIỆU của từng project, không còn là enum
+
+**Thay đổi lớn nhất của dự án tính tới nay.** Trạng thái task chuyển từ enum `Status` đóng
+(4 giá trị do hệ thống định nghĩa) sang bảng `BoardColumns` do **người dùng cấu hình theo
+từng project**: thêm, sửa, đổi màu, đổi thứ tự, xóa.
+
+##### Vì sao nó đắt hơn vẻ ngoài
+
+Con số đo trước khi bắt đầu, không phải cảm giác: `Status` bị tham chiếu **39 chỗ trong 10
+file backend** và 35 file frontend, cộng một state machine viết cứng ở `TaskItem.cs`. Và
+một cái bẫy chỉ lộ ra khi đo: **`Project.Status` và `TaskItem.Status` dùng CHUNG một enum**
+— nên việc đầu tiên phải làm là tách chúng, nếu không trạng thái project bị cuốn theo trong
+khi nó chỉ cần đúng bốn nấc.
+
+##### 🔑 `StatusCategory` — thứ giữ cho cột tuỳ biến không phá vỡ phần còn lại
+
+Phần lớn trong 39 chỗ đó không hỏi "task ở trạng thái nào" mà hỏi **"task xong chưa"**:
+guard chặn task đang bị `Blocks`, `IsOverdue`, tiến độ subtask, mọi con số thống kê, guard
+"không xóa project còn task chưa xong", job nhắc hạn.
+
+Nếu cột chỉ có tên do người dùng đặt thì **không câu hỏi nào ở trên trả lời được** — một cột
+tên "Đã ship" hay "Hủy bỏ" thì mã nguồn không có cách nào biết nó nghĩa là đã kết thúc.
+
+Nên mỗi cột phải khai mình thuộc **một trong ba nhóm ĐÓNG**: `ToDo` · `InProgress` · `Done`.
+Tên là của người dùng, nhóm là hợp đồng với mã nguồn. Jira giải đúng bằng cách này.
+
+##### 🔴 `TaskItem.Category` — dữ liệu TRÙNG, có chủ đích
+
+Nhóm được **lưu cứng trên chính task**, không đọc qua `BoardColumn`. Hai lý do, cả hai đều
+có tiền lệ trả giá trong dự án:
+
+1. **Computed property đọc navigation là NRE chờ sẵn.** `IsOverdue`/`SubtaskProgress` cần
+   biết task đã kết thúc chưa; đọc `BoardColumn.Category` thì mọi query quên `Include` sẽ nổ
+   lúc chạy — đúng bẫy đã khiến `SubtaskProgress` luôn trả 0 (ADR-034).
+2. **EF dịch được thành SQL phẳng.** 39 chỗ `t.Status != Status.Done` thành
+   `t.Category != Done` — đổi một định danh, **không viết lại query nào**, và index ghép
+   `(DueDate, Category)` còn dùng được nguyên vẹn.
+
+Giá phải trả: nó **trôi được**. Chốt chặn: `private set`, người ghi duy nhất là `MoveTo`, và
+`BoardColumnService` bắt buộc gọi `SyncTaskCategoriesAsync` khi cột đổi nhóm.
+
+##### 🗑️ Ma trận chuyển trạng thái bị GỠ — ADR-052 thay thế ADR-021
+
+`CanTransitionTo` liệt kê sáu cặp hợp lệ. Đó là luật đúng khi hệ thống sở hữu bốn trạng
+thái; với cột do **người dùng** tạo thì không còn cơ sở nào để nói cặp nào hợp lệ — hệ thống
+không biết "Chờ QA" đứng trước hay sau "Đang sửa". Ép một luật lên đó là đoán hộ quy trình
+của người khác.
+
+Ba hệ quả, và **cả ba đều là test cũ bị đảo chiều**, không phải nới lỏng cho tiện:
+
+| Trước | Sau |
+|---|---|
+| Kéo về đúng cột đang đứng → **409** | → **200** (no-op) |
+| `ToDo → Done` → **409** ("nhảy bước") | → **200** |
+| ADR-021 dùng "đứng yên là lỗi" thay `RowVersion` làm chốt concurrency | Chốt đó **mất** — đổi trạng thái nay idempotent, hai người cùng kéo về một cột ra kết quả giống nhau nên không có gì để tranh chấp |
+
+Guard duy nhất còn lại: **cột đích thuộc nhóm `InProgress`** mà task đang bị chặn → 409. Điều
+kiện đổi từ "target == InProgress" sang **nhóm**, nhờ vậy một cột tự đặt tên "Chờ QA" cũng
+được bảo vệ.
+
+##### 🪤 Ba cái bẫy đã trả giá khi làm
+
+1. 🔴 **Migration suýt hỏng dữ liệu IM LẶNG.** EF tự sinh `RenameColumn(Status → Category)`
+   giữ nguyên số. Nhưng hai enum **không khớp**:
+
+   ```
+   Status:         ToDo=0  InProgress=1  Review=2  Done=3
+   StatusCategory: ToDo=0  InProgress=1  Done=2    (không có 3)
+   ```
+
+   Để nguyên thì mọi task `Review` bị đọc thành **Done**, và task `Done` mang giá trị **không
+   tồn tại** trong enum mới. EF cast int sang enum **không kiểm miền giá trị** nên không có
+   gì báo. Phải remap `2→1` TRƯỚC rồi `3→2` — làm ngược thì các hàng vừa đặt thành 2 bị kéo
+   xuống 1. Đã kiểm trên DB thật: 4/4 phép kiểm toàn vẹn ra 0.
+
+2. 🔴 **Xóa project trả 500 — sai HAI lần trước khi đúng.** `BoardColumn` không phải
+   `ISoftDeletable`, nên khi project bị đánh dấu xóa mềm:
+   - `Cascade` → EF đánh dấu cột là Deleted → DELETE thật → FK từ `Tasks` chặn → **500**.
+   - `Restrict` → EF không xóa được mà cũng không null hóa FK bắt buộc → *"association has
+     been severed"* → vẫn **500**.
+   - `ClientNoAction` → **đúng**: EF không đụng gì tới cột, xóa mềm chỉ là UPDATE trên hàng
+     Projects.
+
+   ⚠️ Cũng KHÔNG giải bằng cách cho `BoardColumn` cài `ISoftDeletable`: khi đó `Remove()` ở
+   luồng xóa cột của người dùng biến thành xóa mềm, và unique index `(ProjectId, Name)` sẽ
+   chặn việc tạo lại cột trùng tên. Đổi một lỗi lấy một lỗi khó thấy hơn.
+
+   📌 **Chỉ integration test bắt được lớp lỗi này.** Xóa project là đường ít ai đi lúc phát
+   triển, và unit test không có DB thật để FK lên tiếng.
+
+3. **`AutoInclude` cho `BoardColumn`.** `TaskMapper.ToStatusRef` đọc `task.BoardColumn.Name`,
+   tức 10+ chuỗi `Include` rải khắp `TaskRepository` đều phải nhớ thêm một dòng. Quên một chỗ
+   thì không có gì đỏ lúc biên dịch — nó nổ NRE ở đúng request không ai test tới. `AutoInclude`
+   biến "phải nhớ" thành "mặc định đúng"; giá là một INNER JOIN vào bảng vài hàng.
+
+##### Hợp đồng API đổi
+
+| | Trước | Sau |
+|---|---|---|
+| `TaskSummaryResponse.status` | `"ToDo"` (chuỗi enum) | `{ columnId, name, color, category }` |
+| `ChangeTaskStatusRequest` | `{ target: "InProgress" }` | `{ targetColumnId: "guid" }` |
+| `BoardResponse.columns` | luôn **4** | **mọi cột của project**, theo `order` |
+| `StatusCount` (thống kê) | `{ status, count }` | `{ columnId, name, color, order, category, count }` |
+
+Endpoint mới: `GET/POST /projects/{id}/columns` · `PUT/DELETE /columns/{id}` ·
+`PUT /projects/{id}/columns/order`.
+
+> 🔴 **Xóa cột bắt buộc chọn cột đích khi còn task** (400 kèm số task nếu thiếu), và **không
+> xóa được cột cuối cùng** (409). Không có đường "xóa cuốn theo task": task là dữ liệu người
+> dùng đã bỏ công tạo, một cú bấm đổi cấu hình board không được phép làm mất chúng — mà cũng
+> không được âm thầm dồn vào một cột do máy chọn, vì khi đó họ không biết chỗ nào mà tìm.
+>
+> ⚠️ `DELETE` có **thân request** (khác thường): đưa `targetColumnId` lên query string sẽ
+> khiến một thao tác phá hủy phụ thuộc vào chuỗi URL, thứ dễ sao chép nhầm và nằm lại trong
+> log máy chủ.
+
+---
+
+#### ADR-053 (2026-08-05) — "Việc của tôi": endpoint XUYÊN DỰ ÁN đầu tiên
+
+`GET /tasks/my` — task được gán cho **chính người gọi**, chưa thuộc cột nhóm `Done`, có hạn
+**≤ hôm nay**, gom sẵn theo dự án.
+
+**Vì sao cần endpoint mới thay vì gọi `/projects/{id}/tasks` nhiều lần:** mọi endpoint task
+khác đều nằm dưới `/projects/{id}/…`, nên trả lời câu *"sáng nay tôi cần làm gì"* sẽ là N
+request rồi gộp ở client — và thứ tự lẫn cách đếm sẽ do client tự quyết định một lần nữa.
+
+**Ba quyết định đáng ghi:**
+
+1. **`≤ hôm nay` chứ không `= hôm nay`.** Việc trễ hạn phải nổi lên cùng việc hôm nay; giấu
+   nó đi là đúng cách để nó bị quên tiếp.
+2. **Không nhận `employeeId` ở đâu cả**, kể cả query string. Nhận vào là biến nó thành
+   endpoint xem lịch làm việc của người khác mà không ai chủ ý thiết kế. Quyền nằm trong
+   chính điều kiện truy vấn ("được gán cho tôi"), nên service **không gọi `_authz`** — muốn
+   được gán thì phải là thành viên đang hoạt động.
+3. **Trả về mốc `today` mà SERVER dùng.** Client ở múi giờ khác sẽ tính ra một "hôm nay"
+   khác; hiện lại mốc thật để người dùng biết phạm vi mình đang xem (ADR-046b).
+
+⚠️ **Không dùng `.Value.Date` trong truy vấn** — mọi cột `DateTime` đi qua `ValueConverter`
+đóng dấu `Kind=Utc`, và EF **không dịch được** `.Date` trên cột đã chuyển đổi (ném lúc chạy
+thành HTTP 500). So thẳng với mốc nửa đêm: `t.DueDate < todayUtc.AddDays(1)`.
 
 ---
 
