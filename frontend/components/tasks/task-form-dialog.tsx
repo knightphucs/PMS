@@ -63,6 +63,12 @@ interface Props {
    * vốn đã luôn gửi `parentTaskId: null`.
    */
   parentTaskId?: string | null;
+  /**
+   * Cột đích khi mở dialog từ nút "+" trên MỘT cột cụ thể (2026-08-06). `null`/bỏ qua =
+   * cột trái nhất (nút "Tạo task" chung ở đầu trang Bảng). Cố ý KHÔNG có ô chọn cột trong
+   * form — cột do NƠI BẤM quyết định, người dùng đã chọn bằng cách bấm đúng cột đó.
+   */
+  defaultColumnId?: string | null;
   onClose: () => void;
 }
 
@@ -82,6 +88,7 @@ export function TaskFormDialog({
   taskId,
   defaultSprintId = null,
   parentTaskId = null,
+  defaultColumnId = null,
   onClose,
 }: Props) {
   const isEdit = taskId !== null;
@@ -166,6 +173,9 @@ export function TaskFormDialog({
             dueDate: toNullableIso(values.dueDate),
             priority: values.priority,
             description: toNullableText(values.description),
+            // Subtask không nằm trên board (chỉ hiện trong chi tiết task cha) nên bỏ qua
+            // cột đích — giữ nguyên hành vi cũ (cột trái nhất) cho trường hợp đó.
+            boardColumnId: isSubtask ? null : defaultColumnId,
           });
           toast.success(
             isSubtask ? `Đã tạo subtask "${values.name}".` : `Đã tạo task "${values.name}".`,

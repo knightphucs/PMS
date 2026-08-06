@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using PMS.Application.Common.Interfaces;
 using PMS.Domain.Enums;
@@ -114,4 +115,93 @@ public class ProjectStatisticsRepository : IProjectStatisticsRepository
                 s.Tasks.Count,
                 s.Tasks.Count(t => t.Category == StatusCategory.Done)))
             .ToListAsync(ct);
+
+    // ---------- Nhóm báo cáo kiểu Jira (§1 hạng mục 11) ----------
+    //
+    // 🔴 Ba method dưới đây gọi thẳng view/stored procedure của migration
+    // AddReportingDbObjects bằng ADO thô qua chính connection của DbContext, KHÔNG dùng
+    // `Database.SqlQuery<T>`: bản EF Core 8 dự án đang dùng chỉ dịch gọn cho kiểu vô hướng
+    // (xem `ProjectTaskCounterRepository.NextNumberAsync`), còn `EXEC` một stored procedure
+    // trả nhiều cột thì cần một `DbCommand` thật. Đây cũng là lý do "view"/"stored
+    // procedure" của hạng mục kỹ thuật DB có người dùng thật thay vì chỉ tồn tại để có.
+
+    public async Task<BacklogInsightTally> GetBacklogInsightAsync(
+        Guid projectId, int dueSoonHorizonDays, CancellationToken ct = default)
+    {
+        await using var cmd = await CreateCommandAsync(
+            "EXEC sp_GetProjectBacklogInsight @ProjectId = @projectId, @DueSoonHorizonDays = @horizon;",
+            ct, ("@projectId", projectId), ("@horizon", dueSoonHorizonDays));
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        await reader.ReadAsync(ct);
+
+        return new BacklogInsightTally(
+            reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2), reader.GetInt32(3));
+    }
+
+    public async Task<IReadOnlyList<PriorityTally>> GetBacklogByPriorityAsync(
+        Guid projectId, CancellationToken ct = default)
+    {
+        await using var cmd = await CreateCommandAsync(
+            "EXEC sp_GetProjectBacklogByPriority @ProjectId = @projectId;",
+            ct, ("@projectId", projectId));
+
+        var result = new List<PriorityTally>();
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            result.Add(new PriorityTally((Priority)reader.GetInt32(0), reader.GetInt32(1)));
+        return result;
+    }
+
+    public async Task<IReadOnlyList<SprintVelocityTally>> TallyVelocityAsync(
+        Guid projectId, CancellationToken ct = default)
+    {
+        await using var cmd = await CreateCommandAsync(
+            "SELECT SprintId, Name, CompletedAt, TotalTasks, DoneTasks " +
+            "FROM vw_SprintVelocity WHERE ProjectId = @projectId ORDER BY CompletedAt;",
+            ct, ("@projectId", projectId));
+
+        var result = new List<SprintVelocityTally>();
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            result.Add(new SprintVelocityTally(
+                reader.GetGuid(0), reader.GetString(1), reader.GetDateTime(2),
+                reader.GetInt32(3), reader.GetInt32(4)));
+        return result;
+    }
+
+    /// <summary>
+    /// Timeline — LINQ thuần trên bảng <c>Sprints</c>, không qua view/SP: khác
+    /// <see cref="TallyVelocityAsync"/>, timeline cần MỌI sprint kể cả chưa đóng sổ nên
+    /// <c>vw_SprintVelocity</c> (chỉ lọc <c>Status = Completed</c>) không dùng lại được.
+    /// </summary>
+    public async Task<IReadOnlyList<SprintTimelineTally>> TallyTimelineAsync(
+        Guid projectId, CancellationToken ct = default)
+        => await _context.Sprints
+            .AsNoTracking()
+            .Where(s => s.ProjectId == projectId)
+            .OrderBy(s => s.StartDate)
+            .Select(s => new SprintTimelineTally(
+                s.Id, s.Name, s.Status, s.StartDate, s.EndDate, s.CompletedAt,
+                s.Tasks.Count,
+                s.Tasks.Count(t => t.Category == StatusCategory.Done)))
+            .ToListAsync(ct);
+
+    private async Task<System.Data.Common.DbCommand> CreateCommandAsync(
+        string sql, CancellationToken ct, params (string Name, object Value)[] parameters)
+    {
+        var connection = _context.Database.GetDbConnection();
+        if (connection.State != ConnectionState.Open) await connection.OpenAsync(ct);
+
+        var cmd = connection.CreateCommand();
+        cmd.CommandText = sql;
+        foreach (var (name, value) in parameters)
+        {
+            var p = cmd.CreateParameter();
+            p.ParameterName = name;
+            p.Value = value;
+            cmd.Parameters.Add(p);
+        }
+        return cmd;
+    }
 }

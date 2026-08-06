@@ -10,6 +10,19 @@ public record ForgotPasswordRequest(string Email);
 
 public record ResetPasswordRequest(string Token, string NewPassword, string ConfirmPassword);
 
+/// <summary>
+/// Đường ghi hồ sơ cá nhân (ADR-049). Cố ý chỉ có <c>Name</c> — email không đổi được từ đây
+/// (đổi email là thay đổi định danh đăng nhập, cần luồng xác minh riêng chưa có trong scope
+/// này), và không có trường mật khẩu (xem <see cref="ChangePasswordRequest"/>).
+/// </summary>
+public record UpdateProfileRequest(string Name);
+
+/// <summary>
+/// Đổi mật khẩu khi ĐANG đăng nhập — khác <see cref="ResetPasswordRequest"/> ở chỗ người
+/// dùng chứng minh danh tính bằng mật khẩu hiện tại, không phải bằng token gửi qua email.
+/// </summary>
+public record ChangePasswordRequest(string CurrentPassword, string NewPassword, string ConfirmPassword);
+
 public record EmployeeDto(Guid Id, string Name, string Email, SystemRole SystemRole)
 {
     /// <summary>

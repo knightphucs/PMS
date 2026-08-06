@@ -1,10 +1,11 @@
 'use client';
 
 import { useDroppable } from '@dnd-kit/core';
-import { ChevronRightIcon } from 'lucide-react';
+import { ChevronRightIcon, PlusIcon } from 'lucide-react';
 
 import { TaskCard } from '@/components/board/task-card';
 import { columnDotStyle } from '@/components/tasks/status-tone';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { BoardColumnResponse, TaskSummaryResponse } from '@/types/task';
 
@@ -21,6 +22,18 @@ interface Props {
   onToggleCollapse: () => void;
   /** Menu thao tác cho từng thẻ; `null` khi người dùng không có quyền nào. */
   renderMenu?: (task: TaskSummaryResponse) => React.ReactNode;
+  /** `undefined` = ẩn hẳn nút ghim trên mọi thẻ (không đủ quyền UpdateTask). */
+  onTogglePin?: (task: TaskSummaryResponse) => void;
+  /** Id các task đang có request ghim/gỡ ghim bay dở — disable đúng MỘT thẻ, không cả cột. */
+  pinningIds?: ReadonlySet<string>;
+  /** `undefined` = ẩn hẳn (Viewer). Mở dialog "Người đảm nhận" khi bấm cụm avatar trên thẻ. */
+  onAssignClick?: (task: TaskSummaryResponse) => void;
+  /**
+   * `undefined` = ẩn hẳn nút "+" trên header cột (không đủ quyền CreateTask). Gọi lại với
+   * chính `column.id` — task mới rơi ĐÚNG cột này, dù cột đang trống hay đã có task
+   * (2026-08-06).
+   */
+  onCreateTask?: (columnId: string) => void;
 }
 
 export function BoardColumn({
@@ -33,6 +46,10 @@ export function BoardColumn({
   collapsed,
   onToggleCollapse,
   renderMenu,
+  onTogglePin,
+  pinningIds,
+  onAssignClick,
+  onCreateTask,
 }: Props) {
   /**
    * 🔴 MỘT nguồn sự thật cho cả hành vi lẫn hình thức.
@@ -134,6 +151,18 @@ export function BoardColumn({
         <span className="bg-background text-muted-foreground rounded px-1.5 py-0.5 text-[11px] font-medium tabular-nums">
           {tasks.length}
         </span>
+
+        {onCreateTask ? (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`Tạo task trong ${column.name}`}
+            title="Tạo task trong cột này"
+            onClick={() => onCreateTask(column.id)}
+          >
+            <PlusIcon className="size-3.5" />
+          </Button>
+        ) : null}
       </header>
 
       <div className="flex min-h-24 flex-col gap-2 overflow-y-auto">
@@ -147,10 +176,14 @@ export function BoardColumn({
             <TaskCard
               key={task.id}
               task={task}
+              projectId={projectId}
               href={`/projects/${projectId}/tasks/${task.id}`}
               canDrag={canDragTask(task)}
               disabledReason={dragDisabledReason}
               menu={renderMenu?.(task)}
+              onTogglePin={onTogglePin}
+              isPinning={pinningIds?.has(task.id)}
+              onAssignClick={onAssignClick}
             />
           ))
         )}

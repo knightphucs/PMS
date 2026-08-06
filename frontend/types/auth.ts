@@ -24,6 +24,24 @@ export interface ResetPasswordRequest {
   confirmPassword: string;
 }
 
+/**
+ * Đường ghi hồ sơ cá nhân (ADR-049). Cố ý chỉ có `name` — đổi email là đổi định danh đăng
+ * nhập, cần luồng xác minh riêng chưa có; mật khẩu đi qua {@link ChangePasswordRequest}.
+ */
+export interface UpdateProfileRequest {
+  name: string;
+}
+
+/**
+ * Đổi mật khẩu khi ĐANG đăng nhập — khác `ResetPasswordRequest` ở chỗ chứng minh danh tính
+ * bằng mật khẩu hiện tại, không phải token gửi qua email.
+ */
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
 export interface EmployeeDto {
   id: string;
   name: string;

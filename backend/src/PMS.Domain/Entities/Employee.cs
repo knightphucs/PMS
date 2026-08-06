@@ -50,6 +50,19 @@ public class Employee : BaseEntity
         SystemRole = role;
     }
 
+    /// <summary>
+    /// Tự đổi tên hiển thị (ADR-049, đường ghi hồ sơ cá nhân). Cùng khuôn với
+    /// <see cref="Lock"/>/<see cref="ChangeSystemRole"/>: validate + gán, không có gì khác.
+    /// </summary>
+    public void Rename(string name)
+    {
+        var trimmed = name.Trim();
+        if (trimmed.Length == 0)
+            throw new DomainException("Tên không được để trống.");
+
+        Name = trimmed;
+    }
+
     public static Employee Register(string name, string email, string passwordHash) => new()
     {
         Id = Guid.NewGuid(),

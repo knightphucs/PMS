@@ -77,6 +77,16 @@ export const statisticsKeys = {
   all: (projectId: string) => [...projectDataKeys.all(projectId), 'statistics'] as const,
 };
 
+/** Nhóm báo cáo kiểu Jira — backlog insight + velocity. */
+export const reportKeys = {
+  backlogInsight: (projectId: string) =>
+    [...projectDataKeys.all(projectId), 'reports', 'backlog-insight'] as const,
+  velocity: (projectId: string) =>
+    [...projectDataKeys.all(projectId), 'reports', 'velocity'] as const,
+  timeline: (projectId: string) =>
+    [...projectDataKeys.all(projectId), 'reports', 'timeline'] as const,
+};
+
 export const projectAttachmentKeys = {
   all: (projectId: string) => [...projectDataKeys.all(projectId), 'attachments'] as const,
 };

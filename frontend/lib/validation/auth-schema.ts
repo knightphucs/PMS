@@ -58,7 +58,30 @@ export const resetPasswordSchema = z
     path: ['confirmPassword'],
   });
 
+/**
+ * Soi gương `UpdateProfileRequestValidator` — cùng giới hạn 100 ký tự của cột
+ * `Employees.Name`. `.trim()` trước khi kiểm rỗng: backend cũng trim trong `Employee.Rename`,
+ * nên "   " (toàn khoảng trắng) phải bị chặn ở đây thay vì lọt qua rồi nhận 400 từ server.
+ */
+export const updateProfileSchema = z.object({
+  name: z.string().trim().min(1, 'Vui lòng nhập tên.').max(100, 'Tên tối đa 100 ký tự.'),
+});
+
+/** Soi gương `ChangePasswordRequestValidator` — mật khẩu mới cùng bộ luật với đăng ký. */
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Vui lòng nhập mật khẩu hiện tại.'),
+    newPassword: password,
+    confirmPassword: z.string().min(1, 'Vui lòng nhập lại mật khẩu mới.'),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: 'Mật khẩu nhập lại không khớp.',
+    path: ['confirmPassword'],
+  });
+
 export type LoginValues = z.infer<typeof loginSchema>;
 export type RegisterValues = z.infer<typeof registerSchema>;
 export type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
+export type UpdateProfileValues = z.infer<typeof updateProfileSchema>;
+export type ChangePasswordValues = z.infer<typeof changePasswordSchema>;

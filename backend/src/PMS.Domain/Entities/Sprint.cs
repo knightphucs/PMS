@@ -73,6 +73,21 @@ public class Sprint : BaseEntity, ISoftDeletable
         }
     }
 
+    /// <summary>
+    /// Quá hạn THẬT — đang <see cref="SprintStatus.Active"/> nhưng đã qua <c>EndDate</c> mà
+    /// chưa đóng sổ.
+    ///
+    /// <para>
+    /// 🔴 <b>KHÔNG suy từ <c>!IsActive</c></b> — đây từng là lỗi thật ở
+    /// <c>SprintStatusBadge</c> (frontend, phát hiện 2026-08-06): <see cref="IsActive"/> là
+    /// một cửa sổ HAI ĐẦU (<c>StartDate..EndDate</c>), nên nó cũng <c>false</c> khi sprint
+    /// được bấm "Bắt đầu" SỚM hơn kế hoạch (<c>today &lt; StartDate</c>) — trường hợp đó là
+    /// "chạy trước lịch", ngược nghĩa hoàn toàn với "quá hạn". Property này chỉ so với
+    /// <c>EndDate</c>, đúng một chiều duy nhất mà "quá hạn" thật sự cần.
+    /// </para>
+    /// </summary>
+    public bool IsOverdue => Status == SprintStatus.Active && DateTime.UtcNow.Date > EndDate.Date;
+
     public void AddTask(TaskItem task)
     {
         task.SprintId = Id;

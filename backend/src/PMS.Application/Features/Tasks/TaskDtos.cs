@@ -11,7 +11,13 @@ public record CreateTaskRequest(
     Guid? ParentTaskId,
     DateTime? DueDate,
     Priority Priority,
-    string? Description = null);
+    string? Description = null,
+    /// <summary>
+    /// Cột đích khi bấm "+" trên MỘT cột cụ thể (2026-08-06). <c>null</c> = cột trái nhất
+    /// của project (hành vi cũ, ADR-052) — nút "Tạo task" chung và tạo subtask đều gửi
+    /// <c>null</c>. Phải cùng project với <see cref="ProjectId"/>, không thì 404.
+    /// </summary>
+    Guid? BoardColumnId = null);
 
 public record UpdateTaskRequest(
     string Name,
@@ -21,6 +27,9 @@ public record UpdateTaskRequest(
     string? Description = null);
 
 public record MoveTaskToSprintRequest(Guid? SprintId);
+
+/// <summary>Ghim/gỡ ghim — task ghim luôn đứng đầu cột trên board (2026-08-06).</summary>
+public record PinTaskRequest(bool Pinned);
 
 public record AssignTaskRequest(Guid EmployeeId, RoleInTask Role);
 
@@ -67,6 +76,16 @@ public record TaskSummaryResponse(
     Guid? SprintId,
     Guid? ParentTaskId,
     decimal SubtaskProgress,
+    /// <summary>
+    /// Số subtask TRỰC TIẾP (không đệ quy — subtask chỉ có một cấp, ADR §5). Khác
+    /// <c>SubtaskProgress</c> ở chỗ phân biệt được "không có subtask" (<c>0</c>) với "có
+    /// subtask nhưng chưa xong cái nào" (<c>SubtaskProgress == 0</c> nhưng
+    /// <c>SubtaskCount &gt; 0</c>) — thẻ Kanban cần biết đúng cái này để quyết định có vẽ
+    /// nút mở rộng subtask hay không.
+    /// </summary>
+    int SubtaskCount,
+    /// <summary>Ghim — luôn đứng đầu cột trên board bất kể độ ưu tiên (2026-08-06).</summary>
+    bool IsPinned,
     IReadOnlyList<TaskCardAssignee> Assignees,
     IReadOnlyList<LabelResponse> Labels);
 

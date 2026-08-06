@@ -2,9 +2,11 @@
 
 import {
   BarChart3Icon,
+  GanttChartIcon,
   KanbanSquareIcon,
   ListTodoIcon,
   TimerIcon,
+  TrendingUpIcon,
   UsersIcon,
   type LucideIcon,
 } from 'lucide-react';
@@ -14,11 +16,14 @@ import { useSelectedLayoutSegment } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
 /**
- * Năm khu vực của MỘT dự án — nguồn sự thật duy nhất.
+ * Các khu vực của MỘT dự án — nguồn sự thật duy nhất.
  *
- * Export vì `SidebarNav` dựng lại đúng năm mục này thành khối "ngữ cảnh dự án" (2026-08-05).
+ * Export vì `SidebarNav` dựng lại đúng các mục này thành khối "ngữ cảnh dự án" (2026-08-05).
  * Chép tay sang đó thì thêm một tab ở đây sẽ âm thầm để sidebar thiếu một mục — đúng lớp
  * lỗi "hai nơi định dạng thì chắc chắn có lúc lệch" mà ADR-034 đã trả giá một lần.
+ *
+ * Backlog Insight là ngữ cảnh của Backlog, nên mở dưới dạng panel "Insights" tại chính màn
+ * Backlog thay vì là một tab cạnh dashboard tổng quan.
  */
 export const PROJECT_SECTIONS: { segment: string; label: string; icon: LucideIcon }[] = [
   { segment: 'board', label: 'Bảng', icon: KanbanSquareIcon },
@@ -27,6 +32,9 @@ export const PROJECT_SECTIONS: { segment: string; label: string; icon: LucideIco
   { segment: 'members', label: 'Thành viên', icon: UsersIcon },
   // Cả ba vai trò đều xem được (ADR-039) nên tab hiện với mọi thành viên, không gác.
   { segment: 'statistics', label: 'Thống kê', icon: BarChart3Icon },
+  // Hai báo cáo dưới cùng cùng quyền với Thống kê — không tạo action mới.
+  { segment: 'velocity', label: 'Velocity', icon: TrendingUpIcon },
+  { segment: 'timeline', label: 'Timeline', icon: GanttChartIcon },
 ];
 
 /**

@@ -23,6 +23,24 @@ public class Project : BaseEntity, ISoftDeletable
     public DateTime? DeletedAt { get; set; }
     public byte[] RowVersion { get; set; } = null!;
 
+    /// <summary>
+    /// Số task đang hoạt động (chưa xóa mềm) của project.
+    ///
+    /// <para>
+    /// 🔴 Duy trì bởi TRIGGER DB <c>trg_Tasks_MaintainProjectTaskCount</c>
+    /// (xem migration <c>AddReportingDbObjects</c>), <b>không có dòng C# nào ghi vào đây</b>
+    /// — đúng nghĩa đen: không có domain method nào set nó, `private set` chỉ để chặn lỡ tay.
+    /// </para>
+    /// <para>
+    /// Đây là minh họa "trigger" cho hạng mục kỹ thuật DB của báo cáo — bản thân ứng dụng
+    /// KHÔNG cần cột này, <c>ProjectStatisticsRepository.CountTasksAsync</c> đã tính đúng
+    /// theo yêu cầu tại thời điểm hỏi. Cố tình nêu rõ ở đây thay vì giấu đi: đây là cột kém
+    /// cần thiết nhất trong bốn đối tượng DB mới, tồn tại để trigger có việc thật để làm
+    /// chứ không phải ngược lại.
+    /// </para>
+    /// </summary>
+    public int TaskCount { get; private set; }
+
     public ICollection<TaskItem> Tasks { get; set; } = [];
     public ICollection<Sprint> Sprints { get; set; } = [];
 

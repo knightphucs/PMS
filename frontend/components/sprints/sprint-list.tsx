@@ -249,9 +249,11 @@ function SprintRow({
 /**
  * Huy hiệu trạng thái sprint.
  *
- * 🔴 Chỗ đáng giá nhất là nhánh cuối: `status === 'Active'` mà `isActive === false` nghĩa là
- * **sprint đã quá hạn mà chưa ai đóng**. Hai trường đó nói hai chuyện khác nhau (một suy từ
- * ngày, một do người dùng bấm), và chỗ chúng lệch nhau chính là thứ cần nhắc.
+ * 🔴 **Bẫy đã sửa (2026-08-06):** bản trước dùng `!sprint.isActive` để suy "quá hạn, chưa
+ * đóng" — SAI, vì `isActive` là cửa sổ HAI ĐẦU (`startDate..endDate`), nên nó cũng `false`
+ * khi sprint được bấm "Bắt đầu" SỚM hơn kế hoạch (`today < startDate`). Một PM chạy sprint
+ * trước lịch thì thấy ngay huy hiệu "Quá hạn" — ngược hẳn với sự thật. Giờ dùng thẳng
+ * `sprint.isOverdue` (server tính, chỉ so một chiều với `endDate`), không suy từ `isActive`.
  */
 function SprintStatusBadge({ sprint }: { sprint: SprintResponse }) {
   if (sprint.status === 'Completed') {
@@ -270,19 +272,19 @@ function SprintStatusBadge({ sprint }: { sprint: SprintResponse }) {
     );
   }
 
-  return sprint.isActive ? (
-    <Badge
-      variant="secondary"
-      className="border-0 bg-emerald-100 font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-    >
-      Đang chạy
-    </Badge>
-  ) : (
+  return sprint.isOverdue ? (
     <Badge
       variant="secondary"
       className="border-0 bg-amber-100 font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300"
     >
       Quá hạn, chưa đóng
+    </Badge>
+  ) : (
+    <Badge
+      variant="secondary"
+      className="border-0 bg-emerald-100 font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+    >
+      Đang chạy
     </Badge>
   );
 }

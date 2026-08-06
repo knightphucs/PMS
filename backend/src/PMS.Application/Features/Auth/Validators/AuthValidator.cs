@@ -82,3 +82,34 @@ public class ResetPasswordRequestValidator : AbstractValidator<ResetPasswordRequ
             .Equal(x => x.NewPassword).WithMessage("Xác nhận mật khẩu không khớp.");
     }
 }
+
+/// <summary>Cùng giới hạn với cột <c>Employees.Name</c> (100 ký tự, xem EmployeeConfiguration).</summary>
+public class UpdateProfileRequestValidator : AbstractValidator<UpdateProfileRequest>
+{
+    public UpdateProfileRequestValidator()
+    {
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+    }
+}
+
+/// <summary>
+/// Mật khẩu mới cùng bộ luật với đăng ký/đặt lại — đổi mật khẩu khi đang đăng nhập không
+/// được là đường vòng né chính sách độ mạnh.
+/// </summary>
+public class ChangePasswordRequestValidator : AbstractValidator<ChangePasswordRequest>
+{
+    public ChangePasswordRequestValidator()
+    {
+        RuleFor(x => x.CurrentPassword).NotEmpty();
+
+        RuleFor(x => x.NewPassword)
+            .NotEmpty()
+            .MinimumLength(8).WithMessage("Mật khẩu tối thiểu 8 ký tự.")
+            .Matches("[A-Z]").WithMessage("Mật khẩu phải có ít nhất 1 chữ hoa.")
+            .Matches("[a-z]").WithMessage("Mật khẩu phải có ít nhất 1 chữ thường.")
+            .Matches("[0-9]").WithMessage("Mật khẩu phải có ít nhất 1 chữ số.");
+
+        RuleFor(x => x.ConfirmPassword)
+            .Equal(x => x.NewPassword).WithMessage("Xác nhận mật khẩu không khớp.");
+    }
+}

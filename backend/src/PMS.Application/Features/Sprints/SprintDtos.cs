@@ -47,14 +47,23 @@ public record SprintResponse(
     DateTime StartDate,
     DateTime EndDate,
     /// <summary>
-    /// ⚠️ Suy từ NGÀY (hôm nay có nằm trong khoảng không), KHÔNG phải
-    /// <c>Status == Active</c>. Hai thứ khác nhau và đều có ích: một sprint quá hạn mà chưa
-    /// ai đóng thì <c>IsActive = false</c> nhưng <c>Status = Active</c> — chính là tín hiệu
-    /// "cần đóng sổ" mà giao diện nên nhắc.
+    /// ⚠️ Suy từ NGÀY (hôm nay có nằm trong khoảng <c>StartDate..EndDate</c> không), KHÔNG
+    /// phải <c>Status == Active</c>. Hai thứ khác nhau — nhưng <c>IsActive = false</c> mà
+    /// <c>Status = Active</c> KHÔNG chỉ có một nghĩa: nó đúng khi sprint quá hạn chưa đóng
+    /// (<c>today &gt; EndDate</c>), NHƯNG cũng đúng khi sprint được bấm chạy sớm hơn kế
+    /// hoạch (<c>today &lt; StartDate</c>) — hai tình huống trái ngược nhau hoàn toàn. Muốn
+    /// biết "có cần nhắc đóng sổ không" thì dùng <see cref="IsOverdue"/>, không suy từ
+    /// trường này (bài học từ lỗi <c>SprintStatusBadge</c> 2026-08-06).
     /// </summary>
     bool IsActive,
     int TaskCount,
     SprintStatus Status,
     DateTime? CompletedAt,
     /// <summary>Số task trong sprint đã thuộc cột nhóm <c>Done</c> — nuôi thanh tiến độ.</summary>
-    int DoneCount);
+    int DoneCount,
+    /// <summary>
+    /// Quá hạn THẬT: đang <c>Active</c> và đã qua <c>EndDate</c> mà chưa đóng sổ. Đây mới là
+    /// tín hiệu "cần nhắc đóng sổ" — xem chú thích của <see cref="IsActive"/> để biết vì sao
+    /// không suy được từ đó.
+    /// </summary>
+    bool IsOverdue);
