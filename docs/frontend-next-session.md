@@ -1,12 +1,57 @@
 # Chuẩn bị cho phiên Frontend kế tiếp
 
 > Soạn ngày 2026-07-31, cuối phiên "Frontend — nền tảng".
-> **Cập nhật 2026-08-05 (tối)** — **đọc §0 trước**, rồi §0-chiều, §0-cũ và §0a; các mục bên
-> dưới lỗi thời phần lớn. Đọc cùng `ARCHITECTURE.md` §6 và ADR-027 → **ADR-053**.
+> **Cập nhật 2026-08-06** — **đọc §00 trước**, rồi §0, §0-chiều, §0-cũ và §0a; các mục bên
+> dưới lỗi thời phần lớn. Đọc cùng `ARCHITECTURE.md` §6 và ADR-027 → **ADR-056**.
 
 ---
 
-## 0. 🆕 Cập nhật 2026-08-05 (tối) — cột tuỳ biến · vòng đời Sprint · Việc của tôi
+## 00. 🆕 Cập nhật 2026-08-06 — hồ sơ cá nhân · kỹ thuật DB · nhóm báo cáo
+
+**Đây là mục mới nhất.** Bốn hạng mục còn lại của lộ trình (§1 ARCHITECTURE.md) làm trong
+một phiên, theo đúng thứ tự ưu tiên đã chốt với người dùng — **không** làm Search/SignalR.
+
+### ✅ Đã làm xong
+
+| Việc | Kết quả |
+|---|---|
+| **Đường ghi hồ sơ cá nhân** (ADR-054) | `/profile` hết chỉ-đọc: sửa tên tại chỗ + dialog đổi mật khẩu. Cả hai gọi endpoint trả token mới, `setSession` lại ngay — không còn "báo lưu thành công mà vẫn hiện tên cũ" |
+| **Kiểm tay board** | Đổi thứ tự cột + đổi category cột ảnh hưởng thống kê — kiểm chứng THẬT qua round-trip HTTP + đọc DB (3 test mới `BoardColumnsTests.cs`), không phải bấm chuột. ⚠️ Kéo–thả thật (chuột/cảm ứng/bàn phím) **vẫn chưa kiểm** — môi trường phiên này không có công cụ trình duyệt nào |
+| **Kỹ thuật DB** (ADR-055) | Index · view · 2 stored procedure · trigger · CHECK constraint, migration `AddReportingDbObjects`, 7 integration test. **Tìm và sửa một lỗi có sẵn dạng mới**: trigger trên bảng có cột `rowversion` làm mọi ghi qua EF 500 cho tới khi khai `HasTrigger` |
+| **Nhóm báo cáo** (ADR-056) | `GET /projects/{id}/reports/{backlog-insight,velocity,timeline}` — **ba tab/route riêng** (`backlog-insight`/`velocity`/`timeline` trong `PROJECT_SECTIONS`, tự lên cả thanh tab lẫn sidebar "Lập kế hoạch"), không dồn vào một tab "Báo cáo" như bản làm buổi sáng — tách ra cho sidebar đủ đầy hơn và mỗi báo cáo có chỗ đứng riêng |
+
+### 🪤 Bẫy mới đáng nhớ nhất của phiên này
+
+🔴 **Thêm trigger vào một bảng có cột `rowversion` (hoặc bất kỳ cột computed nào EF cần đọc
+lại sau ghi) mà KHÔNG khai `HasTrigger` trong Fluent API thì MỌI INSERT/UPDATE qua EF vào
+bảng đó ném `DbUpdateException`** — không liên quan gì tới logic trigger, mà vì SQL Server
+cấm `OUTPUT` không có `INTO` trên bảng có trigger đang bật, và EF Core mặc định sinh đúng
+dạng `OUTPUT` đó để đọc `RowVersion` sau khi ghi. Migration áp được, build sạch, nhưng
+`POST /tasks` (và mọi endpoint ghi Task khác) trả 500 tuyệt đối cho tới khi thêm:
+
+```csharp
+builder.ToTable("Tasks", t => t.HasTrigger("trg_Tasks_MaintainProjectTaskCount"));
+```
+
+Chi tiết đầy đủ + bẫy thứ hai (trigger tính sai nếu dùng `AFTER DELETE` trên bảng xóa MỀM)
+ở ADR-055.
+
+**Cập nhật cuối ngày:** Timeline đã làm nốt cùng ngày (`GET /projects/{id}/reports/timeline`
+— mọi sprint kể cả `Planned`, sắp theo `StartDate`, LINQ thuần trên `Sprints` chứ không qua
+view). `SprintTimelineChart` là Gantt tự dựng bằng `<div>` định vị `%`, KHÔNG dùng Recharts —
+thư viện đó không hợp cho việc vẽ thanh theo khoảng ngày thật. Cả ba báo cáo (backlog
+insight/velocity/timeline) tách thành ba tab/route riêng thay vì một tab "Báo cáo" gộp, theo
+đúng yêu cầu làm sidebar dự án "phong phú" hơn.
+
+### Việc còn lại
+
+1. **Kéo–thả thật trên UI** (chuột/cảm ứng/bàn phím) — nợ kiểm chứng vẫn treo, không phiên
+   nào trong chuỗi gần đây có công cụ trình duyệt để trả nợ này.
+2. Search toàn cục (Elasticsearch) · SignalR — cố ý ngoài phạm vi, xem §6 ARCHITECTURE.md.
+
+---
+
+## 0. Cập nhật 2026-08-05 (tối) — cột tuỳ biến · vòng đời Sprint · Việc của tôi
 
 **Đây là mục mới nhất.** Ba mục §0 bên dưới là các đợt trước trong cùng ngày.
 
