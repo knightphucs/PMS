@@ -7,7 +7,12 @@ import { useCallback, useEffect, useRef } from 'react';
 import * as authApi from '@/lib/api/endpoints/auth';
 import { refreshAccessToken, resetRefreshState } from '@/lib/api/refresh';
 import { useAuthStore } from '@/store/auth-store';
-import type { LoginRequest, RegisterRequest } from '@/types/auth';
+import type {
+  ChangePasswordRequest,
+  LoginRequest,
+  RegisterRequest,
+  UpdateProfileRequest,
+} from '@/types/auth';
 
 /**
  * Khôi phục phiên sau khi tải lại trang.
@@ -64,6 +69,33 @@ export function useAuth() {
     [setSession],
   );
 
+  /**
+   * Đổi tên hồ sơ (ADR-049). `authApi.updateProfile` trả `AuthenticatedResponse` MỚI —
+   * `setSession` ngay với nó, không chỉ ghi `user` bằng tay, vì `name` nằm trong JWT claim
+   * và tab này cần access token mang tên mới để `/auth/me` không nói dối ở lần gọi kế.
+   */
+  const updateProfile = useCallback(
+    async (body: UpdateProfileRequest) => {
+      const auth = await authApi.updateProfile(body);
+      setSession(auth.accessToken, auth.accessTokenExpiresAt, auth.employee);
+      return auth;
+    },
+    [setSession],
+  );
+
+  /**
+   * Đổi mật khẩu khi đang đăng nhập. Cùng lý do `setSession` lại như `updateProfile`: phiên
+   * hiện tại vẫn sống tiếp bằng token MỚI mà server vừa phát, các phiên khác đã bị thu hồi.
+   */
+  const changePassword = useCallback(
+    async (body: ChangePasswordRequest) => {
+      const auth = await authApi.changePassword(body);
+      setSession(auth.accessToken, auth.accessTokenExpiresAt, auth.employee);
+      return auth;
+    },
+    [setSession],
+  );
+
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
@@ -81,5 +113,14 @@ export function useAuth() {
     }
   }, [clearSession, queryClient, router]);
 
-  return { user, status, isAuthenticated: status === 'authenticated', login, register, logout };
+  return {
+    user,
+    status,
+    isAuthenticated: status === 'authenticated',
+    login,
+    register,
+    logout,
+    updateProfile,
+    changePassword,
+  };
 }
