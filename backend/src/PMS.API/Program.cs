@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -143,6 +144,39 @@ builder.Services.AddRateLimiter(options =>
             {
                 Window = TimeSpan.FromMinutes(1),
                 PermitLimit = 3,
+                QueueLimit = 0
+            }));
+    // Mời thành viên qua email (endpoint đã [Authorize]) — partition theo employee id thay vì
+    // IP để một người dùng không "chia sẻ" hạn mức với đồng nghiệp sau cùng NAT/VPN.
+    options.AddPolicy("invite-external", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ctx.User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+                ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 10,
+                QueueLimit = 0
+            }));
+    // Xem trước lời mời (public, GET) — token 256-bit đã đủ khó đoán, đây chỉ là vệ sinh
+    // chung chống quét token hàng loạt.
+    options.AddPolicy("invitation-preview", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 20,
+                QueueLimit = 0
+            }));
+    options.AddPolicy("invitation-accept", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ctx.User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+                ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 10,
                 QueueLimit = 0
             }));
 });

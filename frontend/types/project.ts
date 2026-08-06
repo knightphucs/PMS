@@ -74,3 +74,30 @@ export interface MyInvitationResponse {
   role: RoleInProject;
   invitedAt: string;
 }
+
+/**
+ * Mời một email qua LINK gửi bằng email — khác {@link InviteMemberRequest}, hoạt động cả
+ * khi email chưa có tài khoản trong hệ thống. Xem `POST /projects/{id}/members/invitations`.
+ */
+export interface InviteExternalRequest {
+  email: string;
+  role: RoleInProject;
+}
+
+/** Trả về sau khi tạo lời mời qua email — KHÔNG mang token, token chỉ nằm trong nội dung email. */
+export interface ExternalInvitationResponse {
+  id: string;
+  projectId: string;
+  email: string;
+  role: RoleInProject;
+  expiresAt: string;
+}
+
+/** Xem trước một lời mời từ token trong link — `GET /invitations/{token}`, public. */
+export interface InvitationPreviewResponse {
+  projectId: string;
+  projectName: string;
+  email: string;
+  role: RoleInProject;
+  expiresAt: string;
+}
