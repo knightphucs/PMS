@@ -13,6 +13,11 @@ export interface SprintResponse {
    *
    * ⚠️ KHÔNG phải "sprint duy nhất đang chạy" — hai sprint gối ngày nhau thì cả hai đều
    * `isActive`, và một sprint có thể active mà chưa có task nào.
+   *
+   * 🔴 **`isActive === false` KHÔNG có nghĩa là quá hạn.** Nó cũng `false` khi sprint được
+   * bấm "Bắt đầu" SỚM hơn kế hoạch (`startDate` còn ở tương lai) — tình huống ngược hẳn với
+   * quá hạn. Muốn biết "có cần nhắc đóng sổ không" thì đọc {@link SprintResponse.isOverdue},
+   * đừng suy từ `!isActive` (bài học từ lỗi `SprintStatusBadge` 2026-08-06).
    */
   isActive: boolean;
   /** Số task thuộc sprint. Bằng 0 ở phản hồi vừa TẠO (sprint mới chưa có task). */
@@ -21,15 +26,20 @@ export interface SprintResponse {
    * Vòng đời do NGƯỜI DÙNG điều khiển (ADR-050).
    *
    * 🔴 **Khác hẳn `isActive`.** `isActive` suy từ NGÀY; trường này nói đội đã bấm bắt đầu
-   * chưa và đã chốt sổ chưa. Hai thứ tách nhau trong thực tế, và chỗ chúng lệch nhau chính
-   * là tín hiệu đáng hiện: `status === 'Active'` mà `isActive === false` nghĩa là sprint đã
-   * quá hạn mà chưa ai đóng.
+   * chưa và đã chốt sổ chưa. `status === 'Active'` mà `isActive === false` có HAI cách xảy
+   * ra trái ngược nhau: quá hạn chưa đóng (`isOverdue === true`), HOẶC chạy sớm hơn kế
+   * hoạch (`isOverdue === false`) — xem {@link SprintResponse.isOverdue}.
    */
   status: SprintStatus;
   /** ISO 8601 UTC, `null` khi chưa đóng. Mốc velocity đo theo. */
   completedAt: string | null;
   /** Số task trong sprint đã thuộc cột nhóm `Done` — nuôi thanh tiến độ. */
   doneCount: number;
+  /**
+   * Quá hạn THẬT — đang `Active` và đã qua `endDate` mà chưa đóng sổ. Đây mới là tín hiệu
+   * "cần nhắc đóng sổ", KHÔNG suy được từ `!isActive` (xem chú thích ở đó).
+   */
+  isOverdue: boolean;
 }
 
 export type SprintStatus = 'Planned' | 'Active' | 'Completed';

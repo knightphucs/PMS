@@ -30,5 +30,6 @@ public class SprintMapper
         sprint.Tasks.Count,
         sprint.Status,
         sprint.CompletedAt,
-        sprint.Tasks.Count(t => t.Category == StatusCategory.Done));
+        sprint.Tasks.Count(t => t.Category == StatusCategory.Done),
+        sprint.IsOverdue);
 }

@@ -44,6 +44,47 @@ public class SprintsCrudTests : IntegrationTestBase
         sprints.Single(s => s.Id == chuaBatDau).IsActive.ShouldBeFalse();
     }
 
+    /// <summary>
+    /// 🔴 Bẫy thật (phát hiện 2026-08-06, qua báo cáo người dùng): trước khi có
+    /// <c>IsOverdue</c>, frontend suy "quá hạn" từ <c>!IsActive</c> — sai, vì
+    /// <c>IsActive = false</c> cũng đúng khi sprint được bấm Start SỚM hơn kế hoạch
+    /// (<c>StartDate</c> còn ở tương lai), một tình huống NGƯỢC HẲN với quá hạn.
+    /// </summary>
+    [Fact]
+    public async Task IsOverdue_chi_dung_khi_qua_EndDate_KHONG_dung_khi_chay_som_hon_ke_hoach()
+    {
+        var pm = await CreateUserAsync();
+        var projectId = await CreateProjectAsync(pm.Client);
+
+        // Bấm "Bắt đầu" SỚM: StartDate còn cách 5 ngày nữa mới tới, nhưng Status đã Active.
+        var chaySom = await CreateSprintAsync(pm.Client, projectId, "Chạy sớm", 5, 14);
+        (await pm.Client.PostAsync($"/api/v1/sprints/{chaySom}/start", null))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var sprints = await pm.Client.GetFromJsonAsync<List<SprintResponse>>(
+            $"/api/v1/projects/{projectId}/sprints", TestJson.Options);
+
+        var response = sprints!.Single(s => s.Id == chaySom);
+        response.IsActive.ShouldBeFalse();    // đúng: hôm nay chưa tới StartDate
+        response.IsOverdue.ShouldBeFalse();   // nhưng KHÔNG phải quá hạn — ngược lại là sớm
+    }
+
+    [Fact]
+    public async Task IsOverdue_dung_khi_da_qua_EndDate_ma_chua_dong_so()
+    {
+        var pm = await CreateUserAsync();
+        var projectId = await CreateProjectAsync(pm.Client);
+
+        var quaHan = await CreateSprintAsync(pm.Client, projectId, "Quá hạn", -10, -1);
+        (await pm.Client.PostAsync($"/api/v1/sprints/{quaHan}/start", null))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var sprints = await pm.Client.GetFromJsonAsync<List<SprintResponse>>(
+            $"/api/v1/projects/{projectId}/sprints", TestJson.Options);
+
+        sprints!.Single(s => s.Id == quaHan).IsOverdue.ShouldBeTrue();
+    }
+
     [Fact]
     public async Task EndDate_truoc_StartDate_bi_ValidationFilter_chan_400()
     {
