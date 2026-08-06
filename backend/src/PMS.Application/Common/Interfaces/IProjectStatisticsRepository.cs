@@ -23,7 +23,8 @@ public record SprintTally(
 public record BacklogInsightTally(int TotalOpen, int Overdue, int DueSoon, int NoDueDate);
 
 /// <summary>Một hàng của view `vw_SprintVelocity` — chỉ sprint đã ĐÓNG SỔ mới xuất hiện.</summary>
-public record SprintVelocityTally(Guid SprintId, string Name, DateTime CompletedAt, int Total, int Done);
+public record SprintVelocityTally(
+    Guid SprintId, string Name, DateTime CompletedAt, int Total, int Done, int DoneStoryPoints = 0);
 
 /// <summary>
 /// Một hàng của timeline — KHÁC <see cref="SprintTally"/>: mang theo <see cref="Status"/> và

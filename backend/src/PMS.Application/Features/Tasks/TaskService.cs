@@ -34,7 +34,10 @@ public class TaskService : ITaskService
     public async Task<TaskSummaryResponse> CreateAsync(
         CreateTaskRequest request, CancellationToken ct = default)
     {
-        await _authz.AuthorizeAsync(request.ProjectId, ProjectAction.CreateTask, ct);
+        // Task gốc chỉ PM tạo. Subtask là ngoại lệ có chủ đích: Member được tách nhỏ
+        // chính việc đã giao cho mình, không thể tạo dưới task của người khác.
+        if (request.ParentTaskId is null)
+            await _authz.AuthorizeAsync(request.ProjectId, ProjectAction.CreateTask, ct);
 
         BoardColumn targetColumn;
         if (request.BoardColumnId is { } columnId)
@@ -67,7 +70,8 @@ public class TaskService : ITaskService
             ProjectId = request.ProjectId,
             ReporterId = _currentUser.RequireEmployeeId(),
             DueDate = request.DueDate,
-            Priority = request.Priority
+            Priority = request.Priority,
+            StoryPoints = request.StoryPoints
         };
 
         task.MoveTo(targetColumn);
@@ -83,6 +87,12 @@ public class TaskService : ITaskService
             if (parent.ProjectId != request.ProjectId)
                 throw new BusinessRuleException(
                     "Task cha thuộc project khác — subtask phải nằm cùng project với task cha.");
+
+            var role = await _authz.AuthorizeAsync(request.ProjectId, ProjectAction.CreateSubtask, ct);
+            var actorId = _currentUser.RequireEmployeeId();
+            if (role == RoleInProject.Member && !parent.Assignments.Any(a => a.EmployeeId == actorId))
+                throw new ForbiddenException(
+                    "Chỉ thành viên đang được giao task cha mới có thể tạo subtask.");
 
             // Domain tự chặn subtask 2 cấp bằng DomainException (409) và tự gán
             // ParentTaskId + ProjectId cho con.
@@ -200,6 +210,7 @@ public class TaskService : ITaskService
         task.Description = Normalize(request.Description);
         task.DueDate = request.DueDate;
         task.Priority = request.Priority;
+        task.StoryPoints = request.StoryPoints;
 
         _activityLog.Log(nameof(TaskItem), id, ActivityAction.Updated,
             $"Cập nhật task '{task.Name}'");

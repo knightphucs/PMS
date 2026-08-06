@@ -44,7 +44,7 @@ import {
 import { PRIORITY_ORDER, type Priority } from '@/types/enums';
 
 /** ⚠️ Khớp ĐÚNG tên property của Create/UpdateTaskRequest. */
-const FIELDS = ['name', 'priority', 'dueDate', 'sprintId', 'description'] as const;
+const FIELDS = ['name', 'priority', 'storyPoints', 'dueDate', 'sprintId', 'description'] as const;
 
 /** `Select` không nhận chuỗi rỗng làm value — dùng token này cho "Backlog". */
 const BACKLOG = 'backlog';
@@ -111,7 +111,9 @@ export function TaskFormDialog({
     formState: { errors, isSubmitting },
   } = useForm<TaskValues>({
     resolver: zodResolver(taskSchema),
-    defaultValues: { name: '', priority: 'Medium', dueDate: '', sprintId: '', description: '' },
+    defaultValues: {
+      name: '', priority: 'Medium', storyPoints: 0, dueDate: '', sprintId: '', description: '',
+    },
   });
 
   const priority = watch('priority');
@@ -125,6 +127,7 @@ export function TaskFormDialog({
       reset({
         name: '',
         priority: 'Medium',
+        storyPoints: 0,
         dueDate: '',
         sprintId: defaultSprintId ?? '',
         description: '',
@@ -136,6 +139,7 @@ export function TaskFormDialog({
     reset({
       name: detail.data.name,
       priority: detail.data.priority,
+      storyPoints: detail.data.storyPoints,
       dueDate: detail.data.dueDate ? toDateInputValue(detail.data.dueDate) : '',
       sprintId: detail.data.sprintId ?? '',
       // 🔴 Mang mô tả hiện tại vào form. Bỏ dòng này là PUT gửi `description: undefined`,
@@ -154,6 +158,7 @@ export function TaskFormDialog({
           await updateTask.mutateAsync({
             name: values.name,
             priority: values.priority,
+            storyPoints: values.storyPoints,
             dueDate: toNullableIso(values.dueDate),
             // 🔴 `PUT /tasks/{id}` GHI ĐÈ TOÀN PHẦN — mọi trường không gửi đều thành `null`.
             // Đây không phải PATCH.
@@ -172,6 +177,7 @@ export function TaskFormDialog({
             parentTaskId,
             dueDate: toNullableIso(values.dueDate),
             priority: values.priority,
+            storyPoints: values.storyPoints,
             description: toNullableText(values.description),
             // Subtask không nằm trên board (chỉ hiện trong chi tiết task cha) nên bỏ qua
             // cột đích — giữ nguyên hành vi cũ (cột trái nhất) cho trường hợp đó.
@@ -289,6 +295,17 @@ export function TaskFormDialog({
                 // KHÔNG đặt `min` như ở form dự án.
                 error={errors.dueDate?.message}
                 {...register('dueDate')}
+              />
+
+              <Field
+                label="Story Point"
+                type="number"
+                min="0"
+                max="1000"
+                step="1"
+                hint="0 = chưa ước lượng"
+                error={errors.storyPoints?.message}
+                {...register('storyPoints', { valueAsNumber: true })}
               />
             </div>
 

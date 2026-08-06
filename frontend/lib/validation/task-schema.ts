@@ -17,6 +17,11 @@ export const taskSchema = z.object({
     .min(1, 'Vui lòng nhập tên task.')
     .max(200, 'Tên task tối đa 200 ký tự.'),
   priority: z.enum(['Highest', 'High', 'Medium', 'Low', 'Lowest']),
+  storyPoints: z
+    .number()
+    .int('Story Point phải là số nguyên.')
+    .min(0, 'Story Point không được âm.')
+    .max(1000, 'Story Point tối đa 1000.'),
   /**
    * 🔴 KHÔNG phải trường tùy chọn của form, dù backend cho `null`.
    *

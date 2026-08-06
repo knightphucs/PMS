@@ -53,6 +53,8 @@ export interface TaskSummaryResponse {
   /** Cột đang đứng (ADR-052) — object, KHÔNG còn là chuỗi enum. */
   status: TaskStatusRef;
   priority: Priority;
+  /** Story Point ước lượng; 0 nghĩa là chưa ước lượng. */
+  storyPoints: number;
   dueDate: string | null;
   /** ⚠️ Tính sẵn phía server. ĐỪNG tự tính lại — `lib/format.ts:isPastDue` chỉ dành cho Project. */
   isOverdue: boolean;
@@ -97,6 +99,7 @@ export interface TaskDetailResponse {
   /** Cột đang đứng (ADR-052) — object, KHÔNG còn là chuỗi enum. */
   status: TaskStatusRef;
   priority: Priority;
+  storyPoints: number;
   dueDate: string | null;
   isOverdue: boolean;
   projectId: string;
@@ -180,6 +183,7 @@ export interface CreateTaskRequest {
   parentTaskId: string | null;
   dueDate: string | null;
   priority: Priority;
+  storyPoints: number;
   /** Bỏ qua hoặc gửi `null` nếu chưa có mô tả — ĐỪNG gửi chuỗi `"string"`. */
   description?: string | null;
   /**
@@ -198,6 +202,7 @@ export interface UpdateTaskRequest {
   name: string;
   dueDate: string | null;
   priority: Priority;
+  storyPoints: number;
   rowVersion: string;
   description?: string | null;
 }

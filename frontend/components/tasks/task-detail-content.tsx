@@ -13,7 +13,7 @@ import { TaskSubtasks } from '@/components/tasks/task-subtasks';
 import { useTaskFieldSave } from '@/components/tasks/use-task-field-save';
 import { useMyProjectRole } from '@/lib/hooks/use-my-project-role';
 import { useTask } from '@/lib/hooks/use-tasks';
-import { canManageTaskLinks, canManageTasks } from '@/lib/tasks/permissions';
+import { canCreateSubtask, canManageTaskLinks, canManageTasks } from '@/lib/tasks/permissions';
 import { cn } from '@/lib/utils';
 
 /**
@@ -101,7 +101,14 @@ export function TaskDetailContent({
             onSave={(description) => save({ description })}
           />
 
-          <TaskSubtasks projectId={projectId} parentTask={task} canManage={canEdit} />
+          <TaskSubtasks
+            projectId={projectId}
+            parentTask={task}
+            canManage={canCreateSubtask(
+              role,
+              task.assignees.some((assignee) => assignee.employeeId === myEmployeeId),
+            )}
+          />
 
           <TaskAttachments
             projectId={projectId}

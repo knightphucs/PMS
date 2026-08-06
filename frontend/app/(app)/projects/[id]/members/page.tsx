@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/common/empty-state';
 import { PageHeader } from '@/components/common/page-header';
 import { QueryError } from '@/components/common/query-error';
 import { ChangeRoleDialog } from '@/components/members/change-role-dialog';
+import { InviteExternalDialog } from '@/components/members/invite-external-dialog';
 import { InviteMemberDialog } from '@/components/members/invite-member-dialog';
 import { MemberTable, MemberTableSkeleton } from '@/components/members/member-table';
 import { RemoveMemberDialog } from '@/components/members/remove-member-dialog';
@@ -24,7 +25,7 @@ export default function MembersPage() {
   const [changingRole, setChangingRole] = useState<ProjectMemberResponse | null>(null);
   const [removing, setRemoving] = useState<ProjectMemberResponse | null>(null);
 
-  // `isResolving` để nút "Mời thành viên" không nháy hiện rồi biến mất.
+  // `isResolving` để nút "Thêm thành viên" không nháy hiện rồi biến mất.
   const canManage = !isResolving && canManageMembers(role);
 
   return (
@@ -33,7 +34,14 @@ export default function MembersPage() {
         title="Thành viên"
         count={members.data?.length}
         description="Ai đang tham gia dự án và với vai trò gì."
-        actions={canManage ? <InviteMemberDialog projectId={id} /> : undefined}
+        actions={
+          canManage ? (
+            <>
+              <InviteMemberDialog projectId={id} />
+              <InviteExternalDialog projectId={id} />
+            </>
+          ) : undefined
+        }
       />
 
       {members.isError ? (
@@ -49,8 +57,15 @@ export default function MembersPage() {
         <EmptyState
           icon={<UsersIcon className="size-8" />}
           title="Chưa có thành viên nào"
-          description="Mời đồng nghiệp bằng email để cùng làm việc trên dự án này."
-          action={canManage ? <InviteMemberDialog projectId={id} /> : undefined}
+          description="Thêm đồng nghiệp bằng email để cùng làm việc ngay trên dự án này."
+          action={
+            canManage ? (
+              <div className="flex flex-wrap justify-center gap-2">
+                <InviteMemberDialog projectId={id} />
+                <InviteExternalDialog projectId={id} />
+              </div>
+            ) : undefined
+          }
         />
       ) : (
         <MemberTable

@@ -27,6 +27,7 @@ public class PmsDbContext : DbContext
     public DbSet<Attachment> Attachments => Set<Attachment>();
     public DbSet<ProjectTaskCounter> ProjectTaskCounters => Set<ProjectTaskCounter>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<ProjectInvitation> ProjectInvitations => Set<ProjectInvitation>();
 
     // Phân quyền tầng 1 (ADR-045). Hai bảng này được seed bằng HasData nên có mặt ngay sau
     // `Migrate()` — kể cả ở môi trường Testing, nơi DbSeeder không bao giờ chạy.

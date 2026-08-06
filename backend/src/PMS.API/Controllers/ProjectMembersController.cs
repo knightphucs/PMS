@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using PMS.Application.Common.Models;
 using PMS.Application.Features.Projects;
 
@@ -28,6 +29,18 @@ public class ProjectMembersController : ControllerBase
     {
         var member = await _service.InviteAsync(id, request, ct);
         return Created($"/api/v1/projects/{id}/members", member);
+    }
+
+    /// <summary>Mời một email vào project qua link gửi bằng email — khác <see cref="Invite"/>, không đòi hỏi email đã có tài khoản.</summary>
+    [HttpPost("{id:guid}/members/invitations"), EnableRateLimiting("invite-external")]
+    [ProducesResponseType(typeof(ExternalInvitationResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ExternalInvitationResponse>> InviteExternal(
+        Guid id, [FromBody] InviteExternalRequest request, CancellationToken ct)
+    {
+        var invitation = await _service.InviteExternalAsync(id, request, ct);
+        return Created($"/api/v1/projects/{id}/members", invitation);
     }
 
     [HttpPut("{id:guid}/members/{employeeId:guid}/role")]

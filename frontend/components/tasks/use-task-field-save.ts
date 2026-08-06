@@ -7,7 +7,10 @@ import { ApiError, errorMessage } from '@/lib/api/problem';
 import { useUpdateTask } from '@/lib/hooks/use-tasks';
 import type { TaskDetailResponse, UpdateTaskRequest } from '@/types/task';
 
-type Editable = Pick<UpdateTaskRequest, 'name' | 'description' | 'dueDate' | 'priority'>;
+type Editable = Pick<
+  UpdateTaskRequest,
+  'name' | 'description' | 'dueDate' | 'priority' | 'storyPoints'
+>;
 
 export type SaveField = (patch: Partial<Editable>) => Promise<void>;
 
@@ -42,6 +45,7 @@ export function useTaskFieldSave(
       await updateTask.mutateAsync({
         name: patch.name ?? current.name,
         priority: patch.priority ?? current.priority,
+        storyPoints: patch.storyPoints ?? current.storyPoints,
         // `?? current` không dùng được cho hai trường nullable: xóa hạn/xóa mô tả gửi
         // `null`, mà `null ?? current` sẽ lấy lại giá trị cũ và phép xóa im lặng không
         // có tác dụng. Phải phân biệt "không truyền" (undefined) với "truyền null".

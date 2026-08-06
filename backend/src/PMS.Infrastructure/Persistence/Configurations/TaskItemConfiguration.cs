@@ -23,6 +23,7 @@ public class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
         builder.Property(t => t.Description).HasMaxLength(4000);
         builder.Property(t => t.Category).IsRequired();
         builder.Property(t => t.Priority).IsRequired();
+        builder.Property(t => t.StoryPoints).HasDefaultValue(0);
         builder.Property(t => t.Number).IsRequired();
         builder.Property(t => t.IsDeleted).HasDefaultValue(false);
         builder.Property(t => t.IsPinned).HasDefaultValue(false);

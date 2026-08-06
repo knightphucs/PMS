@@ -9,6 +9,15 @@
       "url": "https://localhost:4176",
       "cwd": "frontend",
       "autoPort": false
+    },
+    {
+      "name": "backend",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--launch-profile", "https"],
+      "port": 7264,
+      "url": "https://localhost:7264",
+      "cwd": "backend/src/PMS.API",
+      "autoPort": false
     }
   ]
 }

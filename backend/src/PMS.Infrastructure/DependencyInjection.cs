@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PMS.Application.Common.Interfaces;
 using PMS.Application.Features.Attachments;
+using PMS.Infrastructure.Configuration;
 using PMS.Infrastructure.Email;
 using PMS.Infrastructure.Persistence;
 using PMS.Infrastructure.Persistence.Repositories;
@@ -65,6 +66,10 @@ public static class DependencyInjection
         services.AddSingleton<IAttachmentPolicy, AttachmentPolicy>();
 
         services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
+
+        services.AddOptions<AppOptions>()
+                .Bind(configuration.GetSection(AppOptions.SectionName));
+        services.AddScoped<IAppLinkBuilder, AppLinkBuilder>();
 
         // 🔴 Việc CHỌN implementation ở đây là một quyết định BẢO MẬT, không phải tiện lợi
         // (ADR-041). SerilogEmailSender ghi nguyên thân email — trong đó có token đặt lại

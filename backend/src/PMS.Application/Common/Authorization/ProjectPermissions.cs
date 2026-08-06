@@ -28,6 +28,9 @@ public static class ProjectPermissions
         // task của người khác sang chỗ họ không ngờ tới.
         or ProjectAction.ManageBoardColumns => role is RoleInProject.ProjectManager,
 
+        ProjectAction.CreateSubtask => role is RoleInProject.ProjectManager
+                                            or RoleInProject.Member,
+
         // Tự nhận/tự rút: Member làm được để không phải chờ PM gán (mô hình Kanban),
         // Viewer thì không vì Viewer chỉ đọc.
         ProjectAction.SelfAssign       => role is RoleInProject.ProjectManager

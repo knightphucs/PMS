@@ -51,7 +51,8 @@ public class ReportsService : IReportsService
         var tallies = await _stats.TallyVelocityAsync(projectId, ct);
 
         var points = tallies
-            .Select(t => new SprintVelocityPoint(t.SprintId, t.Name, t.CompletedAt, t.Done, t.Total))
+            .Select(t => new SprintVelocityPoint(
+                t.SprintId, t.Name, t.CompletedAt, t.Done, t.Total, t.DoneStoryPoints))
             .ToList();
 
         // Không chia cho 0: dự án chưa đóng sprint nào thì "tốc độ trung bình" không có
@@ -60,7 +61,11 @@ public class ReportsService : IReportsService
             ? 0m
             : Math.Round((decimal)points.Sum(p => p.DoneCount) / points.Count, 2);
 
-        return new VelocityResponse(projectId, points, average);
+        var averageStoryPoints = points.Count == 0
+            ? 0m
+            : Math.Round((decimal)points.Sum(p => p.DoneStoryPoints) / points.Count, 2);
+
+        return new VelocityResponse(projectId, points, average, averageStoryPoints);
     }
 
     public async Task<TimelineResponse> GetTimelineAsync(Guid projectId, CancellationToken ct = default)

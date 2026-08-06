@@ -27,6 +27,7 @@ public class UnitOfWork : IUnitOfWork
     private ICommentRepository? _comments;
     private IProjectTaskCounterRepository? _projectTaskCounters;
     private IPermissionRepository? _permissions;
+    private IProjectInvitationRepository? _projectInvitations;
 
     public UnitOfWork(PmsDbContext context) => _context = context;
 
@@ -48,6 +49,7 @@ public class UnitOfWork : IUnitOfWork
     public ICommentRepository Comments => _comments ??= new CommentRepository(_context);
     public IProjectTaskCounterRepository ProjectTaskCounters => _projectTaskCounters ??= new ProjectTaskCounterRepository(_context);
     public IPermissionRepository Permissions => _permissions ??= new PermissionRepository(_context);
+    public IProjectInvitationRepository ProjectInvitations => _projectInvitations ??= new ProjectInvitationRepository(_context);
 
     public Task<int> SaveChangesAsync(CancellationToken ct = default) => _context.SaveChangesAsync(ct);
 

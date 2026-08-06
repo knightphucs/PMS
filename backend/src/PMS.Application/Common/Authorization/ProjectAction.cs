@@ -15,6 +15,8 @@ public enum ProjectAction
     ViewStatistics,
 
     CreateTask,
+    /// <summary>Member chỉ tạo subtask của task đang được giao cho chính mình.</summary>
+    CreateSubtask,
     UpdateTask,
     DeleteTask,
     ManageAssignees,

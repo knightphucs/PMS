@@ -1,5 +1,7 @@
 import type {
   ChangeMemberRoleRequest,
+  ExternalInvitationResponse,
+  InviteExternalRequest,
   InviteMemberRequest,
   MyInvitationResponse,
   ProjectMemberResponse,
@@ -35,6 +37,22 @@ export function listMembers(projectId: string, signal?: AbortSignal) {
  */
 export function inviteMember(projectId: string, body: InviteMemberRequest) {
   return apiFetch<ProjectMemberResponse>(`/projects/${projectId}/members`, {
+    method: 'POST',
+    body,
+  });
+}
+
+/**
+ * Mời qua LINK gửi bằng email — khác {@link inviteMember}, hoạt động cả khi email chưa
+ * có tài khoản. Không thêm ngay: người nhận phải bấm link rồi đăng nhập/đăng ký mới vào.
+ *
+ * - **400** tự mời chính mình, hoặc token không hợp lệ (không áp dụng ở đây)
+ * - **409** email đã ứng với một tài khoản đang là thành viên/đang chờ phản hồi trong project
+ *
+ * Mời lại cùng email khi đang có lời mời Pending sẽ vô hiệu lời mời cũ (coi như resend).
+ */
+export function inviteExternalMember(projectId: string, body: InviteExternalRequest) {
+  return apiFetch<ExternalInvitationResponse>(`/projects/${projectId}/members/invitations`, {
     method: 'POST',
     body,
   });
