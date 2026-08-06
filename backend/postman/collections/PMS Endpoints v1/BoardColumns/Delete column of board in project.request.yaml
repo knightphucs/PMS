@@ -1,0 +1,31 @@
+$kind: http-request
+url: "{{api_url}}/columns/:id"
+method: DELETE
+pathVariables:
+  - key: id
+    value: ""
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: |-
+    {
+      "targetColumnId": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4231572891470568

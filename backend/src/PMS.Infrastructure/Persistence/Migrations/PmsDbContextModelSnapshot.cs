@@ -133,6 +133,46 @@ namespace PMS.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PMS.Domain.Entities.BoardColumn", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Category")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("nvarchar(7)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId", "Name")
+                        .IsUnique();
+
+                    b.HasIndex("ProjectId", "Order");
+
+                    b.ToTable("BoardColumns", (string)null);
+                });
+
             modelBuilder.Entity("PMS.Domain.Entities.Comment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -568,6 +608,9 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -598,6 +641,9 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -606,6 +652,8 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.HasIndex("IsDeleted");
 
                     b.HasIndex("ProjectId");
+
+                    b.HasIndex("ProjectId", "Status");
 
                     b.ToTable("Sprints", (string)null);
                 });
@@ -647,6 +695,12 @@ namespace PMS.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BoardColumnId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Category")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -695,13 +749,12 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("SprintId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BoardColumnId");
 
                     b.HasIndex("IsDeleted");
 
@@ -713,7 +766,7 @@ namespace PMS.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("SprintId");
 
-                    b.HasIndex("DueDate", "Status");
+                    b.HasIndex("DueDate", "Category");
 
                     b.HasIndex("ProjectId", "Number")
                         .IsUnique();
@@ -818,6 +871,17 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Navigation("Task");
 
                     b.Navigation("Uploader");
+                });
+
+            modelBuilder.Entity("PMS.Domain.Entities.BoardColumn", b =>
+                {
+                    b.HasOne("PMS.Domain.Entities.Project", "Project")
+                        .WithMany("BoardColumns")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.ClientNoAction)
+                        .IsRequired();
+
+                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("PMS.Domain.Entities.Comment", b =>
@@ -945,6 +1009,12 @@ namespace PMS.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("PMS.Domain.Entities.TaskItem", b =>
                 {
+                    b.HasOne("PMS.Domain.Entities.BoardColumn", "BoardColumn")
+                        .WithMany("Tasks")
+                        .HasForeignKey("BoardColumnId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("PMS.Domain.Entities.TaskItem", "ParentTask")
                         .WithMany("Subtasks")
                         .HasForeignKey("ParentTaskId")
@@ -966,6 +1036,8 @@ namespace PMS.Infrastructure.Persistence.Migrations
                         .WithMany("Tasks")
                         .HasForeignKey("SprintId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("BoardColumn");
 
                     b.Navigation("ParentTask");
 
@@ -1014,6 +1086,11 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Navigation("Task");
                 });
 
+            modelBuilder.Entity("PMS.Domain.Entities.BoardColumn", b =>
+                {
+                    b.Navigation("Tasks");
+                });
+
             modelBuilder.Entity("PMS.Domain.Entities.Employee", b =>
                 {
                     b.Navigation("ActivityLogs");
@@ -1040,6 +1117,8 @@ namespace PMS.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("PMS.Domain.Entities.Project", b =>
                 {
+                    b.Navigation("BoardColumns");
+
                     b.Navigation("Members");
 
                     b.Navigation("Sprints");

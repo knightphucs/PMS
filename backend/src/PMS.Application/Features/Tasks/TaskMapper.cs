@@ -35,12 +35,34 @@ public partial class TaskMapper
     /// <summary>Ghép mã hiển thị. Một chỗ duy nhất định dạng — xem chú thích của lớp.</summary>
     public static string FormatCode(string projectKey, int number) => $"{projectKey}-{number}";
 
+    /// <summary>
+    /// Trạng thái đính trên thẻ (ADR-052).
+    ///
+    /// <para>
+    /// 🔴 <b>Đọc <c>task.BoardColumn</c> nên MỌI query nuôi mapper này bắt buộc phải
+    /// <c>Include(t =&gt; t.BoardColumn)</c>.</b> Đây đúng là lớp lỗi mà chú thích của lớp
+    /// đã kể (<c>SubtaskProgress</c> luôn trả 0 vì thiếu Include), nên lần này chọn ném rõ
+    /// ràng thay vì trả dữ liệu sai im lặng: thiếu Include thì <c>BoardColumn</c> là
+    /// <c>null</c> và câu lệnh dưới ném <c>NullReferenceException</c> ngay ở request đầu tiên.
+    /// </para>
+    /// <para>
+    /// 📌 Vì sao không đọc <c>task.Category</c> (trường lưu cứng, luôn có sẵn): nó chỉ mang
+    /// NHÓM, không mang tên và màu cột — mà thẻ cần cả ba. Hai nguồn phục vụ hai việc khác
+    /// nhau: <c>Category</c> cho phép LỌC/TÍNH trong SQL, <c>BoardColumn</c> cho HIỂN THỊ.
+    /// </para>
+    /// </summary>
+    public static TaskStatusRef ToStatusRef(TaskItem task) => new(
+        task.BoardColumnId,
+        task.BoardColumn.Name,
+        task.BoardColumn.Color,
+        task.BoardColumn.Category);
+
     public TaskSummaryResponse ToSummary(TaskItem task, string projectKey) => new(
         task.Id,
         task.Number,
         FormatCode(projectKey, task.Number),
         task.Name,
-        task.Status,
+        ToStatusRef(task),
         task.Priority,
         task.DueDate,
         task.IsOverdue,
@@ -60,7 +82,7 @@ public partial class TaskMapper
         FormatCode(projectKey, task.Number),
         task.Name,
         task.Description,
-        task.Status,
+        ToStatusRef(task),
         task.Priority,
         task.DueDate,
         task.IsOverdue,

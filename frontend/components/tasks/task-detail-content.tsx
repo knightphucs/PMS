@@ -85,7 +85,7 @@ export function TaskDetailContent({
         className={cn(
           'grid gap-6',
           variant === 'page'
-            ? 'lg:grid-cols-[minmax(0,1fr)_20rem]'
+            ? 'lg:grid-cols-[minmax(0,1fr)_24rem]'
             : 'lg:grid-cols-[minmax(0,1fr)_22rem]',
         )}
       >
@@ -116,12 +116,17 @@ export function TaskDetailContent({
             canManage={canManageTaskLinks(role)}
           />
 
-          <TaskDiscussion
-            projectId={projectId}
-            taskId={taskId}
-            role={role}
-            myEmployeeId={myEmployeeId}
-          />
+          {/* Trong DIALOG, thảo luận nằm trong cột trái như mọi khối khác — popup chỉ rộng
+              64rem nên tách ra cũng chẳng thêm được chỗ nào. Ở TRANG thì nó xuống dưới,
+              chiếm trọn bề ngang (xem khối sau `</div>` của lưới hai cột). */}
+          {variant === 'modal' ? (
+            <TaskDiscussion
+              projectId={projectId}
+              taskId={taskId}
+              role={role}
+              myEmployeeId={myEmployeeId}
+            />
+          ) : null}
         </div>
 
         {/*
@@ -145,6 +150,32 @@ export function TaskDetailContent({
           />
         </div>
       </div>
+
+      {/*
+        🔑 Khác biệt CẤU TRÚC giữa hai vỏ, không phải trang trí.
+
+        Bình luận và lịch sử là khối rộng nhất của màn này — mỗi dòng có avatar, tên, mốc
+        thời gian rồi mới tới nội dung. Trong dialog, nó chỉ được ~40rem (64rem trừ cột phải
+        và khe), nên câu ngắn cũng xuống dòng ba lần.
+
+        Ở trang thật, sau khi hai cột kết thúc, khối này lấy TRỌN bề ngang — trên màn 1440px
+        là hơn gấp đôi chỗ trong dialog. Đây chính là thứ nút "Mở trang riêng" hứa: cùng một
+        task, nhưng phần đọc-và-viết nhiều nhất được thở.
+
+        Vì sao đặt ở đây mà không phải trong cột trái với `lg:col-span-2`: cột phải là
+        `sticky`, cho khối này nằm cùng lưới sẽ kéo dài track và làm mốc dính nhảy khi đoạn
+        bình luận dài ra.
+      */}
+      {variant === 'page' ? (
+        <div className="min-w-0">
+          <TaskDiscussion
+            projectId={projectId}
+            taskId={taskId}
+            role={role}
+            myEmployeeId={myEmployeeId}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

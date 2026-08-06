@@ -22,6 +22,7 @@ public class TaskServiceTests
     private readonly IActivityLogger _activityLog = Substitute.For<IActivityLogger>();
     private readonly IProjectRepository _projectRepo = Substitute.For<IProjectRepository>();
     private readonly IProjectTaskCounterRepository _counterRepo = Substitute.For<IProjectTaskCounterRepository>();
+    private readonly IBoardColumnRepository _columnRepo = Substitute.For<IBoardColumnRepository>();
 
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _projectId = Guid.NewGuid();
@@ -34,9 +35,18 @@ public class TaskServiceTests
         _uow.Sprints.Returns(_sprintRepo);
         _uow.Projects.Returns(_projectRepo);
         _uow.ProjectTaskCounters.Returns(_counterRepo);
+        _uow.BoardColumns.Returns(_columnRepo);
         _currentUser.EmployeeId.Returns(_userId);
 
         _projectRepo.GetKeyAsync(_projectId, Arg.Any<CancellationToken>()).Returns(ProjectKey);
+
+        // Bốn cột giả của project test. ADR-052: task mới rơi vào cột trái nhất, và board
+        // dựng danh sách cột từ đây chứ không từ `Enum.GetValues<Status>()` nữa.
+        foreach (var column in _columns) column.ProjectId = _projectId;
+        _columnRepo.GetDefaultForProjectAsync(_projectId, Arg.Any<CancellationToken>())
+                   .Returns(_columns[0]);
+        _columnRepo.ListByProjectAsync(_projectId, Arg.Any<CancellationToken>())
+                   .Returns(_columns);
 
         // Mặc định cấp số 1. Test nào quan tâm tới việc đánh số thì override.
         _counterRepo.NextNumberAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(1);
@@ -69,7 +79,7 @@ public class TaskServiceTests
         captured.ShouldNotBeNull();
         captured.Id.ShouldNotBe(Guid.Empty);          // BaseEntity không tự sinh Id
         captured.ReporterId.ShouldBe(_userId);        // Reporter lấy từ JWT, không cho client khai
-        captured.Status.ShouldBe(Status.ToDo);        // task mới luôn bắt đầu ở ToDo (seq-01)
+        captured.BoardColumnId.ShouldBe(_columns[0].Id);   // task mới vào cột trái nhất (seq-01)        // task mới luôn bắt đầu ở ToDo (seq-01)
         captured.Name.ShouldBe("Task mới");           // đã trim
 
         await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
@@ -215,7 +225,7 @@ public class TaskServiceTests
     public async Task DeleteAsync_con_subtask_chua_Done_thi_nem_Conflict_va_khong_luu_gi()
     {
         var task = NewTask();
-        task.AddSubtask(SubtaskAt(Status.InProgress));
+        task.AddSubtask(SubtaskAt(1));
         _taskRepo.GetWithSubtasksAsync(task.Id, Arg.Any<CancellationToken>()).Returns(task);
 
         var ex = await Should.ThrowAsync<ConflictException>(() => _sut.DeleteAsync(task.Id));
@@ -229,7 +239,7 @@ public class TaskServiceTests
     public async Task DeleteAsync_moi_subtask_da_Done_thi_cascade_tuong_minh_xuong_subtask()
     {
         var task = NewTask();
-        var subtask = SubtaskAt(Status.Done);
+        var subtask = SubtaskAt(3);
         task.AddSubtask(subtask);
         _taskRepo.GetWithSubtasksAsync(task.Id, Arg.Any<CancellationToken>()).Returns(task);
 
@@ -280,14 +290,16 @@ public class TaskServiceTests
     public async Task GetBoardAsync_luon_tra_du_4_cot_ke_ca_cot_rong()
     {
         _taskRepo.GetRootTasksByProjectAsync(_projectId, Arg.Any<CancellationToken>())
-                 .Returns([TaskAt(Status.ToDo)]);
+                 .Returns([TaskAt(0)]);
 
         var board = await _sut.GetBoardAsync(_projectId, null);
 
         board.Columns.Count.ShouldBe(4);
-        board.Columns.Select(c => c.Status).ShouldBe(Enum.GetValues<Status>());
-        board.Columns.Single(c => c.Status == Status.ToDo).Tasks.Count.ShouldBe(1);
-        board.Columns.Single(c => c.Status == Status.Done).Tasks.ShouldBeEmpty();
+        // Board trả đủ MỌI cột của project theo thứ tự Order (ADR-052), không còn là
+        // bốn giá trị enum cố định.
+        board.Columns.Select(c => c.Column.Order).ShouldBe([0, 1, 2, 3]);
+        board.Columns.Single(c => c.Column.Name == "Cần làm").Tasks.Count.ShouldBe(1);
+        board.Columns.Single(c => c.Column.Name == "Hoàn thành").Tasks.ShouldBeEmpty();
     }
 
     [Fact]
@@ -296,8 +308,8 @@ public class TaskServiceTests
         var sprint = new Sprint { Id = Guid.NewGuid(), Name = "Sprint 1", ProjectId = _projectId };
         _sprintRepo.GetByIdAsync(sprint.Id, Arg.Any<CancellationToken>()).Returns(sprint);
 
-        var root = TaskAt(Status.ToDo);
-        var subtask = SubtaskAt(Status.ToDo);
+        var root = TaskAt(0);
+        var subtask = SubtaskAt(0);
         subtask.ParentTaskId = Guid.NewGuid();
         _taskRepo.GetBySprintAsync(sprint.Id, Arg.Any<CancellationToken>())
                  .Returns([root, subtask]);
@@ -332,6 +344,12 @@ public class TaskServiceTests
             ProjectId = _projectId, ReporterId = _userId
         };
         task.AssignNumber(1);
+
+        // Bắt buộc đặt cột: `TaskMapper.ToStatusRef` đọc `task.BoardColumn.Name/Color`, nên
+        // task không cột sẽ NRE ngay ở lần map đầu tiên. Đó là hành vi CỐ Ý của ADR-052 —
+        // thà nổ to còn hơn trả về dữ liệu sai im lặng — nên helper phải tôn trọng nó thay
+        // vì né bằng cách nới lỏng mapper.
+        task.MoveTo(_columns[0]);
         return task;
     }
 
@@ -347,30 +365,40 @@ public class TaskServiceTests
         return task;
     }
 
-    private TaskItem TaskAt(Status status)
+    /// <summary>
+    /// Bốn cột giả của project test, Order 0..3 như `BoardColumn.CreateDefaults`.
+    /// Dùng chung một bộ để `board.Columns` có danh sách ổn định giữa các test.
+    /// </summary>
+    private readonly BoardColumn[] _columns =
+    [
+        new() { Id = Guid.NewGuid(), Name = "Cần làm",    Order = 0, Category = StatusCategory.ToDo },
+        new() { Id = Guid.NewGuid(), Name = "Đang làm",   Order = 1, Category = StatusCategory.InProgress },
+        new() { Id = Guid.NewGuid(), Name = "Đang duyệt", Order = 2, Category = StatusCategory.InProgress },
+        new() { Id = Guid.NewGuid(), Name = "Hoàn thành", Order = 3, Category = StatusCategory.Done },
+    ];
+
+    private TaskItem TaskAt(int columnOrder)
     {
         var task = NewTask();
-        Advance(task, status);
+        Advance(task, _columns[columnOrder], _projectId);
         return task;
     }
 
-    private static TaskItem SubtaskAt(Status status)
+    private TaskItem SubtaskAt(int columnOrder)
     {
-        var subtask = new TaskItem { Id = Guid.NewGuid(), Name = "Subtask" };
-        Advance(subtask, status);
+        var subtask = new TaskItem { Id = Guid.NewGuid(), Name = "Subtask", ProjectId = _projectId };
+        Advance(subtask, _columns[columnOrder], _projectId);
         return subtask;
     }
 
-    private static void Advance(TaskItem task, Status target)
+    /// <summary>
+    /// Đặt task vào cột. Không còn "đi từng bước" như thời state machine (ADR-052).
+    /// `projectId` phải khớp task, nếu không `MoveTo` ném DomainException — chính là bất
+    /// biến ta muốn giữ.
+    /// </summary>
+    private static void Advance(TaskItem task, BoardColumn column, Guid projectId)
     {
-        Status[] path = target switch
-        {
-            Status.ToDo       => [],
-            Status.InProgress => [Status.InProgress],
-            Status.Review     => [Status.InProgress, Status.Review],
-            Status.Done       => [Status.InProgress, Status.Review, Status.Done],
-            _ => throw new ArgumentOutOfRangeException(nameof(target))
-        };
-        foreach (var step in path) task.ChangeStatus(step);
+        column.ProjectId = projectId;
+        task.MoveTo(column);
     }
 }

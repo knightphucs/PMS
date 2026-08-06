@@ -9,6 +9,7 @@ import { ConfirmDialog } from '@/components/common/confirm-dialog';
 import { EmptyState } from '@/components/common/empty-state';
 import { PageHeader } from '@/components/common/page-header';
 import { QueryError } from '@/components/common/query-error';
+import { CompleteSprintDialog } from '@/components/sprints/complete-sprint-dialog';
 import { SprintFormDialog } from '@/components/sprints/sprint-form-dialog';
 import { SprintList, SprintListSkeleton } from '@/components/sprints/sprint-list';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,7 @@ export default function SprintsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<SprintResponse | null>(null);
   const [deleting, setDeleting] = useState<SprintResponse | null>(null);
+  const [completing, setCompleting] = useState<SprintResponse | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const canManage = !isResolving && canManageSprints(role);
@@ -70,7 +72,11 @@ export default function SprintsPage() {
       <PageHeader
         title="Sprint"
         count={sprints.data?.length}
-        description="Các chu kỳ làm việc của dự án. Bấm tên sprint để mở bảng của riêng nó."
+        description={
+          canManage
+            ? 'Các chu kỳ làm việc của dự án. Dùng nút “Bắt đầu sprint” trên sprint đã lên kế hoạch để chạy chu kỳ.'
+            : 'Các chu kỳ làm việc của dự án. Chỉ Project Manager mới có thể bắt đầu hoặc đóng sprint.'
+        }
         actions={createButton}
       />
 
@@ -97,8 +103,15 @@ export default function SprintsPage() {
           canManage={canManage}
           onEdit={openEdit}
           onDelete={setDeleting}
+          onComplete={setCompleting}
         />
       )}
+
+      <CompleteSprintDialog
+        projectId={id}
+        sprint={completing}
+        onClose={() => setCompleting(null)}
+      />
 
       <SprintFormDialog
         projectId={id}

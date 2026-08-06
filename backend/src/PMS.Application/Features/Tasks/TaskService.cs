@@ -4,6 +4,7 @@ using PMS.Application.Common.Exceptions;
 using PMS.Application.Common.Extensions;
 using PMS.Application.Common.Interfaces;
 using PMS.Application.Common.Models;
+using PMS.Application.Features.BoardColumns;
 using PMS.Domain.Entities;
 using PMS.Domain.Enums;
 
@@ -35,6 +36,12 @@ public class TaskService : ITaskService
     {
         await _authz.AuthorizeAsync(request.ProjectId, ProjectAction.CreateTask, ct);
 
+        // Cột trái nhất của project (ADR-052). Project luôn có ít nhất một cột — bốn cột mặc
+        // định được cấp lúc tạo project và không xóa được cột cuối cùng — nên `null` ở đây
+        // nghĩa là dữ liệu đã hỏng chứ không phải một trạng thái hợp lệ cần xử lý mềm.
+        var defaultColumn = await _uow.BoardColumns.GetDefaultForProjectAsync(request.ProjectId, ct)
+            ?? throw new NotFoundException(nameof(BoardColumn), request.ProjectId);
+
         var task = new TaskItem
         {
             Id = Guid.NewGuid(),
@@ -45,6 +52,8 @@ public class TaskService : ITaskService
             DueDate = request.DueDate,
             Priority = request.Priority
         };
+
+        task.MoveTo(defaultColumn);
 
         if (request.SprintId is { } sprintId)
             task.SprintId = await RequireSprintOfProjectAsync(sprintId, request.ProjectId, ct);
@@ -99,6 +108,43 @@ public class TaskService : ITaskService
     /// </summary>
     private static string? Normalize(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    /// <summary>
+    /// Việc của người đang đăng nhập, gom theo dự án (ADR-053).
+    ///
+    /// <para>
+    /// 🔑 <b>Không gọi <c>_authz</c>.</b> Đây là endpoint duy nhất không có project trong
+    /// URL, nên không có gì để phân quyền theo project — và cũng không cần: bộ lọc đã là
+    /// "task được gán cho CHÍNH người gọi", mà muốn được gán thì phải là thành viên đang
+    /// hoạt động của dự án đó. Quyền nằm trong chính điều kiện truy vấn, không phải trong
+    /// một lượt kiểm thêm.
+    /// </para>
+    /// </summary>
+    public async Task<MyWorkResponse> GetMyWorkAsync(CancellationToken ct = default)
+    {
+        var employeeId = _currentUser.RequireEmployeeId();
+        var today = DateTime.UtcNow.Date;
+
+        var tasks = await _uow.Tasks.GetMyOpenAssignedTasksAsync(employeeId, ct);
+
+        var groups = tasks
+            .GroupBy(t => new { t.ProjectId, t.Project.Name, t.Project.Key })
+            // Sắp theo TÊN dự án, không theo số task: thứ tự phải ổn định giữa hai lần tải
+            // để mắt người dùng nhớ được chỗ, còn số task thì đổi mỗi lần ai đó đóng một việc.
+            .OrderBy(g => g.Key.Name)
+            .Select(g => new MyWorkGroup(
+                g.Key.ProjectId,
+                g.Key.Name,
+                g.Key.Key,
+                g.Select(t => _mapper.ToSummary(t, g.Key.Key)).ToList()))
+            .ToList();
+
+        return new MyWorkResponse(
+            today,
+            tasks.Count,
+            tasks.Count(t => t.IsOverdue),
+            groups);
+    }
 
     public async Task<TaskDetailResponse> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
@@ -159,7 +205,7 @@ public class TaskService : ITaskService
         // ADR-018: chặn thay vì cascade. Subtask là công việc con cùng cấp chi tiết với
         // task cha (không phải "hạ tầng đi kèm" như quan hệ Project->Task ở ADR-008),
         // nên rủi ro mất dữ liệu có ý nghĩa nếu cascade là cao hơn.
-        var activeSubtasks = task.Subtasks.Count(s => s.Status != Status.Done);
+        var activeSubtasks = task.Subtasks.Count(s => s.Category != StatusCategory.Done);
         if (activeSubtasks > 0)
             throw new ConflictException(
                 $"Không thể xóa task khi còn {activeSubtasks} subtask chưa hoàn thành. " +
@@ -249,12 +295,20 @@ public class TaskService : ITaskService
         // Một lượt lấy key cho cả board, không phải mỗi thẻ một lượt (ADR-034).
         var projectKey = await RequireProjectKeyAsync(projectId, ct);
 
-        // Duyệt theo Enum.GetValues chứ không theo GroupBy dữ liệu: board phải luôn có đủ
-        // 4 cột kể cả cột rỗng, nếu không frontend Kanban lại phải tự dựng cột thiếu.
-        var columns = Enum.GetValues<Status>()
-            .Select(status => new BoardColumn(
-                status,
-                tasks.Where(t => t.Status == status)
+        // Duyệt theo DANH SÁCH CỘT của project chứ không theo GroupBy dữ liệu: board phải
+        // luôn có đủ mọi cột kể cả cột rỗng, nếu không frontend Kanban lại phải tự dựng cột
+        // thiếu. Trước ADR-052 nguồn là `Enum.GetValues<Status>()`; nay là bảng BoardColumns.
+        var boardColumns = await _uow.BoardColumns.ListByProjectAsync(projectId, ct);
+
+        var columns = boardColumns
+            .Select(column => new BoardColumnGroup(
+                new BoardColumnResponse(
+                    column.Id, column.Name, column.Color, column.Order, column.Category,
+                    // Số task trong cột TRÊN BOARD ĐANG XEM — không phải tổng của cả project.
+                    // Board lọc theo sprint, nên hai con số đó khác nhau và cái người dùng
+                    // đang nhìn mới là cái đúng để hiển thị.
+                    tasks.Count(t => t.BoardColumnId == column.Id)),
+                tasks.Where(t => t.BoardColumnId == column.Id)
                      .Select(t => _mapper.ToSummary(t, projectKey))
                      .ToList()))
             .ToList();

@@ -191,7 +191,7 @@ public class AuthService : IAuthService
             "Nếu bạn không yêu cầu, hãy bỏ qua email này — mật khẩu hiện tại vẫn giữ nguyên.",
             ct);
 
-        _logger.LogInformation("Đã cấp token đặt lại mật khẩu cho {EmployeeId}", employee.Id);
+        _logger.LogInformation("Đã cấp token đặt lại mật khẩu cho tài khoản {EmployeeEmail}", employee.Email);
     }
 
     public async Task ResetPasswordAsync(
@@ -228,8 +228,8 @@ public class AuthService : IAuthService
         await _uow.SaveChangesAsync(ct);
 
         _logger.LogInformation(
-            "Đặt lại mật khẩu thành công cho {EmployeeId} từ {Ip}, đã thu hồi mọi phiên",
-            employee.Id, _currentUser.IpAddress);
+            "Đặt lại mật khẩu thành công cho {EmployeeEmail} từ {Ip}, đã thu hồi mọi phiên",
+            employee.Email, _currentUser.IpAddress);
     }
 
     // ---------- private ----------

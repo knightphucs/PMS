@@ -1,6 +1,6 @@
 $kind: http-request
-name: Unlock an user
-url: "{{api_url}}/admin/employees/:id/unlock"
+name: Lock an user
+url: "{{api_url}}/admin/employees/:id/lock"
 method: POST
 pathVariables:
   - key: id
@@ -19,8 +19,14 @@ pathVariables:
           "value"
         ]
       }
+body:
+  type: json
+  content: |-
+    {
+        "reason": "test method"
+    }
 auth:
   type: bearer
   credentials:
     token: "{{access_token}}"
-order: 3611706922644686
+order: 1222617007150260

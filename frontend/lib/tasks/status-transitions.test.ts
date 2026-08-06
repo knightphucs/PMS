@@ -1,81 +1,37 @@
 import { describe, expect, it } from 'vitest';
 
-import { ALLOWED_TRANSITIONS, canTransition, mayFailUnpredictably } from './status-transitions';
+import { mayFailUnpredictably } from './status-transitions';
 
-import type { Status } from '@/types/enums';
-
-const ALL: Status[] = ['ToDo', 'InProgress', 'Review', 'Done'];
+import type { StatusCategory } from '@/types/task';
 
 /**
- * Bảng này soi gương `TaskItem.CanTransitionTo` (PMS.Domain/Entities/TaskItem.cs:77).
- * Nếu backend đổi state machine mà quên đồng bộ sang đây, board sẽ chặn nhầm (mất chức
- * năng) hoặc cho thả rồi ăn 409 (toast đỏ vô cớ) — cả hai đều không có gì báo động.
+ * 🗑️ Hai khối `describe` về `canTransition` đã XÓA cùng ADR-052 — không phải vì chúng
+ * hỏng, mà vì thứ chúng khóa đã không còn tồn tại.
+ *
+ * Chúng soi gương `TaskItem.CanTransitionTo`, một ma trận sáu-cặp-hợp-lệ. Với cột do NGƯỜI
+ * DÙNG tạo thì không còn cơ sở nào để nói cặp nào hợp lệ: hệ thống không biết "Chờ QA"
+ * đứng trước hay sau "Đang sửa". Giữ lại một bảng luật ở client sẽ chặn đúng những nước đi
+ * mà backend cho phép, và người dùng không có cách nào biết vì sao.
+ *
+ * Trong đó có một test đáng tiếc phải bỏ: *"KHÔNG phải quy tắc cột kề"* — nó tồn tại để
+ * chống lại một câu SAI trong tài liệu. Câu đó nay cũng hết hiệu lực theo.
  */
-describe('canTransition — sáu bước hợp lệ, đúng bằng backend', () => {
-  it.each([
-    ['ToDo', 'InProgress'],
-    ['InProgress', 'Review'],
-    ['InProgress', 'ToDo'],
-    ['Review', 'Done'],
-    ['Review', 'InProgress'],
-    ['Done', 'Review'],
-  ] as const)('%s -> %s hợp lệ', (from, to) => {
-    expect(canTransition(from, to)).toBe(true);
-  });
-
-  it('CHÍNH XÁC sáu cặp hợp lệ, không hơn không kém', () => {
-    const hopLe = ALL.flatMap((from) =>
-      ALL.filter((to) => canTransition(from, to)).map((to) => `${from}->${to}`),
-    );
-
-    expect(hopLe).toHaveLength(6);
-  });
-});
-
-describe('canTransition — những bước KHÔNG hợp lệ dễ làm sai nhất', () => {
-  it('thả về ĐÚNG CỘT ĐANG ĐỨNG luôn bị chặn (state machine từ chối "đứng yên")', () => {
-    // Không chặn ở client thì mỗi lần người dùng đổi ý giữa chừng là một toast đỏ.
-    for (const status of ALL) {
-      expect(canTransition(status, status)).toBe(false);
-    }
-  });
-
-  it.each([
-    ['ToDo', 'Done'],
-    ['ToDo', 'Review'],
-    ['InProgress', 'Done'],
-    ['Done', 'ToDo'],
-    ['Done', 'InProgress'],
-    ['Review', 'ToDo'],
-  ] as const)('%s -> %s bị chặn', (from, to) => {
-    expect(canTransition(from, to)).toBe(false);
-  });
-
-  it('KHÔNG phải quy tắc "cột kề" — docs/frontend-next-session.md §6 ghi sai', () => {
-    const thuTu: Status[] = ['ToDo', 'InProgress', 'Review', 'Done'];
-    const laKe = (a: Status, b: Status) => Math.abs(thuTu.indexOf(a) - thuTu.indexOf(b)) === 1;
-
-    // Hai phản ví dụ theo hai chiều ngược nhau. Cài theo "cột kề" là hỏng cả hai.
-    expect(laKe('ToDo', 'Review')).toBe(false);
-    expect(canTransition('ToDo', 'Review')).toBe(false);
-
-    expect(laKe('Done', 'Review')).toBe(true);
-    expect(canTransition('Done', 'Review')).toBe(true); // bước LÙI, vẫn hợp lệ
-  });
-
-  it('mọi trạng thái đều có ít nhất một đường đi ra (không có ngõ cụt)', () => {
-    for (const status of ALL) {
-      expect(ALLOWED_TRANSITIONS[status].length).toBeGreaterThan(0);
-    }
-  });
-});
-
-describe('mayFailUnpredictably', () => {
-  it('chỉ đích InProgress mới có thể ăn 409 do bị TaskLink chặn', () => {
-    // TaskStatusTransitionService chỉ gọi EnsureNotBlockedAsync cho nhánh InProgress.
+describe('mayFailUnpredictably — cờ duy nhất còn lại của state machine cũ', () => {
+  it('chỉ NHÓM InProgress mới có thể ăn 409 do bị TaskLink chặn', () => {
+    // `TaskStatusTransitionService` gọi `EnsureNotBlockedAsync` khi Category của cột đích
+    // là InProgress. Mọi nhóm khác đoán trước được trọn vẹn.
     expect(mayFailUnpredictably('InProgress')).toBe(true);
     expect(mayFailUnpredictably('ToDo')).toBe(false);
-    expect(mayFailUnpredictably('Review')).toBe(false);
     expect(mayFailUnpredictably('Done')).toBe(false);
+  });
+
+  it('🔴 kiểm theo NHÓM chứ không theo TÊN cột', () => {
+    // Điểm dễ sai nhất sau ADR-052: một cột người dùng đặt tên "Chờ QA" hay "Đang sửa" đều
+    // thuộc nhóm InProgress và đều phải được guard này bảo vệ. Cài theo tên thì sẽ trượt
+    // ngay lần đầu ai đó đổi cấu hình board — mà đó chính là tính năng vừa dựng.
+    const cacNhom: StatusCategory[] = ['ToDo', 'InProgress', 'Done'];
+    const canDeDo = cacNhom.filter(mayFailUnpredictably);
+
+    expect(canDeDo).toEqual(['InProgress']);
   });
 });

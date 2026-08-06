@@ -14,6 +14,7 @@ public class PmsDbContext : DbContext
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<Sprint> Sprints => Set<Sprint>();
     public DbSet<TaskItem> Tasks => Set<TaskItem>();
+    public DbSet<BoardColumn> BoardColumns => Set<BoardColumn>();
     public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
     public DbSet<TaskAssignment> TaskAssignments => Set<TaskAssignment>();
     public DbSet<Watcher> Watchers => Set<Watcher>();

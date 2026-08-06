@@ -15,4 +15,10 @@ public interface ISprintRepository : IRepository<Sprint>
     /// về Backlog (SprintId = null) trước khi xóa mềm sprint (ADR-020).
     /// </summary>
     Task<Sprint?> GetWithTasksAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Sprint đang chạy của project, hoặc <c>null</c>. Một project chỉ có tối đa MỘT
+    /// (ADR-050) — bất biến đó do <c>SprintService.StartAsync</c> giữ.
+    /// </summary>
+    Task<Sprint?> GetActiveOfProjectAsync(Guid projectId, CancellationToken ct = default);
 }

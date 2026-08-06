@@ -1,46 +1,37 @@
-import type { Status } from '@/types/enums';
+import type { StatusCategory } from '@/types/task';
 
 /**
- * Bản sao của `TaskItem.CanTransitionTo` (PMS.Domain/Entities/TaskItem.cs:77).
+ * Luật chuyển cột phía client (ADR-052 thay thế ADR-021).
  *
- * ⚠️ ĐÂY KHÔNG PHẢI QUY TẮC "CỘT KỀ". `docs/frontend-next-session.md` §6 ghi
- * "chỉ cho thả sang cột kề" — SAI, và làm theo là ship bug. Đối chiếu state machine thật:
+ * 🗑️ **`ALLOWED_TRANSITIONS` và `canTransition` đã bị GỠ.** Chúng là bản sao của
+ * `TaskItem.CanTransitionTo`, mà method đó không còn tồn tại: khi cột do NGƯỜI DÙNG tạo,
+ * hệ thống không còn cơ sở nào để nói cặp nào hợp lệ — nó không biết "Chờ QA" đứng trước
+ * hay sau "Đang sửa".
  *
- *   • `Done → Review` và `Review → InProgress` là bước LÙI và HỢP LỆ (task bị reject).
- *   • `ToDo → Review` trông như cột kề nhưng KHÔNG hợp lệ.
- *   • `ToDo → Done` và `InProgress → Done` cũng không.
+ * Hai hệ quả cho UI, cả hai đều nới lỏng:
  *
- * Khai bằng `Record<Status, …>` để thêm một giá trị vào enum `Status` là lỗi BIÊN DỊCH
- * tại đây, không phải một cột lặng lẽ không thả được vào.
+ * - **Mọi cột đều là đích hợp lệ.** Không còn `useDroppable disabled` cho cột "không kề" —
+ *   trước đây board dùng chính nó để chặn 409 bằng cấu trúc.
+ * - **Thả về đúng cột đang đứng nay trả 200**, không còn 409. UI vẫn nên chặn sớm để khỏi
+ *   bắn một request không làm gì, nhưng nếu lọt thì cũng không hỏng.
+ *
+ * ⚠️ Đừng dựng lại một bảng luật ở client "cho chắc": nó sẽ chặn đúng những nước đi mà
+ * backend cho phép, và người dùng không có cách nào biết vì sao.
  */
-export const ALLOWED_TRANSITIONS: Record<Status, readonly Status[]> = {
-  ToDo: ['InProgress'],
-  InProgress: ['ToDo', 'Review'],
-  Review: ['InProgress', 'Done'],
-  Done: ['Review'],
-};
 
 /**
- * Có được chuyển từ `from` sang `to` không.
+ * ⚠️ Chuyển cột **có thể vẫn 409** dù client không đoán trước được.
  *
- * `from === to` luôn false: state machine phía backend từ chối cả việc "đứng yên", nên
- * thả thẻ về ĐÚNG CỘT NÓ ĐANG ĐỨNG cũng nhận 409. UI phải chặn trước chứ không được bắn
- * request rồi hiện toast đỏ khi người dùng đổi ý giữa chừng.
- */
-export function canTransition(from: Status, to: Status): boolean {
-  return from !== to && ALLOWED_TRANSITIONS[from].includes(to);
-}
-
-/**
- * ⚠️ `canTransition` trả `true` KHÔNG bảo đảm request sẽ thành công.
+ * Còn đúng một trường hợp: task đang bị một `TaskLink` chặn bởi task khác chưa xong.
+ * Đã đối chiếu `TaskStatusTransitionService`: nó gọi `EnsureNotBlockedAsync` khi **NHÓM**
+ * của cột đích là `InProgress`.
  *
- * Còn đúng một trường hợp 409 mà client không đoán trước được: task đang bị một
- * `TaskLink` loại `IsBlockedBy` chặn bởi task khác chưa `Done`. Đã đối chiếu
- * `TaskStatusTransitionService`: nó CHỈ gọi `EnsureNotBlockedAsync` khi đích là
- * `InProgress`, nên mọi cột khác đều đoán được trọn vẹn.
+ * 📌 Đổi so với trước ADR-052: điều kiện là `category`, không phải một tên cột cụ thể. Nhờ
+ * vậy một cột người dùng tự đặt tên "Chờ QA" thuộc nhóm InProgress cũng được tính đúng —
+ * so tên thì sẽ trượt ngay khi ai đó đổi cấu hình board.
  *
  * Dùng cờ này để quyết định chỗ nào cần chuẩn bị sẵn đường lùi (rollback + toast).
  */
-export function mayFailUnpredictably(to: Status): boolean {
-  return to === 'InProgress';
+export function mayFailUnpredictably(targetCategory: StatusCategory): boolean {
+  return targetCategory === 'InProgress';
 }

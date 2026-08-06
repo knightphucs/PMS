@@ -11,16 +11,8 @@ import {
   YAxis,
 } from 'recharts';
 
-import { PRIORITY_LABEL, STATUS_LABEL } from '@/types/enums';
+import { PRIORITY_LABEL } from '@/types/enums';
 import type { PriorityCount, StatusCount } from '@/types/statistics';
-
-/** Thứ tự trạng thái theo luồng làm việc, không theo số lượng. */
-const STATUS_COLOR: Record<string, string> = {
-  ToDo: 'var(--viz-status-todo)',
-  InProgress: 'var(--viz-status-inprogress)',
-  Review: 'var(--viz-status-review)',
-  Done: 'var(--viz-status-done)',
-};
 
 /** Thang TUẦN TỰ nhạt → đậm: Highest là mức cao nhất nên đậm nhất. */
 const PRIORITY_COLOR: Record<string, string> = {
@@ -43,22 +35,34 @@ const AXIS_TICK = { fontSize: 12, fill: 'var(--muted-foreground)' };
  * biểu đồ khớp với màu trạng thái trên board (`status-tone.ts`). Vì vậy biểu đồ vẫn đọc
  * được trọn vẹn khi in đen trắng hoặc với người mù màu.
  *
- * 📌 `byStatus`/`byPriority` do server zero-fill đủ mọi giá trị enum, nên trục X có số cột
- * CỐ ĐỊNH — không nhảy hình mỗi lần tải, và không cần vá dữ liệu ở client.
+ * 📌 Server zero-fill đủ mọi hạng mục (mọi cột board / mọi độ ưu tiên) kể cả hạng mục có 0
+ * task, nên trục X ổn định giữa các lần tải và client không phải vá dữ liệu.
  */
 export function StatusDistributionChart({ data }: { data: StatusCount[] }) {
+  /**
+   * 🔴 `key` là `columnId`, KHÔNG phải tên cột.
+   *
+   * Trước ADR-052 nó là `d.status` (giá trị enum). Khi backend đổi sang cột, trường đó biến
+   * mất và mọi `<Cell key={undefined}>` — React cảnh báo *"Each child in a list should have
+   * a unique key prop… passed a child from ChartCard"*. Dùng tên cột cũng không an toàn:
+   * tên do người dùng đặt và tuy có unique index trong DB, nó vẫn đổi được bất cứ lúc nào,
+   * còn id thì không.
+   */
   const rows = data.map((d) => ({
-    key: d.status,
-    label: STATUS_LABEL[d.status],
+    key: d.columnId,
+    label: d.name,
     count: d.count,
+    // Màu lấy từ CHÍNH cột, không tra bảng: đó là thứ giữ cho biểu đồ khớp với board sau
+    // khi người dùng đổi màu cột.
+    color: d.color,
   }));
 
   return (
     <ChartCard
       title="Task theo trạng thái"
-      description="Đếm cả subtask. Cột giữ nguyên bốn trạng thái kể cả khi chưa có task nào."
+      description="Đếm cả subtask. Mỗi cột trên bảng là một cột ở đây, kể cả cột chưa có task nào."
       rows={rows}
-      colorOf={(key) => STATUS_COLOR[key]}
+      colorOf={(key) => rows.find((r) => r.key === key)?.color ?? 'var(--viz-seq-3)'}
     />
   );
 }

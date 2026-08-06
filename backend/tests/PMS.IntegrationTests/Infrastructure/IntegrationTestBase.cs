@@ -102,10 +102,19 @@ public abstract class IntegrationTestBase
     }
 
     /// <summary>
-    /// Chèn task trực tiếp vào DB. TaskItem.Status là private set + có state machine,
-    /// nên phải đi đúng đường ToDo -> InProgress -> Review -> Done, không set tắt được.
+    /// Chèn task trực tiếp vào DB, đặt sẵn ở cột thứ <paramref name="columnOrder"/>.
+    ///
+    /// <para>
+    /// Sau ADR-052 không còn state machine để "đi từng bước": task đặt thẳng vào cột nào
+    /// cũng được. Tham số là <b>Order</b> chứ không phải tên cột — bốn cột mặc định có
+    /// Order 0..3 đúng theo thứ tự bốn trạng thái cũ, nên test cũ đọc vẫn hiểu ngay.
+    /// </para>
+    /// <para>
+    /// Vẫn gọi <c>MoveTo</c> chứ không gán tay hai trường: đó là người ghi duy nhất giữ
+    /// <c>BoardColumnId</c> khớp <c>Category</c>.
+    /// </para>
     /// </summary>
-    protected async Task<Guid> SeedTaskAsync(Guid projectId, Guid reporterId, Status status)
+    protected async Task<Guid> SeedTaskAsync(Guid projectId, Guid reporterId, int columnOrder)
     {
         var task = new TaskItem
         {
@@ -113,19 +122,41 @@ public abstract class IntegrationTestBase
             ProjectId = projectId, ReporterId = reporterId
         };
 
-        Status[] path = status switch
+        await WithDbAsync(async db =>
         {
-            Status.ToDo       => [],
-            Status.InProgress => [Status.InProgress],
-            Status.Review     => [Status.InProgress, Status.Review],
-            Status.Done       => [Status.InProgress, Status.Review, Status.Done],
-            _ => throw new ArgumentOutOfRangeException(nameof(status))
-        };
-        foreach (var step in path) task.ChangeStatus(step);
+            var column = await db.BoardColumns
+                .FirstAsync(c => c.ProjectId == projectId && c.Order == columnOrder);
 
-        await WithDbAsync(async db => { db.Tasks.Add(task); await db.SaveChangesAsync(); });
+            task.MoveTo(column);
+            db.Tasks.Add(task);
+            await db.SaveChangesAsync();
+        });
+
         return task.Id;
     }
+
+    /// <summary>Id của cột thứ <paramref name="order"/> trong project (0 = cột trái nhất).</summary>
+    protected Task<Guid> ColumnIdAsync(Guid projectId, int order)
+        => WithDbAsync(db => db.BoardColumns
+            .Where(c => c.ProjectId == projectId && c.Order == order)
+            .Select(c => c.Id)
+            .FirstAsync());
+
+    /// <summary>
+    /// Id cột thứ <paramref name="order"/> của project CHỨA task đã cho.
+    ///
+    /// <para>
+    /// Tra ngược từ task thay vì bắt test truyền <c>projectId</c>: sau ADR-052 mỗi lần đổi
+    /// trạng thái đều cần một Guid cột, và phần lớn test chỉ có sẵn <c>taskId</c> trong tầm
+    /// tay. Bốn cột mặc định có Order 0..3 khớp đúng bốn trạng thái cũ nên
+    /// <c>ColumnOfTaskAsync(id, 3)</c> đọc vẫn là "chuyển sang Hoàn thành".
+    /// </para>
+    /// </summary>
+    protected Task<Guid> ColumnOfTaskAsync(Guid taskId, int order)
+        => WithDbAsync(db => db.BoardColumns
+            .Where(c => c.Order == order && c.Project.Tasks.Any(t => t.Id == taskId))
+            .Select(c => c.Id)
+            .FirstAsync());
 
     /// <summary>
     /// Mời + chấp nhận qua API thật. Dùng cho mọi trường hợp cần thành viên Accepted —
@@ -203,24 +234,30 @@ public abstract class IntegrationTestBase
         return body!.Id;
     }
 
-    /// <summary>Đưa task tới đúng trạng thái mong muốn qua API, đi từng bước của state machine.</summary>
-    protected static async Task AdvanceStatusAsync(HttpClient client, Guid taskId, Status target)
+    /// <summary>
+    /// Chuyển task sang cột thứ <paramref name="targetOrder"/> qua API.
+    ///
+    /// <para>
+    /// Sau ADR-052 đây là MỘT lời gọi, không còn phải đi từng bước: cột do người dùng định
+    /// nghĩa nên không có "bước kề" nào để đi qua, mọi cột đều tới thẳng được.
+    /// </para>
+    /// </summary>
+    /// <remarks>
+    /// Tự tra project từ <paramref name="taskId"/> thay vì bắt caller truyền vào: giữ đúng
+    /// chữ ký ba tham số của <c>AdvanceStatusAsync</c> cũ nên 15 chỗ gọi trong bộ test chỉ
+    /// đổi tên hàm và đối số cuối, không phải sửa cấu trúc.
+    /// </remarks>
+    protected async Task MoveToColumnAsync(HttpClient client, Guid taskId, int targetOrder)
     {
-        Status[] path = target switch
-        {
-            Status.ToDo       => [],
-            Status.InProgress => [Status.InProgress],
-            Status.Review     => [Status.InProgress, Status.Review],
-            Status.Done       => [Status.InProgress, Status.Review, Status.Done],
-            _ => throw new ArgumentOutOfRangeException(nameof(target))
-        };
+        var columnId = await WithDbAsync(db => db.BoardColumns
+            .Where(c => c.Order == targetOrder
+                     && c.Project.Tasks.Any(t => t.Id == taskId))
+            .Select(c => c.Id)
+            .FirstAsync());
 
-        foreach (var step in path)
-        {
-            var res = await client.PatchAsJsonAsync(
-                $"/api/v1/tasks/{taskId}/status", new ChangeTaskStatusRequest(step));
-            res.StatusCode.ShouldBe(HttpStatusCode.OK);
-        }
+        var res = await client.PatchAsJsonAsync(
+            $"/api/v1/tasks/{taskId}/status", new ChangeTaskStatusRequest(columnId));
+        res.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     protected Task<int> CountActivityLogsAsync(Guid entityId)

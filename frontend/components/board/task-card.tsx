@@ -9,10 +9,14 @@ import { AvatarStack } from '@/components/common/avatar-stack';
 import { PriorityIcon } from '@/components/tasks/priority-icon';
 import { formatShortDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import type { TaskSummaryResponse } from '@/types/task';
+import type { TaskStatusRef, TaskSummaryResponse } from '@/types/task';
+
+type TaskCardTask = Omit<TaskSummaryResponse, 'status'> & {
+  status: TaskSummaryResponse['status'] | TaskStatusRef;
+};
 
 interface Props {
-  task: TaskSummaryResponse;
+  task: TaskCardTask;
   /**
    * Đường dẫn tới chi tiết task. Bỏ trống ở bản vẽ trong `DragOverlay` — overlay chỉ là
    * ảnh, không được có gì bấm được.

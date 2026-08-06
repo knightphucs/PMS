@@ -70,15 +70,29 @@ export function TaskDetailHeader({
         ) : null}
 
         {/* Trong dialog, người dùng cần một đường thoát ra trang đầy đủ — cùng lý do Jira
-            có nút "open in full page" trên mọi modal issue. */}
+            có nút "open in full page" trên mọi modal issue.
+
+            🔴 PHẢI là `<a>` thường, KHÔNG phải `next/link` — đây là bẫy CẤU TRÚC của ADR-043
+            chứ không phải sơ suất. Khi dialog đang mở, URL hiện tại ĐÃ ĐÚNG là chuỗi bên
+            dưới: intercepting route `(.)` giữ nguyên đường dẫn, và chính điều đó là thứ làm
+            cho dialog chia sẻ link được. Hệ quả: soft navigation tới chính URL đang đứng
+            không đổi router state, nên `<Link>` ở đây là một NO-OP im lặng (đã từng như vậy
+            tới 2026-08-05). Intercepting route CHỈ áp cho soft navigation — chỉ một lần tải
+            trang đầy đủ mới render trang thật.
+
+            Kiểm chứng đúng không phải nhìn URL (nó không đổi) mà là: dialog biến mất VÀ thanh
+            tab dự án ẩn (`showTabs === false` khi segment là 'tasks').
+
+            📌 Link "Mở task cha" phía trên vẫn là `<Link>` và vẫn đúng: `parentTaskId` là một
+            taskId KHÁC nên URL đổi thật, và ở lại trong dialog là hành vi mong muốn. */}
         {variant === 'modal' ? (
-          <Link
+          <a
             href={`/projects/${projectId}/tasks/${task.id}`}
             className="hover:text-foreground inline-flex items-center gap-1 underline-offset-4 transition-colors hover:underline"
           >
             <ArrowUpRightIcon className="size-3.5" />
             Mở trang riêng
-          </Link>
+          </a>
         ) : null}
 
         <span className="flex-1" />

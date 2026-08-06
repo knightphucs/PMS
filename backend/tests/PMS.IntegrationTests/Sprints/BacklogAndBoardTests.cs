@@ -73,8 +73,10 @@ public class BacklogAndBoardTests : IntegrationTestBase
             $"/api/v1/projects/{projectId}/board", TestJson.Options);
 
         board!.Columns.Count.ShouldBe(4);
-        board.Columns.Select(c => c.Status).ShouldBe(
-            [Status.ToDo, Status.InProgress, Status.Review, Status.Done]);
+        // ADR-052: cột do project cấu hình, trả theo Order trái->phải. Bốn cột mặc định
+        // giữ đúng ý nghĩa bốn trạng thái cũ nên test cũ đọc vẫn hiểu ngay.
+        board.Columns.Select(c => c.Column.Name).ShouldBe(
+            ["Cần làm", "Đang làm", "Đang duyệt", "Hoàn thành"]);
         board.Columns.ShouldAllBe(c => c.Tasks.Count == 0);
     }
 
@@ -85,16 +87,16 @@ public class BacklogAndBoardTests : IntegrationTestBase
         var projectId = await CreateProjectAsync(pm.Client);
         var todo = await CreateTaskAsync(pm.Client, projectId, "Chưa làm");
         var inProgress = await CreateTaskAsync(pm.Client, projectId, "Đang làm");
-        await AdvanceStatusAsync(pm.Client, inProgress, Status.InProgress);
+        await MoveToColumnAsync(pm.Client, inProgress, 1);
 
         var board = await pm.Client.GetFromJsonAsync<BoardResponse>(
             $"/api/v1/projects/{projectId}/board", TestJson.Options);
 
-        board!.Columns.Single(c => c.Status == Status.ToDo)
+        board!.Columns.Single(c => c.Column.Name == "Cần làm")
              .Tasks.ShouldHaveSingleItem().Id.ShouldBe(todo);
-        board.Columns.Single(c => c.Status == Status.InProgress)
+        board.Columns.Single(c => c.Column.Name == "Đang làm")
              .Tasks.ShouldHaveSingleItem().Id.ShouldBe(inProgress);
-        board.Columns.Single(c => c.Status == Status.Done).Tasks.ShouldBeEmpty();
+        board.Columns.Single(c => c.Column.Name == "Hoàn thành").Tasks.ShouldBeEmpty();
     }
 
     [Fact]
@@ -168,7 +170,7 @@ public class BacklogAndBoardTests : IntegrationTestBase
         var sub1 = await CreateTaskAsync(pm.Client, projectId, "Sub 1", parentTaskId: parentId);
         await CreateTaskAsync(pm.Client, projectId, "Sub 2", parentTaskId: parentId);
 
-        await AdvanceStatusAsync(pm.Client, sub1, Status.Done);
+        await MoveToColumnAsync(pm.Client, sub1, 3);
 
         var board = await pm.Client.GetFromJsonAsync<BoardResponse>(
             $"/api/v1/projects/{projectId}/board", TestJson.Options);

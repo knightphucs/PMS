@@ -1,0 +1,9 @@
+$kind: http-request
+name: Get my tasks
+url: "{{api_url}}/tasks/my"
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4503588850675911

@@ -1,9 +1,21 @@
 /** Soi gương `PMS.Application/Features/Statistics/StatisticsDtos.cs`. */
 
-import type { Priority, Status } from './enums';
+import type { Priority } from './enums';
+import type { StatusCategory } from './task';
 
+/**
+ * Một cột trên biểu đồ phân bố trạng thái.
+ *
+ * ⚠️ Sau ADR-052 đây là MỘT CỘT BOARD chứ không phải một giá trị enum: nó mang `columnId`,
+ * tên và màu do người dùng đặt. Số phần tử vì vậy **thay đổi theo cấu hình từng project**.
+ */
 export interface StatusCount {
-  status: Status;
+  columnId: string;
+  name: string;
+  /** `#RRGGBB` của chính cột — biểu đồ dùng nó để khớp màu với board. */
+  color: string;
+  order: number;
+  category: StatusCategory;
   count: number;
 }
 
@@ -38,8 +50,10 @@ export interface ProjectStatisticsResponse {
   /** Phần trăm **0–100**, làm tròn 2 chữ số. `0` khi project chưa có task nào. */
   completionRate: number;
   /**
-   * ⚠️ Backend LUÔN trả đủ **4** phần tử theo thứ tự khai báo enum, kể cả trạng thái không
-   * có task nào — Recharts không phải tự bịa ra hạng mục thiếu.
+   * ⚠️ Backend LUÔN trả đủ **mọi cột của project** theo `order`, kể cả cột không có task
+   * nào — Recharts không phải tự bịa ra hạng mục thiếu.
+   *
+   * 📌 Số phần tử **không cố định 4** kể từ ADR-052. Đừng viết code dựa trên độ dài mảng.
    */
   byStatus: StatusCount[];
   /** Luôn đủ **5** phần tử, cùng lý do với `byStatus`. */

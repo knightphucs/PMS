@@ -1,0 +1,9 @@
+$kind: http-request
+name: Get roles including permissions
+url: "{{api_url}}/admin/roles/permissions"
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1567546658383988

@@ -22,8 +22,8 @@ import { TaskCard } from '@/components/board/task-card';
 import { errorMessage } from '@/lib/api/problem';
 import { useChangeTaskStatus } from '@/lib/hooks/use-board';
 import { canChangeTaskStatus } from '@/lib/tasks/permissions';
-import { canTransition } from '@/lib/tasks/status-transitions';
-import { STATUS_LABEL, type RoleInProject, type Status } from '@/types/enums';
+import { cn } from '@/lib/utils';
+import { type RoleInProject } from '@/types/enums';
 import type { BoardResponse, TaskSummaryResponse } from '@/types/task';
 
 /**
@@ -85,6 +85,23 @@ export function BoardView({
    */
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
 
+  /**
+   * Cột đang thu, theo id.
+   *
+   * 📌 State CỤC BỘ, cố ý không lưu vào localStorage hay server. Thu cột là thao tác nhất
+   * thời — "tôi đang tập trung vào ba cột đầu" — chứ không phải một tuỳ chọn của người
+   * dùng. Ghi nhớ nó qua các phiên sẽ khiến người ta mở board hôm sau và không hiểu vì sao
+   * mất một cột, mà cũng không nhớ chính mình đã thu nó.
+   */
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+
+  const toggleCollapse = (columnId: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(columnId)) next.add(columnId);
+      return next;
+    });
+
   const canDragTask = (task: TaskSummaryResponse) => {
     if (pending.has(task.id)) return false;
     // ADR-017: assignee của CHÍNH task đó, hoặc ProjectManager. Có được nhờ
@@ -102,15 +119,15 @@ export function BoardView({
     setActiveTask(null);
 
     if (!event.over || !task) return;
-    const target = event.over.id as Status;
+    const targetColumnId = event.over.id as string;
 
     // Về lý thuyết không bao giờ tới được đây với bước không hợp lệ (cột đã bị `disabled`
     // nên không phải ứng viên va chạm). Giữ lại như bảo hiểm rẻ cho cảm biến bàn phím.
-    if (!canTransition(task.status, target)) return;
+    if (task.status.columnId === targetColumnId) return;
 
     setPending((prev) => new Set(prev).add(task.id));
     try {
-      await changeStatus.mutateAsync({ taskId: task.id, target });
+      await changeStatus.mutateAsync({ taskId: task.id, targetColumnId });
     } catch (error) {
       // Hai lỗi client KHÔNG đoán trước được, và cả hai đều đã có câu tiếng Việt giải
       // thích đúng lý do ở `title` của backend:
@@ -140,25 +157,46 @@ export function BoardView({
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActiveTask(null)}
     >
-      {/* Backend LUÔN trả đủ 4 cột kể cả cột rỗng — không phải tự dựng cột thiếu. */}
-      <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {board.columns.map((column) => (
-          <BoardColumn
-            key={column.status}
-            status={column.status}
-            tasks={column.tasks}
-            projectId={projectId}
-            activeTask={activeTask}
-            canDragTask={canDragTask}
-            dragDisabledReason={dragDisabledReason}
-            renderMenu={renderMenu}
-          />
-        ))}
+      {/*
+        Backend LUÔN trả đủ MỌI cột của project kể cả cột rỗng, đã sắp theo `order`.
+
+        🔴 Bố cục đổi từ `grid` sang `flex` cuộn ngang kể từ ADR-052. Lưới bốn cột cũ hợp lý
+        khi số cột là hằng số; nay người dùng thêm được bao nhiêu cột tuỳ ý, và một lưới
+        `xl:grid-cols-4` sẽ ép cột thứ năm xuống hàng dưới — biến board thành hai tầng, thứ
+        không còn đọc được như một quy trình trái→phải nữa.
+
+        `min-w-72` giữ cột đủ rộng để thẻ không vỡ; cột thu lại co về `w-11`.
+        ⚠️ `min-w-0` ở phần tử cuộn là bắt buộc — thiếu nó thì `min-width:auto` của flex item
+        khai báo trọn bề rộng nội tại lên cấp trên và cả trang tràn ngang.
+      */}
+      <div className="flex min-w-0 items-start gap-3 overflow-x-auto pb-2">
+        {board.columns.map((column) => {
+          const isCollapsed = collapsed.has(column.column.id);
+
+          return (
+            <div
+              key={column.column.id}
+              className={cn('shrink-0', isCollapsed ? 'w-11' : 'w-72')}
+            >
+              <BoardColumn
+                column={column.column}
+                tasks={column.tasks}
+                projectId={projectId}
+                activeTask={activeTask}
+                canDragTask={canDragTask}
+                dragDisabledReason={dragDisabledReason}
+                collapsed={isCollapsed}
+                onToggleCollapse={() => toggleCollapse(column.column.id)}
+                renderMenu={renderMenu}
+              />
+            </div>
+          );
+        })}
       </div>
 
       <p aria-live="polite" className="sr-only">
         {activeTask
-          ? `Đang kéo ${activeTask.name} từ cột ${STATUS_LABEL[activeTask.status]}.`
+          ? `Đang kéo ${activeTask.name} từ cột ${activeTask.status.name}.`
           : ''}
       </p>
 

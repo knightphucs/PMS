@@ -32,14 +32,18 @@ export const SYSTEM_PERMISSIONS = {
 
 export type SystemPermission = (typeof SYSTEM_PERMISSIONS)[keyof typeof SYSTEM_PERMISSIONS];
 
-/** Nhãn tiếng Việt cho từng quyền — dùng khi backend chưa trả `description`. */
-export const SYSTEM_PERMISSION_LABEL: Record<SystemPermission, string> = {
-  'employees:manage': 'Quản lý nhân sự',
-  'audit:read': 'Đọc nhật ký hệ thống',
-  'labels:manage': 'Quản lý nhãn toàn cục',
-  'projects:create': 'Tạo dự án',
-  'roles:manage': 'Phân quyền vai trò',
-};
+/*
+ * 🗑️ Đã gỡ `SYSTEM_PERMISSION_LABEL` (2026-08-05).
+ *
+ * Nó là một bảng nhãn tiếng Việt chép tay cho năm mã quyền, ghi chú là "dùng khi backend
+ * chưa trả `description`" — nhưng backend **đã** trả `description` trong danh mục quyền, và
+ * `/admin/roles` (nơi duy nhất cần hiển thị tên quyền) vốn đã đọc thẳng từ đó. Bảng này
+ * **chưa từng có người dùng nào**: đã kiểm bằng `git grep` trên `main`.
+ *
+ * Đừng dựng lại. Hai bảng nhãn cho cùng một danh mục thì chắc chắn có lúc lệch, và bản chép
+ * tay ở client là bản sẽ cũ đi — thêm một quyền ở backend không có gì bắt được nó ở đây.
+ * Cần tên quyền thì lấy `description` từ `GET` danh mục.
+ */
 
 /**
  * Người dùng có quyền này không?

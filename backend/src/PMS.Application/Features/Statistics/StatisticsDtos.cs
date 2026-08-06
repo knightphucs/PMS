@@ -2,7 +2,12 @@ using PMS.Domain.Enums;
 
 namespace PMS.Application.Features.Statistics;
 
-public record StatusCount(Status Status, int Count);
+/// <summary>
+/// Một cột trên biểu đồ phân bố trạng thái. Sau ADR-052 nó là MỘT CỘT BOARD chứ không phải
+/// một giá trị enum, nên số phần tử thay đổi theo cấu hình của từng project.
+/// </summary>
+public record StatusCount(
+    Guid ColumnId, string Name, string Color, int Order, StatusCategory Category, int Count);
 
 public record PriorityCount(Priority Priority, int Count);
 

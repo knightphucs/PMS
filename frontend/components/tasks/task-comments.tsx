@@ -1,6 +1,6 @@
 'use client';
 
-import { MessageSquareIcon, PencilIcon, Trash2Icon } from 'lucide-react';
+import { AtSignIcon, MessageSquareIcon, PencilIcon, Trash2Icon } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -9,9 +9,11 @@ import { EmptyState } from '@/components/common/empty-state';
 import { QueryError } from '@/components/common/query-error';
 import { UserAvatar } from '@/components/common/user-avatar';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { errorMessage } from '@/lib/api/problem';
+import { appendMention, reconcileMentions, type MentionCandidate } from '@/lib/comments/mentions';
 import { formatDateTime, formatRelativeTime } from '@/lib/format';
 import {
   useCreateComment,
@@ -19,6 +21,7 @@ import {
   useTaskComments,
   useUpdateComment,
 } from '@/lib/hooks/use-comments';
+import { useMembers } from '@/lib/hooks/use-members';
 import { canComment, canDeleteComment, canEditComment } from '@/lib/tasks/permissions';
 import type { CommentResponse } from '@/types/comment';
 import type { RoleInProject } from '@/types/enums';
@@ -42,8 +45,19 @@ export function TaskComments({
   const create = useCreateComment(projectId, taskId);
   const update = useUpdateComment(projectId, taskId);
   const remove = useDeleteComment(projectId, taskId);
+  // Nguồn danh sách nhắc tên. Dùng thành viên DỰ ÁN chứ không phải `GET /employees?search=`:
+  // server chỉ giữ lại người là thành viên `Accepted`, nên tra toàn hệ thống chỉ tổ bày ra
+  // những cái tên mà lượt nhắc sẽ bị lọc bỏ im lặng. Khóa này trang chi tiết Task đã nạp.
+  const members = useMembers(projectId);
 
   const [draft, setDraft] = useState('');
+  /**
+   * Những người đã bấm chọn ở ô "Nhắc tên" — CHƯA phải danh sách sẽ gửi lên.
+   *
+   * Danh sách gửi lên được lọc lại bằng `reconcileMentions` ngay lúc submit, vì người dùng
+   * có thể xóa chữ `@Tên` khỏi nội dung sau khi đã chọn.
+   */
+  const [picked, setPicked] = useState<MentionCandidate[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState('');
   const [deleting, setDeleting] = useState<CommentResponse | null>(null);
@@ -51,13 +65,25 @@ export function TaskComments({
 
   const mayWrite = canComment(role);
 
+  // Nhắc được MỌI thành viên đã chấp nhận, kể cả `Viewer`: server chỉ lọc theo tư cách
+  // thành viên `Accepted` chứ không theo vai trò, và Viewer đọc được task nên nhắc họ là
+  // hợp lệ. Bỏ chính mình — tự nhắc mình thì server cũng loại.
+  const mentionables = (members.data ?? [])
+    .filter((m) => m.invitationStatus === 'Accepted' && m.employeeId !== myEmployeeId)
+    .map((m) => ({ id: m.employeeId, name: m.employeeName }));
+
   const submitNew = async () => {
     const content = draft.trim();
     if (!content) return;
 
     try {
-      await create.mutateAsync({ content });
+      await create.mutateAsync({
+        content,
+        // Lọc lại theo nội dung THẬT sắp gửi, không gửi thẳng `picked`.
+        mentionedEmployeeIds: reconcileMentions(content, picked),
+      });
       setDraft('');
+      setPicked([]);
       // Comment mới nằm ở trang đầu (backend sắp xếp mới nhất trước) — đang ở trang 3 mà
       // gửi xong thì không thấy gì, trông như thất bại.
       setPage(1);
@@ -100,7 +126,43 @@ export function TaskComments({
             placeholder="Viết bình luận…"
             onChange={(event) => setDraft(event.target.value)}
           />
-          <div className="flex justify-end">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {mentionables.length > 0 ? (
+              <Popover>
+                <PopoverTrigger
+                  render={
+                    <Button variant="outline" size="sm" className="mr-auto">
+                      <AtSignIcon className="size-4" />
+                      Nhắc tên
+                    </Button>
+                  }
+                />
+                <PopoverContent align="start" className="w-64 p-1">
+                  <div className="grid max-h-64 gap-0.5 overflow-y-auto">
+                    {mentionables.map((person) => (
+                      <button
+                        key={person.id}
+                        type="button"
+                        onClick={() => {
+                          setDraft((current) => appendMention(current, person.name));
+                          // Trùng lặp không sao — `reconcileMentions` khử theo id.
+                          setPicked((current) => [...current, person]);
+                        }}
+                        className="hover:bg-accent flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors"
+                      >
+                        <UserAvatar
+                          id={person.id}
+                          name={person.name}
+                          className="size-6 text-[10px]"
+                        />
+                        <span className="min-w-0 flex-1 truncate text-[13px]">{person.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            ) : null}
+
             <Button
               size="sm"
               disabled={!draft.trim() || create.isPending}

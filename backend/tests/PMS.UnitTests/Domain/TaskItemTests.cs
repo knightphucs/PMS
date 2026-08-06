@@ -7,49 +7,55 @@ namespace PMS.UnitTests.Domain;
 
 public class TaskItemTests
 {
-    // ---------- Workflow Transition Rules ----------
+    // ---------- Chuyển cột (ADR-052 thay thế ma trận chuyển trạng thái của ADR-021) ----------
 
-    [Theory]
-    // 6 chuyển đổi hợp lệ duy nhất theo §5 ARCHITECTURE
-    [InlineData(Status.ToDo,       Status.InProgress, true)]
-    [InlineData(Status.InProgress, Status.Review,     true)]
-    [InlineData(Status.InProgress, Status.ToDo,       true)]   // lùi lại
-    [InlineData(Status.Review,     Status.Done,       true)]
-    [InlineData(Status.Review,     Status.InProgress, true)]   // bị reject
-    [InlineData(Status.Done,       Status.Review,     true)]   // mở lại
-    // nhảy bước
-    [InlineData(Status.ToDo,       Status.Review,     false)]
-    [InlineData(Status.ToDo,       Status.Done,       false)]
-    [InlineData(Status.InProgress, Status.Done,       false)]
-    [InlineData(Status.Done,       Status.ToDo,       false)]
-    [InlineData(Status.Done,       Status.InProgress, false)]
-    [InlineData(Status.Review,     Status.ToDo,       false)]
-    // đứng yên cũng không hợp lệ — nhờ đó 2 người cùng bấm 1 đích thì người sau bị chặn
-    [InlineData(Status.ToDo,       Status.ToDo,       false)]
-    [InlineData(Status.InProgress, Status.InProgress, false)]
-    [InlineData(Status.Review,     Status.Review,     false)]
-    [InlineData(Status.Done,       Status.Done,       false)]
-    public void CanTransitionTo_phu_het_16_cap_trang_thai(Status from, Status to, bool expected)
-        => TaskAt(from).CanTransitionTo(to).ShouldBe(expected);
+    // 🗑️ `CanTransitionTo_phu_het_16_cap_trang_thai` đã XÓA cùng ADR-052, không phải vì nó
+    // hỏng mà vì thứ nó khóa đã không còn tồn tại. Ma trận sáu-cặp-hợp-lệ là luật đúng khi
+    // hệ thống sở hữu bốn trạng thái; với cột do NGƯỜI DÙNG tạo thì không còn cơ sở nào để
+    // nói cặp nào hợp lệ — hệ thống không biết "Chờ QA" đứng trước hay sau "Đang sửa".
+    //
+    // Hệ quả đáng nhớ nhất: **kéo thẻ về đúng cột nó đang đứng nay là hợp lệ**, trước đây là
+    // 409. Xem test ngay dưới.
 
     [Fact]
-    public void ChangeStatus_hop_le_thi_doi_trang_thai()
+    public void MoveTo_dat_ca_BoardColumnId_va_Category_trong_mot_lan()
     {
-        var task = TaskAt(Status.InProgress);
+        var task = NewTask();
+        var column = ColumnFor(task, "Chờ QA", StatusCategory.InProgress);
 
-        task.ChangeStatus(Status.Review);
+        task.MoveTo(column);
 
-        task.Status.ShouldBe(Status.Review);
+        task.BoardColumnId.ShouldBe(column.Id);
+        // 🔴 Bất biến quan trọng nhất của ADR-052: bản sao Category trên task phải đi cùng
+        // cột. Lệch là mọi phép kiểm "task xong chưa" trong solution trả lời sai, im lặng.
+        task.Category.ShouldBe(StatusCategory.InProgress);
     }
 
     [Fact]
-    public void ChangeStatus_nhay_buoc_nem_DomainException_va_giu_nguyen_trang_thai()
+    public void MoveTo_ve_dung_cot_dang_dung_khong_con_la_loi()
     {
-        var task = TaskAt(Status.ToDo);
+        var task = NewTask();
+        var column = ColumnFor(task, "Cần làm", StatusCategory.ToDo);
+        task.MoveTo(column);
 
-        Should.Throw<DomainException>(() => task.ChangeStatus(Status.Done));
+        Should.NotThrow(() => task.MoveTo(column));
 
-        task.Status.ShouldBe(Status.ToDo);
+        task.BoardColumnId.ShouldBe(column.Id);
+    }
+
+    [Fact]
+    public void MoveTo_cot_cua_project_khac_nem_DomainException()
+    {
+        var task = NewTask();
+        var foreign = new BoardColumn
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = Guid.NewGuid(),          // project KHÁC
+            Name = "Cột lạ",
+            Category = StatusCategory.ToDo,
+        };
+
+        Should.Throw<DomainException>(() => task.MoveTo(foreign));
     }
 
     // ---------- Subtask ----------
@@ -92,7 +98,7 @@ public class TaskItemTests
         for (var i = 0; i < 3; i++)
             parent.AddSubtask(new TaskItem { Id = Guid.NewGuid(), Name = $"Sub {i}" });
 
-        Advance(parent.Subtasks.First(), Status.Done);
+        Advance(parent.Subtasks.First(), StatusCategory.Done);
 
         parent.SubtaskProgress.ShouldBe(33.33m);       // 1/3
     }
@@ -103,10 +109,10 @@ public class TaskItemTests
         // Chốt hành vi Jira: task cha KHÔNG tự động đóng (§5 ARCHITECTURE)
         var parent = NewTask();
         parent.AddSubtask(new TaskItem { Id = Guid.NewGuid(), Name = "Sub" });
-        Advance(parent.Subtasks.Single(), Status.Done);
+        Advance(parent.Subtasks.Single(), StatusCategory.Done);
 
         parent.SubtaskProgress.ShouldBe(100m);
-        parent.Status.ShouldBe(Status.ToDo);
+        parent.Category.ShouldBe(StatusCategory.ToDo);
     }
 
     // ---------- Assignment ----------
@@ -189,7 +195,7 @@ public class TaskItemTests
     public void IsOverdue_false_khi_da_Done_du_qua_han()
     {
         var task = NewTask(dueDate: DateTime.UtcNow.AddDays(-1));
-        Advance(task, Status.Done);
+        Advance(task, StatusCategory.Done);
 
         task.IsOverdue.ShouldBeFalse();
     }
@@ -218,24 +224,26 @@ public class TaskItemTests
         Id = Guid.NewGuid(), Name = "Nhân sự", Email = $"{Guid.NewGuid():N}@pms.test"
     };
 
-    /// <summary>Status là private set + có state machine nên phải đi đúng đường, không set tắt được.</summary>
-    private static void Advance(TaskItem task, Status target)
-    {
-        Status[] path = target switch
+    /// <summary>
+    /// Cột giả cho project của <paramref name="task"/>. Sau ADR-052 không còn state machine
+    /// nên không phải "đi đúng đường" nữa — task đặt thẳng vào cột nào cũng được.
+    /// </summary>
+    private static BoardColumn ColumnFor(TaskItem task, string name, StatusCategory category)
+        => new()
         {
-            Status.ToDo       => [],
-            Status.InProgress => [Status.InProgress],
-            Status.Review     => [Status.InProgress, Status.Review],
-            Status.Done       => [Status.InProgress, Status.Review, Status.Done],
-            _ => throw new ArgumentOutOfRangeException(nameof(target))
+            Id = Guid.NewGuid(),
+            ProjectId = task.ProjectId,
+            Name = name,
+            Category = category,
         };
-        foreach (var step in path) task.ChangeStatus(step);
-    }
 
-    private static TaskItem TaskAt(Status status)
+    private static void Advance(TaskItem task, StatusCategory category)
+        => task.MoveTo(ColumnFor(task, category.ToString(), category));
+
+    private static TaskItem TaskAt(StatusCategory category)
     {
         var task = NewTask();
-        Advance(task, status);
+        Advance(task, category);
         return task;
     }
 }
