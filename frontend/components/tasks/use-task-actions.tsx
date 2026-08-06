@@ -38,7 +38,11 @@ export function useTaskActions({
   const moveToSprint = useMoveTaskToSprint(projectId);
   const deleteTask = useDeleteTask(projectId);
 
-  const [creating, setCreating] = useState(false);
+  /**
+   * `null` = dialog tạo đang đóng. `{ columnId: null }` = mở từ nút "Tạo task" chung (cột
+   * trái nhất). `{ columnId: "…" }` = mở từ nút "+" trên MỘT cột cụ thể (2026-08-06).
+   */
+  const [creating, setCreating] = useState<{ columnId: string | null } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [assigning, setAssigning] = useState<TaskSummaryResponse | null>(null);
   const [deleting, setDeleting] = useState<TaskSummaryResponse | null>(null);
@@ -115,11 +119,12 @@ export function useTaskActions({
     <>
       <TaskFormDialog
         projectId={projectId}
-        open={creating || editingId !== null}
+        open={creating !== null || editingId !== null}
         taskId={editingId}
         defaultSprintId={defaultSprintId}
+        defaultColumnId={creating?.columnId ?? null}
         onClose={() => {
-          setCreating(false);
+          setCreating(null);
           setEditingId(null);
         }}
       />
@@ -156,9 +161,16 @@ export function useTaskActions({
 
   return {
     canManage,
+    canAssign,
     movingIds,
     renderMenu,
     dialogs,
-    openCreate: () => setCreating(true),
+    /**
+     * `columnId` = bấm "+" trên một cột cụ thể; bỏ trống = nút "Tạo task" chung (cột trái
+     * nhất, hành vi cũ).
+     */
+    openCreate: (columnId?: string) => setCreating({ columnId: columnId ?? null }),
+    /** Mở thẳng dialog "Người đảm nhận" — dùng cho lối tắt bấm avatar trên thẻ Kanban. */
+    openAssign: setAssigning,
   };
 }

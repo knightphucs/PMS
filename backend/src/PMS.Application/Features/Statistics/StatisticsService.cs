@@ -1,3 +1,4 @@
+using PMS.Application.Common;
 using PMS.Application.Common.Authorization;
 using PMS.Application.Common.Interfaces;
 using PMS.Domain.Enums;
@@ -47,7 +48,7 @@ public class StatisticsService : IStatisticsService
                 .Select(s => new StatusCount(
                     s.ColumnId, s.Name, s.Color, s.Order, s.Category, s.Count))
                 .ToList(),
-            ZeroFill(byPriority, t => t.Priority, t => t.Count,
+            EnumZeroFill.Fill(byPriority, t => t.Priority, t => t.Count,
                 (priority, count) => new PriorityCount(priority, count)),
             byAssignee
                 .Select(a => new AssigneeWorkload(a.EmployeeId, a.EmployeeName, a.Total, a.Done, a.Overdue))
@@ -60,24 +61,5 @@ public class StatisticsService : IStatisticsService
                     s.StartDate.Date <= today && today <= s.EndDate.Date,
                     s.StartDate, s.EndDate, s.Total, s.Done))
                 .ToList());
-    }
-
-    /// <summary>
-    /// Bù đủ mọi giá trị enum, kể cả giá trị không có task nào — cùng lý do
-    /// <c>TaskService.GetBoardAsync</c> luôn dựng đủ 4 cột: biểu đồ ở frontend không nên
-    /// phải tự bịa ra hạng mục còn thiếu, và nếu nó tự bịa thì bảng đó sẽ lệch dần khỏi
-    /// backend mỗi lần thêm một giá trị enum mới.
-    /// Thứ tự trả về theo thứ tự khai báo enum, ổn định giữa các lần gọi.
-    /// </summary>
-    private static IReadOnlyList<TResult> ZeroFill<TTally, TEnum, TResult>(
-        IReadOnlyList<TTally> tallies,
-        Func<TTally, TEnum> keyOf,
-        Func<TTally, int> countOf,
-        Func<TEnum, int, TResult> build) where TEnum : struct, Enum
-    {
-        var lookup = tallies.ToDictionary(keyOf, countOf);
-        return Enum.GetValues<TEnum>()
-            .Select(value => build(value, lookup.GetValueOrDefault(value)))
-            .ToList();
     }
 }

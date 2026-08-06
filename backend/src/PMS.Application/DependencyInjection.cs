@@ -13,6 +13,7 @@ using PMS.Application.Features.Employees;
 using PMS.Application.Features.Labels;
 using PMS.Application.Features.Notifications;
 using PMS.Application.Features.Projects;
+using PMS.Application.Features.Reports;
 using PMS.Application.Features.Sprints;
 using PMS.Application.Features.Statistics;
 using PMS.Application.Features.TaskLinks;
@@ -61,6 +62,7 @@ public static class DependencyInjection
         services.AddScoped<IAttachmentService, AttachmentService>();
         services.AddSingleton<AttachmentMapper>();
         services.AddScoped<IStatisticsService, StatisticsService>();
+        services.AddScoped<IReportsService, ReportsService>();
         services.AddScoped<IDueDateNotifier, DueDateNotifier>();
 
         // Đợt 2026-08-04: phân quyền tầng 1 lưu trong DB (ADR-045).

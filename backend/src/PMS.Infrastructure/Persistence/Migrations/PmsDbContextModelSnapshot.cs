@@ -448,6 +448,11 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
+                    b.Property<int>("TaskCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -655,7 +660,10 @@ namespace PMS.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ProjectId", "Status");
 
-                    b.ToTable("Sprints", (string)null);
+                    b.ToTable("Sprints", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Sprints_EndDate_After_StartDate", "[EndDate] > [StartDate]");
+                        });
                 });
 
             modelBuilder.Entity("PMS.Domain.Entities.TaskAssignment", b =>
@@ -684,6 +692,8 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("EmployeeId");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("EmployeeId"), new[] { "TaskId" });
 
                     b.HasIndex("TaskId", "EmployeeId")
                         .IsUnique();
@@ -716,6 +726,11 @@ namespace PMS.Infrastructure.Persistence.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("IsPinned")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
@@ -771,7 +786,12 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.HasIndex("ProjectId", "Number")
                         .IsUnique();
 
-                    b.ToTable("Tasks", (string)null);
+                    b.ToTable("Tasks", null, t =>
+                        {
+                            t.HasTrigger("trg_Tasks_MaintainProjectTaskCount");
+                        });
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
             modelBuilder.Entity("PMS.Domain.Entities.TaskLink", b =>

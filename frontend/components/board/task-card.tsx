@@ -2,10 +2,12 @@
 
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { CalendarIcon, GitBranchIcon } from 'lucide-react';
+import { CalendarIcon, ChevronRightIcon, GitBranchIcon, PinIcon, UserPlusIcon } from 'lucide-react';
 import Link from 'next/link';
+import { useState } from 'react';
 
 import { AvatarStack } from '@/components/common/avatar-stack';
+import { TaskCardSubtasks } from '@/components/board/task-card-subtasks';
 import { PriorityIcon } from '@/components/tasks/priority-icon';
 import { formatShortDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -17,6 +19,8 @@ type TaskCardTask = Omit<TaskSummaryResponse, 'status'> & {
 
 interface Props {
   task: TaskCardTask;
+  /** Cần để dựng link chi tiết subtask khi mở dropdown — thẻ không tự biết mình ở project nào. */
+  projectId: string;
   /**
    * Đường dẫn tới chi tiết task. Bỏ trống ở bản vẽ trong `DragOverlay` — overlay chỉ là
    * ảnh, không được có gì bấm được.
@@ -31,11 +35,28 @@ interface Props {
    * sprint, quyền hay dialog nào — nó chỉ vẽ.
    */
   menu?: React.ReactNode;
-  /** Bản vẽ trong `DragOverlay` — không gắn listener, không mờ đi. */
+  /** `undefined` = ẩn hẳn nút ghim (không đủ quyền) — cùng triết lý ẩn thay vì vô hiệu hóa. */
+  onTogglePin?: (task: TaskCardTask) => void;
+  /** Request ghim/gỡ ghim của CHÍNH thẻ này đang bay — vô hiệu hóa nút để khỏi bấm hai lần. */
+  isPinning?: boolean;
+  /** `undefined` = ẩn hẳn (Viewer, hoặc không đủ quyền giao việc). */
+  onAssignClick?: (task: TaskCardTask) => void;
+  /** Bản vẽ trong `DragOverlay` — không gắn listener, không mờ đi, không có gì bấm được. */
   overlay?: boolean;
 }
 
-export function TaskCard({ task, href, canDrag, disabledReason, menu, overlay }: Props) {
+export function TaskCard({
+  task,
+  projectId,
+  href,
+  canDrag,
+  disabledReason,
+  menu,
+  onTogglePin,
+  isPinning,
+  onAssignClick,
+  overlay,
+}: Props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
     // Đưa cả object vào `data` để `onDragStart`/`onDragEnd` biết trạng thái hiện tại của
@@ -43,6 +64,9 @@ export function TaskCard({ task, href, canDrag, disabledReason, menu, overlay }:
     data: { task },
     disabled: !canDrag || overlay,
   });
+
+  // Cục bộ cho riêng thẻ này — dropdown subtask của thẻ A mở/đóng không ảnh hưởng thẻ B.
+  const [subtasksOpen, setSubtasksOpen] = useState(false);
 
   return (
     <article
@@ -55,6 +79,10 @@ export function TaskCard({ task, href, canDrag, disabledReason, menu, overlay }:
         'bg-card grid gap-2 rounded-lg border p-2.5 shadow-xs transition-shadow',
         canDrag && !overlay && 'cursor-grab hover:shadow-sm active:cursor-grabbing',
         !canDrag && !overlay && 'cursor-default',
+        // Viền/nền nhạt riêng cho thẻ đã ghim — tín hiệu nhận ra ngay không cần trỏ vào
+        // nút ghim để biết trạng thái. Không dùng màu đậm: đây là một cờ phụ, không phải
+        // trạng thái/độ ưu tiên nên không được cạnh tranh sự chú ý với hai thứ đó.
+        task.isPinned && !overlay && 'border-primary/30 bg-primary/[0.03]',
         // Thẻ nguồn mờ đi chứ KHÔNG ẩn: ẩn thì cột tụt chiều cao và mọi thẻ dưới nó nhảy
         // lên, làm mất luôn cái đích mà người dùng đang nhắm tới.
         isDragging && 'opacity-40',
@@ -83,26 +111,68 @@ export function TaskCard({ task, href, canDrag, disabledReason, menu, overlay }:
             )}
           </h3>
         </div>
-        {menu && !overlay ? <div className="-mt-0.5 -mr-1 shrink-0">{menu}</div> : null}
+
+        {(onTogglePin || menu) && !overlay ? (
+          <div className="-mt-0.5 -mr-1 flex shrink-0 items-center">
+            {onTogglePin ? (
+              <button
+                type="button"
+                onClick={() => onTogglePin(task)}
+                disabled={isPinning}
+                // Ngăn cú bấm biến thành thao tác kéo — cùng lý do TaskMenu đã áp dụng:
+                // ràng buộc distance 6px của PointerSensor không đỡ được click giữ lâu,
+                // và TouchSensor coi 220ms giữ yên là bắt đầu kéo bất kể có click hay không.
+                onPointerDown={(event) => event.stopPropagation()}
+                aria-pressed={task.isPinned}
+                aria-label={task.isPinned ? `Bỏ ghim ${task.name}` : `Ghim ${task.name}`}
+                title={task.isPinned ? 'Bỏ ghim' : 'Ghim — luôn đứng đầu cột'}
+                className={cn(
+                  'grid size-6 shrink-0 place-items-center rounded transition-colors',
+                  'hover:bg-accent disabled:pointer-events-none disabled:opacity-50',
+                  task.isPinned ? 'text-primary' : 'text-muted-foreground',
+                )}
+              >
+                <PinIcon className={cn('size-3.5', task.isPinned && '-rotate-45 fill-current')} />
+              </button>
+            ) : null}
+            {menu}
+          </div>
+        ) : null}
       </div>
 
-      {/* Thanh tiến độ subtask CHỈ hiện khi > 0.
-          `subtaskProgress` là phần trăm 0–100, và `0` không phân biệt được "không có
-          subtask" với "có subtask nhưng chưa xong cái nào" — TaskSummaryResponse không
-          mang số lượng subtask. Hiện 0% trên task không có subtask nào còn tệ hơn là
-          không hiện gì. */}
-      {task.subtaskProgress > 0 ? (
-        <div className="flex items-center gap-1.5">
-          <GitBranchIcon className="text-muted-foreground size-3 shrink-0" />
-          <div className="bg-muted h-1 flex-1 overflow-hidden rounded-full">
-            <div
-              className="bg-primary h-full rounded-full"
-              style={{ width: `${task.subtaskProgress}%` }}
+      {/* Cụm subtask: CHỈ hiện khi có subtask (`subtaskCount > 0`), không phải
+          `subtaskProgress > 0` như trước — hai điều kiện đó khác nhau đúng ở task có
+          subtask nhưng CHƯA xong cái nào (progress = 0 nhưng count > 0), và bản cũ bỏ sót
+          case đó. Bấm để xổ ra danh sách subtask, tải lười qua `TaskCardSubtasks`. */}
+      {task.subtaskCount > 0 ? (
+        <div className="grid gap-1.5">
+          <button
+            type="button"
+            onClick={() => setSubtasksOpen((open) => !open)}
+            onPointerDown={(event) => event.stopPropagation()}
+            aria-expanded={subtasksOpen}
+            aria-label={`${subtasksOpen ? 'Thu gọn' : 'Mở'} ${task.subtaskCount} subtask`}
+            className="group flex min-w-0 items-center gap-1.5"
+          >
+            <ChevronRightIcon
+              className={cn(
+                'text-muted-foreground size-3 shrink-0 transition-transform',
+                subtasksOpen && 'rotate-90',
+              )}
             />
-          </div>
-          <span className="text-muted-foreground text-[11px] tabular-nums">
-            {Math.round(task.subtaskProgress)}%
-          </span>
+            <GitBranchIcon className="text-muted-foreground size-3 shrink-0" />
+            <div className="bg-muted h-1 flex-1 overflow-hidden rounded-full">
+              <div
+                className="bg-primary h-full rounded-full"
+                style={{ width: `${task.subtaskProgress}%` }}
+              />
+            </div>
+            <span className="text-muted-foreground shrink-0 text-[11px] tabular-nums">
+              {Math.round(task.subtaskProgress)}% · {task.subtaskCount}
+            </span>
+          </button>
+
+          {subtasksOpen ? <TaskCardSubtasks projectId={projectId} taskId={task.id} /> : null}
         </div>
       ) : null}
 
@@ -124,7 +194,25 @@ export function TaskCard({ task, href, canDrag, disabledReason, menu, overlay }:
         ) : null}
 
         <div className="flex-1" />
-        <AvatarStack people={task.assignees} max={2} size="sm" />
+
+        {onAssignClick && !overlay ? (
+          <button
+            type="button"
+            onClick={() => onAssignClick(task)}
+            onPointerDown={(event) => event.stopPropagation()}
+            aria-label={task.assignees.length > 0 ? `Đổi người đảm nhận ${task.name}` : `Giao việc ${task.name}`}
+            title={task.assignees.length > 0 ? 'Đổi người đảm nhận' : 'Giao việc'}
+            className="text-muted-foreground hover:text-foreground shrink-0 rounded-full transition-colors"
+          >
+            {task.assignees.length > 0 ? (
+              <AvatarStack people={task.assignees} max={2} size="sm" />
+            ) : (
+              <UserPlusIcon className="size-5" />
+            )}
+          </button>
+        ) : (
+          <AvatarStack people={task.assignees} max={2} size="sm" />
+        )}
       </div>
     </article>
   );

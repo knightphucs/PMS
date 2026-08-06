@@ -8,7 +8,14 @@ public class SprintConfiguration : IEntityTypeConfiguration<Sprint>
 {
     public void Configure(EntityTypeBuilder<Sprint> builder)
     {
-        builder.ToTable("Sprints");
+        // CHECK constraint là chốt chặn cuối cho bất biến "EndDate sau StartDate" mà
+        // SprintValidators đã ép ở tầng ứng dụng — cùng tiền lệ với
+        // CK_Attachments_ExactlyOneOwner (AttachmentConfiguration). Phòng đúng loại lỗi mà
+        // validator KHÔNG chặn được: một hàng chèn thẳng bằng SQL thô (migration backfill
+        // tương lai, script admin) đi vòng qua tầng Application hoàn toàn.
+        builder.ToTable("Sprints", t => t.HasCheckConstraint(
+            "CK_Sprints_EndDate_After_StartDate", "[EndDate] > [StartDate]"));
+
         builder.HasKey(s => s.Id);
 
         builder.Property(s => s.Name).IsRequired().HasMaxLength(200);

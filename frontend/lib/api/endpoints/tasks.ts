@@ -86,6 +86,17 @@ export function changeTaskStatus(id: string, targetColumnId: string) {
   });
 }
 
+/**
+ * Ghim/gỡ ghim — task ghim luôn đứng đầu cột trên board, cho MỌI người xem project.
+ * Cùng quyền với sửa task (PM). KHÔNG cần `rowVersion`.
+ */
+export function pinTask(id: string, pinned: boolean) {
+  return apiFetch<TaskSummaryResponse>(`/tasks/${id}/pin`, {
+    method: 'PATCH',
+    body: { pinned },
+  });
+}
+
 /** Chuyển task sang sprint khác, `null` = về Backlog. KHÔNG cần `rowVersion`. */
 export function moveTaskToSprint(id: string, sprintId: string | null) {
   return apiFetch<TaskSummaryResponse>(`/tasks/${id}/sprint`, {

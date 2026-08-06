@@ -62,11 +62,18 @@ export interface TaskSummaryResponse {
   /**
    * ⚠️ Phần trăm **0–100**, không phải tỉ lệ 0–1.
    *
-   * `0` KHÔNG phân biệt được "không có subtask" với "có subtask nhưng chưa xong cái nào"
-   * — `TaskSummaryResponse` không mang số lượng subtask. Nên chỉ vẽ thanh tiến độ khi
-   * giá trị `> 0`; hiện `0%` trên task không có subtask nào còn tệ hơn là không hiện gì.
+   * `0` không phân biệt được "không có subtask" với "có subtask nhưng chưa xong cái nào"
+   * — dùng `subtaskCount` cho việc đó, `subtaskProgress` chỉ để vẽ thanh tiến độ.
    */
   subtaskProgress: number;
+  /**
+   * Số subtask TRỰC TIẾP (không đệ quy — chỉ một cấp cha–con). `0` = không có subtask nào,
+   * khác `subtaskProgress === 0` (có subtask, chưa xong cái nào). Dùng để quyết định có vẽ
+   * nút mở rộng danh sách subtask ngay trên thẻ Kanban hay không.
+   */
+  subtaskCount: number;
+  /** Ghim — task ghim luôn đứng đầu cột trên board, cho MỌI người xem project (2026-08-06). */
+  isPinned: boolean;
   assignees: TaskCardAssignee[];
   /** Chip nhãn trên thẻ Kanban. Rỗng nếu task chưa gắn nhãn nào. */
   labels: LabelResponse[];
@@ -175,6 +182,12 @@ export interface CreateTaskRequest {
   priority: Priority;
   /** Bỏ qua hoặc gửi `null` nếu chưa có mô tả — ĐỪNG gửi chuỗi `"string"`. */
   description?: string | null;
+  /**
+   * Cột đích khi bấm "+" trên MỘT cột cụ thể (2026-08-06). Bỏ qua hoặc gửi `null` = cột
+   * trái nhất của project (hành vi cũ) — nút "Tạo task" chung và tạo subtask đều bỏ trường
+   * này. Phải cùng project với `projectId`, không thì 404.
+   */
+  boardColumnId?: string | null;
 }
 
 /**
@@ -205,6 +218,11 @@ export interface ChangeTaskStatusRequest {
 /** `null` = đưa task về Backlog. */
 export interface MoveTaskToSprintRequest {
   sprintId: string | null;
+}
+
+/** Ghim/gỡ ghim — task ghim luôn đứng đầu cột trên board (2026-08-06). */
+export interface PinTaskRequest {
+  pinned: boolean;
 }
 
 export interface AssignTaskRequest {

@@ -106,6 +106,30 @@ public class AuthController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Đường ghi hồ sơ cá nhân (ADR-049). Trả <see cref="AuthenticatedResponse"/> mới qua
+    /// <see cref="IssueSession"/> vì <c>Name</c> nằm trong JWT claim: không phát lại token thì
+    /// màn hồ sơ báo lưu thành công mà vẫn hiện tên cũ tới 15 phút, kể cả sau F5 (phiên khôi
+    /// phục bằng <c>/refresh</c> cũng dựng claim từ token cũ). <c>/auth/me</c> vẫn giữ nguyên
+    /// đọc từ claim — quyết định này KHÔNG đụng bất biến mà <c>PermissionClaimTests</c> khóa.
+    /// </summary>
+    [HttpPut("profile"), Authorize]
+    [ProducesResponseType(typeof(AuthenticatedResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<AuthenticatedResponse>> UpdateProfile(UpdateProfileRequest req, CancellationToken ct)
+        => Ok(IssueSession(await _auth.UpdateProfileAsync(req, ct)));
+
+    /// <summary>
+    /// Đổi mật khẩu khi đang đăng nhập (khác <c>reset-password</c>: xác minh bằng mật khẩu
+    /// hiện tại, không phải token gửi qua email). Thu hồi mọi phiên KHÁC nhưng phát lại token
+    /// cho chính tab này — người dùng còn phiên sống tiếp.
+    /// </summary>
+    [HttpPost("change-password"), Authorize]
+    [ProducesResponseType(typeof(AuthenticatedResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<AuthenticatedResponse>> ChangePassword(ChangePasswordRequest req, CancellationToken ct)
+        => Ok(IssueSession(await _auth.ChangePasswordAsync(req, ct)));
+
     [HttpGet("me"), Authorize]
     [ProducesResponseType(typeof(EmployeeDto), StatusCodes.Status200OK)]
     public ActionResult<EmployeeDto> Me()

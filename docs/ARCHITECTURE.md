@@ -220,6 +220,9 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | **Cột board tuỳ biến (ADR-052)** | ✅ | Mới 2026-08-05. `BoardColumns` theo từng project + `StatusCategory` ĐÓNG. Thêm/sửa/xóa/đổi thứ tự, thu cột, xóa bắt buộc chọn cột đích. **Gỡ ma trận chuyển trạng thái** — thay thế ADR-021 |
 | **Vòng đời Sprint (ADR-050)** | ✅ | Mới 2026-08-05. `Sprint.Status` + `CompletedAt` + migration. Start (tối đa MỘT Active/project) · preview · complete **hỏi task chưa xong đi đâu**. Tab Sprint kiểu Jira: thu/mở, dòng task inline. **Mở khóa velocity** cho nhóm báo cáo |
 | **"Việc của tôi" (ADR-053)** | ✅ | Mới 2026-08-05. `GET /tasks/my` — endpoint xuyên dự án đầu tiên. Trang `/my-work` gom theo dự án, đổi view được |
+| **Đường ghi hồ sơ cá nhân (ADR-054)** | ✅ | Mới 2026-08-06. `PUT /auth/profile` + `POST /auth/change-password`, cả hai phát lại token qua `IssueSession`. Đổi mật khẩu thu hồi phiên KHÁC, giữ phiên hiện tại. Frontend: sửa tên tại chỗ + dialog đổi mật khẩu ở `/profile` |
+| **Kỹ thuật DB: index/view/2 SP/trigger/constraint (ADR-055)** | ✅ | Mới 2026-08-06. Migration `AddReportingDbObjects`. Kèm sửa lỗi có sẵn dạng mới: thêm trigger vào `Tasks` làm MỌI ghi qua EF 500 cho tới khi khai `HasTrigger` |
+| **Nhóm báo cáo: backlog insight + velocity + timeline (ADR-056)** | ✅ | Mới 2026-08-06. `GET /projects/{id}/reports/{backlog-insight,velocity,timeline}`. Ba tab/route riêng trên FE (không còn dồn vào một tab "Báo cáo") |
 | Real-time (SignalR) | ⬜ | Có chủ đích — chỉ làm sau khi core CRUD ổn định (xem §6) |
 
 ### Lộ trình các phiên tiếp theo
@@ -248,9 +251,10 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | ~~10~~ | ~~Vòng đời Sprint~~ | ✅ 2026-08-05 | **ADR-050 đã cài đặt.** `Sprint.Status {Planned/Active/Completed}` + `CompletedAt` + migration · `POST /sprints/{id}/start` (tối đa MỘT sprint Active mỗi project) · `/completion-preview` · `/complete` **hỏi task chưa xong đi đâu**. UI: tab Sprint kiểu Jira, thu/mở, dòng task inline, dialog đóng sprint |
 | ~~—~~ | ~~**Cột board tuỳ biến**~~ | ✅ 2026-08-05 | **ADR-052** — ngoài kế hoạch ban đầu, theo yêu cầu. Thêm/sửa/xóa/đổi thứ tự cột, thu cột, xóa cột bắt buộc chọn cột đích. **Thay thế ADR-021** (gỡ ma trận chuyển trạng thái) |
 | ~~—~~ | ~~**"Việc của tôi" xuyên dự án**~~ | ✅ 2026-08-05 | **ADR-053** — `GET /tasks/my`, trang `/my-work` gom theo dự án, đổi được view (theo dự án / theo hạn) |
-| **11** | **Nhóm báo cáo kiểu Jira** | ⬜ **Việc tiếp theo** | Backlog insight · velocity · report · timeline. **Velocity nay ĐÃ mở khóa** — `Sprint.CompletedAt` là mốc đo. Sidebar đã có sẵn nhóm **LẬP KẾ HOẠCH** để thêm mục "Báo cáo" |
-| 12 | **Áp kỹ thuật DB** | ⬜ | Trigger · stored procedure · view · index. **Phiên riêng** — yêu cầu 2026-08-04. ⚠️ Không có giao diện nào |
-| 13 | **Real-time (SignalR)** | ⬜ | Theo §6, chỉ làm sau khi core CRUD **và** frontend đã ổn định |
+| ~~—~~ | ~~**Đường ghi hồ sơ cá nhân**~~ | ✅ 2026-08-06 | **ADR-054** — `PUT /auth/profile` + `POST /auth/change-password`, phát lại token, `/profile` hết chỉ-đọc |
+| ~~11~~ | ~~**Nhóm báo cáo kiểu Jira**~~ | ✅ 2026-08-06 | **ADR-056** — backlog insight + velocity + timeline, cả ba xong. FE tách thành ba tab/route riêng thay vì dồn chung |
+| ~~12~~ | ~~**Áp kỹ thuật DB**~~ | ✅ 2026-08-06 | **ADR-055** — index · view · 2 stored procedure · trigger · CHECK constraint, migration `AddReportingDbObjects` |
+| 13 | **Real-time (SignalR)** | ⬜ | Theo §6, chỉ làm sau khi core CRUD **và** frontend đã ổn định. Cố ý KHÔNG làm ở phiên 2026-08-06 |
 | 14 | **Elasticsearch + Redis** | ⬜ | Định hướng xa. Elasticsearch là lời giải thật cho "Search toàn cục"; Redis cho cache + rate limit phân tán |
 
 #### ✅ Hạng mục A đã chốt và đã làm — xem ADR-045
@@ -3412,3 +3416,139 @@ nhiều so với đoán từ class.
 
 > 📌 Cập nhật bảng này mỗi khi có quyết định kiến trúc mới hoặc thay đổi — đây sẽ là
 > phần rất hữu ích khi viết chương "Phân tích thiết kế" trong báo cáo tốt nghiệp.
+
+---
+
+### Chi tiết ADR-054 → ADR-056 (phiên 2026-08-06 — bốn hạng mục còn lại của lộ trình)
+
+Phiên này làm đúng bốn việc còn lại của §1 (mục 11–12) theo thứ tự ưu tiên người dùng chốt:
+đường ghi hồ sơ cá nhân → kiểm tay board → kỹ thuật DB → nhóm báo cáo. Search toàn cục và
+SignalR **cố ý không làm** — giữ nguyên định hướng "làm sau" đã ghi ở §6.
+
+#### ADR-054 (2026-08-06) — Đường ghi hồ sơ cá nhân: phát lại token, không đổi `/auth/me`
+
+**Chốt phương án (a) của ADR-049**: `PUT /auth/profile` và `POST /auth/change-password` trả
+về `AuthenticatedResponse` MỚI (tái dùng `AuthService.BuildTokensAsync` +
+`AuthController.IssueSession`), frontend `setSession(...)` lại ngay. `GET /auth/me` **giữ
+nguyên** đọc từ claim — không đụng bất biến mà `PermissionClaimTests` khóa.
+
+Đặt cả hai endpoint trên chính `AuthController`, **không** tách sang `EmployeesController`:
+`IssueSession` là method private gắn với `RefreshCookieName`/`RefreshCookiePath` khai trên
+đúng controller đó — bốn thuộc tính cookie phải khớp nguyên vẹn giữa set/xóa (ADR-027), tách
+ra là phải chép lại logic này ở hai nơi.
+
+`ChangePasswordAsync` theo đúng khuôn `ResetPasswordAsync`: thu hồi **mọi phiên khác**
+(`RevokeAllAsync`), nhưng khác `ResetPasswordAsync` ở chỗ **vẫn phát token mới cho chính tab
+đang thao tác** — người dùng đổi mật khẩu trong khi đang đăng nhập hợp lệ thì không có lý do
+gì để tự đăng xuất tab đó, chỉ các thiết bị/tab khác mới cần đăng xuất.
+
+Đã kiểm chứng đầu-cuối bằng integration test: đổi tên xong gọi lại `/auth/me` bằng access
+token **mới** (không refresh) và thấy tên mới ngay — đây là bằng chứng đường phát-lại-token
+chạy thật, không phải chỉ DB được ghi.
+
+#### ADR-055 (2026-08-06) — Kỹ thuật DB: trigger đụng độ với `OUTPUT` của EF Core
+
+Bốn đối tượng DB cho báo cáo thực tập, tất cả trong một migration
+(`AddReportingDbObjects`): **index** (`IX_TaskAssignments_EmployeeId` nâng thành covering
+index qua `IncludeProperties(TaskId)`) · **view** (`vw_SprintVelocity`, chỉ sprint
+`Completed`) · **hai stored procedure** (`sp_GetProjectBacklogInsight` +
+`sp_GetProjectBacklogByPriority`, tách hai vì `Database.SqlQuery<T>` của EF Core 8 không xử
+lý gọn multi-resultset) · **CHECK constraint** (`CK_Sprints_EndDate_After_StartDate`, qua
+Fluent API `HasCheckConstraint` — cùng khuôn `CK_Attachments_ExactlyOneOwner` đã có sẵn) ·
+**trigger** (`trg_Tasks_MaintainProjectTaskCount`, duy trì `Projects.TaskCount`).
+
+> 🔴 **Nói thẳng: cột `Projects.TaskCount` và trigger nuôi nó là đối tượng KÉM CẦN THIẾT
+> nhất trong bốn cái.** `ProjectStatisticsRepository.CountTasksAsync` đã tính đúng số này tại
+> chỗ mỗi khi cần — ứng dụng không thực sự cần một cột đếm phi chuẩn hoá. Nó tồn tại để có
+> một trigger THẬT cho báo cáo, không phải ngược lại. Constraint mới là câu trả lời kỹ thuật
+> đúng cho "toàn vẹn dữ liệu"; trigger là minh họa kỹ thuật.
+
+🔴 **Bẫy lớn nhất phiên này, không nằm ở logic trigger mà ở chỗ không ai ngờ:** thêm trigger
+vào `Tasks` làm **MỌI** `INSERT`/`UPDATE` qua EF vào bảng đó ném `DbUpdateException` ngay
+lập tức — kể cả tạo task đơn giản nhất, không liên quan gì tới trigger. Lỗi SQL Server thật:
+
+```
+The target table 'Tasks' of the DML statement cannot have any enabled triggers if the
+statement contains an OUTPUT clause without INTO clause.
+```
+
+Nguyên nhân: `TaskItem.RowVersion` là cột `rowversion`, và EF Core mặc định sinh
+`INSERT ... OUTPUT INSERTED.RowVersion` để đọc lại giá trị vừa ghi — SQL Server **cấm**
+`OUTPUT` không có `INTO` trên bảng có trigger đang bật. Đây là giới hạn của SQL Server, không
+phải lỗi ở công thức trigger. Sửa bằng khai báo Fluent API mà EF Core tài liệu hóa sẵn:
+
+```csharp
+builder.ToTable("Tasks", t => t.HasTrigger("trg_Tasks_MaintainProjectTaskCount"));
+```
+
+Thiếu dòng này, provider vẫn dùng chiến lược `OUTPUT` cũ và mọi request tạo/sửa task trả
+500 — **build sạch, migration chạy được, nhưng API hỏng hoàn toàn**, đúng lớp lỗi §1 đã đặt
+tên nhiều lần. Chỉ integration test thật (gọi `POST /tasks` qua HTTP) bắt được lỗi này; unit
+test mock repository sẽ không bao giờ chạm tới SQL Server thật để lộ nó ra.
+
+> 📌 **Bài học tổng quát:** thêm trigger vào một bảng có cột `rowversion`/computed luôn cần
+> khai báo `HasTrigger` — không phải tùy chọn tối ưu, mà là điều kiện để bảng đó còn ghi được
+> qua EF Core. Kiểm bằng cách gọi thật một request ghi vào bảng đó sau khi thêm trigger,
+> đừng tin "migration áp được" là đủ.
+
+🔴 **Bẫy thứ hai, nhỏ hơn nhưng dễ lặp lại:** công thức trigger đầu tiên dùng
+`AFTER INSERT, DELETE` để tăng/giảm bộ đếm — sai, vì `Tasks` xóa MỀM
+(`ApplySoftDeleteQueryFilter`/`ApplySoftDelete` đổi `EntityState.Deleted` → `Modified` trước
+`SaveChanges`), nên `AFTER DELETE` gần như không bao giờ chạy và bộ đếm chỉ tăng, không bao
+giờ giảm. Sửa bằng `AFTER INSERT, UPDATE, DELETE` và một công thức gộp `inserted`/`deleted`
+theo `IsDeleted` thay vì theo loại sự kiện — xử lý đúng cả ba trường hợp (task mới, xóa mềm,
+cập nhật không đụng `IsDeleted`) bằng một biểu thức duy nhất thay vì rẽ nhánh theo trigger
+event. Chi tiết công thức xem chú thích trong migration.
+
+#### ADR-056 (2026-08-06) — Nhóm báo cáo: velocity đọc "hiện trạng", không phải "lịch sử"
+
+`GET /projects/{id}/reports/{backlog-insight,velocity,timeline}` — cả ba cùng quyền với
+Thống kê (`ProjectAction.ViewStatistics`, ADR-039), không tạo action mới.
+
+`timeline` liệt kê **MỌI** sprint (Planned/Active/Completed, sắp theo `StartDate`) — khác
+`velocity` chỉ có sprint đã đóng sổ, và khác `TallyBySprintAsync` của Thống kê ở chỗ mang
+theo `SprintStatus` + `CompletedAt` thật thay vì suy "đang chạy" từ so ngày. Dựng bằng LINQ
+thuần trên `Sprints` (không qua view — `vw_SprintVelocity` lọc sẵn `Status = Completed` nên
+không dùng lại được cho timeline).
+
+**Ở frontend, ba báo cáo này tách thành BA route/tab riêng** (`backlog-insight`, `velocity`,
+`timeline` trong `PROJECT_SECTIONS`) thay vì dồn vào một tab "Báo cáo" chung như bản đầu
+2026-08-06 — vừa để mỗi báo cáo có chỗ đứng riêng không phải cuộn trong một trang dài, vừa
+làm sidebar dự án đủ đầy hơn theo đúng yêu cầu. `SprintTimelineChart` là component mới,
+KHÔNG dùng Recharts (Gantt theo ngày thật không hợp thư viện biểu đồ dạng cột/tròn có sẵn):
+mỗi sprint là một `<div>` định vị bằng `%` theo mốc `min(StartDate)`–`max(EndDate)` của toàn
+bộ danh sách, tô màu theo `SprintStatus` bằng đúng bảng `--viz-status-*` đã có (Planned ↔
+xám "chưa bắt đầu", Active ↔ xanh dương, Completed ↔ xanh lá) — không bày thêm thang màu
+thứ tư.
+
+`TallyVelocityAsync` gọi view `vw_SprintVelocity` qua ADO thô (không qua LINQ) — lý do là
+`Database.SqlQuery<T>` của EF Core 8 chỉ dịch gọn kiểu vô hướng, còn view/stored procedure
+nhiều cột cần một `DbCommand` thật. Đây cũng là điểm khiến "view"/"stored procedure" của
+ADR-055 có người dùng thật thay vì chỉ tồn tại để có.
+
+> 🔴 **Một phát hiện đáng nhớ khi viết integration test cho velocity:** đóng sprint với
+> `TargetSprintId = null` (đẩy task chưa xong về Backlog, ADR-050) làm task đó **RỜI KHỎI**
+> sprint hẳn (`SprintId = null`), không phải "ở lại nhưng đánh dấu chưa xong". Nên
+> `vw_SprintVelocity.TotalTasks` của một sprint sau khi đóng **có thể nhỏ hơn** số task nó
+> từng có lúc đang chạy — view phản ánh **hiện trạng thật**, không phải một bản chụp lịch sử.
+> Đây không phải lỗi: một bản test đầu tiên giả định sai điều này và đỏ đúng chỗ, sửa lại
+> assertion là đúng, không phải sửa code.
+
+`EnumZeroFill` (tách từ `StatisticsService.ZeroFill` cũ, dùng `internal` → `public static`
+trong `PMS.Application/Common/`) — khi hai chỗ cần đúng một công thức "bù đủ mọi giá trị
+enum" (Thống kê và giờ là backlog insight theo Priority), tách ra dùng chung thay vì chép
+lại là tránh đúng lớp lỗi ADR-034 đã đặt tên (hai nơi định dạng thì chắc chắn có lúc lệch).
+
+#### 📌 Cập nhật nợ kiểm chứng (frontend-next-session.md §0) — kéo–thả vẫn còn treo
+
+Môi trường phiên này **không có công cụ trình duyệt nào** (không Playwright/Puppeteer/CDP),
+nặng hơn cả giới hạn "không bắn được sự kiện chuột tổng hợp" mà các phiên trước ghi nhận —
+ở đây hoàn toàn không mở được một trình duyệt thật. Vì vậy:
+
+- ✅ **Đổi thứ tự cột** và **đổi category cột có task ảnh hưởng thống kê** — đã kiểm chứng
+  **thật**, nhưng bằng round-trip HTTP + đọc DB trực tiếp (`BoardColumnsTests.cs`, 3 test
+  mới), không phải bằng click chuột trên UI. Đây là bằng chứng logic backend đúng — phần
+  UI (nút bấm, cảnh báo hiện đúng lúc) đã được đọc lại bằng mắt qua mã nguồn ở phiên trước,
+  chưa bấm thử thật.
+- ⬜ **Kéo–thả bằng chuột/cảm ứng/bàn phím vẫn CHƯA kiểm chứng bằng thao tác thật** — không
+  đổi so với trạng thái trước phiên này. Đừng đọc "Mục 2 đã xong" thành "đã kéo thử trên UI".

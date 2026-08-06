@@ -86,6 +86,33 @@ public class TaskServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_co_BoardColumnId_thi_vao_dung_cot_do_khong_phai_cot_trai_nhat()
+    {
+        TaskItem? captured = null;
+        await _taskRepo.AddAsync(Arg.Do<TaskItem>(t => captured = t));
+        _columnRepo.GetByIdAsync(_columns[2].Id, Arg.Any<CancellationToken>()).Returns(_columns[2]);
+
+        await _sut.CreateAsync(NewRequest() with { BoardColumnId = _columns[2].Id });
+
+        captured.ShouldNotBeNull();
+        captured.BoardColumnId.ShouldBe(_columns[2].Id);
+        // KHÔNG hỏi cột mặc định — bấm "+" trên một cột cụ thể là đủ, không cần suy cột trái nhất.
+        await _columnRepo.DidNotReceive().GetDefaultForProjectAsync(
+            Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_BoardColumnId_thuoc_project_khac_thi_404()
+    {
+        var otherProjectId = Guid.NewGuid();
+        var otherColumn = new BoardColumn { Id = Guid.NewGuid(), Name = "Cột lạ", ProjectId = otherProjectId };
+        _columnRepo.GetByIdAsync(otherColumn.Id, Arg.Any<CancellationToken>()).Returns(otherColumn);
+
+        await Should.ThrowAsync<NotFoundException>(
+            () => _sut.CreateAsync(NewRequest() with { BoardColumnId = otherColumn.Id }));
+    }
+
+    [Fact]
     public async Task CreateAsync_co_ParentTaskId_thi_thanh_subtask_va_thua_ke_ProjectId()
     {
         var parent = NewTask();
@@ -283,6 +310,66 @@ public class TaskServiceTests
         await _authz.Received(1).AuthorizeAsync(
             _projectId, ProjectAction.ManageSprint, Arg.Any<CancellationToken>());
     }
+
+    // ---------- PinAsync ----------
+
+    [Fact]
+    public async Task PinAsync_Pinned_true_thi_dat_IsPinned_va_luu()
+    {
+        var task = NewTask();
+        _taskRepo.GetWithSubtasksAsync(task.Id, Arg.Any<CancellationToken>()).Returns(task);
+
+        var result = await _sut.PinAsync(task.Id, new PinTaskRequest(true));
+
+        task.IsPinned.ShouldBeTrue();
+        result.IsPinned.ShouldBeTrue();
+        await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PinAsync_Pinned_false_go_ghim()
+    {
+        var task = NewTask();
+        task.Pin();
+        _taskRepo.GetWithSubtasksAsync(task.Id, Arg.Any<CancellationToken>()).Returns(task);
+
+        var result = await _sut.PinAsync(task.Id, new PinTaskRequest(false));
+
+        task.IsPinned.ShouldBeFalse();
+        result.IsPinned.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task PinAsync_gia_tri_khong_doi_thi_KHONG_goi_SaveChanges()
+    {
+        var task = NewTask();
+        _taskRepo.GetWithSubtasksAsync(task.Id, Arg.Any<CancellationToken>()).Returns(task);
+
+        // Đã Unpinned sẵn — gọi lại false là no-op, không phải một lượt ghi.
+        await _sut.PinAsync(task.Id, new PinTaskRequest(false));
+
+        await _uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PinAsync_yeu_cau_quyen_UpdateTask()
+    {
+        var task = NewTask();
+        _taskRepo.GetWithSubtasksAsync(task.Id, Arg.Any<CancellationToken>()).Returns(task);
+
+        await _sut.PinAsync(task.Id, new PinTaskRequest(true));
+
+        // AuthorizeTaskAsync là extension method chuyển tiếp sang AuthorizeAsync thật —
+        // không mock được chính nó, nên kiểm ở lời gọi thật bên dưới (cùng khuôn
+        // MoveToSprintAsync_yeu_cau_quyen_ManageSprint).
+        await _authz.Received(1).AuthorizeAsync(
+            _projectId, ProjectAction.UpdateTask, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PinAsync_task_khong_ton_tai_thi_404()
+        => await Should.ThrowAsync<NotFoundException>(
+            () => _sut.PinAsync(Guid.NewGuid(), new PinTaskRequest(true)));
 
     // ---------- GetBoardAsync ----------
 

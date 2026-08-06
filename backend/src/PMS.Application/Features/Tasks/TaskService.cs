@@ -36,11 +36,28 @@ public class TaskService : ITaskService
     {
         await _authz.AuthorizeAsync(request.ProjectId, ProjectAction.CreateTask, ct);
 
-        // Cột trái nhất của project (ADR-052). Project luôn có ít nhất một cột — bốn cột mặc
-        // định được cấp lúc tạo project và không xóa được cột cuối cùng — nên `null` ở đây
-        // nghĩa là dữ liệu đã hỏng chứ không phải một trạng thái hợp lệ cần xử lý mềm.
-        var defaultColumn = await _uow.BoardColumns.GetDefaultForProjectAsync(request.ProjectId, ct)
-            ?? throw new NotFoundException(nameof(BoardColumn), request.ProjectId);
+        BoardColumn targetColumn;
+        if (request.BoardColumnId is { } columnId)
+        {
+            // Bấm "+" trên MỘT cột cụ thể (2026-08-06) — task phải rơi ĐÚNG cột đó, không
+            // phải luôn luôn cột trái nhất như trước. Cùng khuôn kiểm tra với
+            // TaskStatusTransitionService.ChangeStatusAsync: cột của project khác -> 404,
+            // không xác nhận nó có tồn tại (ADR-019).
+            targetColumn = await _uow.BoardColumns.GetByIdAsync(columnId, ct)
+                ?? throw new NotFoundException(nameof(BoardColumn), columnId);
+
+            if (targetColumn.ProjectId != request.ProjectId)
+                throw new NotFoundException(nameof(BoardColumn), columnId);
+        }
+        else
+        {
+            // Không chỉ định cột (nút "Tạo task" chung, tạo subtask, …) -> cột trái nhất
+            // của project (ADR-052). Project luôn có ít nhất một cột — bốn cột mặc định
+            // được cấp lúc tạo project và không xóa được cột cuối cùng — nên `null` ở đây
+            // nghĩa là dữ liệu đã hỏng chứ không phải một trạng thái hợp lệ cần xử lý mềm.
+            targetColumn = await _uow.BoardColumns.GetDefaultForProjectAsync(request.ProjectId, ct)
+                ?? throw new NotFoundException(nameof(BoardColumn), request.ProjectId);
+        }
 
         var task = new TaskItem
         {
@@ -53,7 +70,7 @@ public class TaskService : ITaskService
             Priority = request.Priority
         };
 
-        task.MoveTo(defaultColumn);
+        task.MoveTo(targetColumn);
 
         if (request.SprintId is { } sprintId)
             task.SprintId = await RequireSprintOfProjectAsync(sprintId, request.ProjectId, ct);
@@ -260,6 +277,29 @@ public class TaskService : ITaskService
         return _mapper.ToSummary(task, await RequireProjectKeyAsync(task.ProjectId, ct));
     }
 
+    public async Task<TaskSummaryResponse> PinAsync(
+        Guid id, PinTaskRequest request, CancellationToken ct = default)
+    {
+        // GetWithSubtasksAsync chứ không GetByIdAsync: cùng lý do MoveToSprintAsync ở
+        // trên — ToSummary cần Subtasks nạp sẵn cho cả SubtaskProgress lẫn SubtaskCount.
+        var task = await _uow.Tasks.GetWithSubtasksAsync(id, ct)
+            ?? throw new NotFoundException(nameof(TaskItem), id);
+
+        await _authz.AuthorizeTaskAsync(task, ProjectAction.UpdateTask, ct);
+
+        if (task.IsPinned == request.Pinned) return _mapper.ToSummary(
+            task, await RequireProjectKeyAsync(task.ProjectId, ct));   // no-op, không log/save thừa
+
+        if (request.Pinned) task.Pin(); else task.Unpin();
+
+        _activityLog.Log(nameof(TaskItem), id, ActivityAction.Updated,
+            request.Pinned ? $"Ghim task '{task.Name}'" : $"Gỡ ghim task '{task.Name}'");
+
+        await _uow.SaveChangesAsync(ct);
+
+        return _mapper.ToSummary(task, await RequireProjectKeyAsync(task.ProjectId, ct));
+    }
+
     public async Task<IReadOnlyList<TaskSummaryResponse>> GetBacklogAsync(
         Guid projectId, CancellationToken ct = default)
     {
@@ -308,7 +348,12 @@ public class TaskService : ITaskService
                     // Board lọc theo sprint, nên hai con số đó khác nhau và cái người dùng
                     // đang nhìn mới là cái đúng để hiển thị.
                     tasks.Count(t => t.BoardColumnId == column.Id)),
+                // Task ghim luôn đứng ĐẦU cột (2026-08-06). `OrderByDescending` trên LINQ-to-
+                // Objects là SẮP XẾP ỔN ĐỊNH (bảo đảm từ .NET Framework, không phải tình cờ),
+                // nên thứ tự Priority mà `GetRootTasksByProjectAsync`/`GetBySprintAsync` đã
+                // sắp sẵn vẫn giữ nguyên bên trong từng nhóm ghim/không-ghim.
                 tasks.Where(t => t.BoardColumnId == column.Id)
+                     .OrderByDescending(t => t.IsPinned)
                      .Select(t => _mapper.ToSummary(t, projectKey))
                      .ToList()))
             .ToList();

@@ -87,11 +87,13 @@ function BoardContent() {
                 (`ProjectAction.ManageBoardColumns`, ADR-052). */}
             {taskActions.canManage ? <ManageColumnsDialog projectId={id} /> : null}
 
-            {/* MỘT nút tạo task ở đây, KHÔNG phải nút `+` trên từng cột:
-                `CreateTaskRequest` không có trường cột nên task mới luôn rơi vào cột TRÁI
-                NHẤT — nút `+` trên cột "Hoàn thành" sẽ là một lời nói dối. */}
+            {/* Nút chung này luôn tạo vào cột TRÁI NHẤT (không truyền columnId). Từ
+                2026-08-06 mỗi cột còn có nút "+" riêng trong header
+                (`BoardColumn`/`onCreateTask`) tạo ĐÚNG vào cột đó — trước đó cố ý không có
+                vì `CreateTaskRequest` chưa có trường cột nên nút `+` trên cột "Hoàn thành"
+                sẽ là một lời nói dối; nay `BoardColumnId` đã có thật trong request. */}
             {taskActions.canManage ? (
-              <Button size="sm" onClick={taskActions.openCreate}>
+              <Button size="sm" onClick={() => taskActions.openCreate()}>
                 <PlusIcon className="size-4" />
                 Tạo task
               </Button>
@@ -117,6 +119,8 @@ function BoardContent() {
           role={role}
           myEmployeeId={myEmployeeId}
           renderMenu={taskActions.renderMenu}
+          onAssignClick={taskActions.canAssign ? taskActions.openAssign : undefined}
+          onCreateTask={taskActions.canManage ? taskActions.openCreate : undefined}
         />
       )}
 

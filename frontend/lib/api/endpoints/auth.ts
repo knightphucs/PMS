@@ -5,6 +5,8 @@ import type {
   RegisterRequest,
   ForgotPasswordRequest,
   ResetPasswordRequest,
+  UpdateProfileRequest,
+  ChangePasswordRequest,
 } from '@/types/auth';
 
 import { AUTH_PATH } from '../config';
@@ -72,5 +74,28 @@ export function resetPassword(body: ResetPasswordRequest) {
     method: 'POST',
     body,
     anonymous: true,
+  });
+}
+
+/**
+ * Đổi tên hồ sơ (ADR-049). Trả về `AuthenticatedResponse` MỚI — `name` nằm trong JWT
+ * claim, nên gọi xong bắt buộc phải `setSession(...)` lại với response này, không phải chỉ
+ * cập nhật `user` trong store bằng tay. Xem `useAuth().updateProfile`.
+ */
+export function updateProfile(body: UpdateProfileRequest) {
+  return apiFetch<AuthenticatedResponse>(AUTH_PATH.updateProfile, {
+    method: 'PUT',
+    body,
+  });
+}
+
+/**
+ * Đổi mật khẩu khi đang đăng nhập. Thu hồi mọi phiên KHÁC nhưng vẫn phát lại token cho
+ * chính tab đang gọi — cũng phải `setSession(...)` lại với response, cùng lý do như trên.
+ */
+export function changePassword(body: ChangePasswordRequest) {
+  return apiFetch<AuthenticatedResponse>(AUTH_PATH.changePassword, {
+    method: 'POST',
+    body,
   });
 }

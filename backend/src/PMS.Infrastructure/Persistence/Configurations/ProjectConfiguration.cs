@@ -18,6 +18,9 @@ public class ProjectConfiguration : IEntityTypeConfiguration<Project>
         builder.Property(p => p.IsDeleted).HasDefaultValue(false);
         builder.Property(p => p.RowVersion).IsRowVersion();
 
+        // Duy trì bởi trigger DB, không phải bởi C# — xem doc-comment ở Project.TaskCount.
+        builder.Property(p => p.TaskCount).IsRequired().HasDefaultValue(0);
+
         builder.HasIndex(p => p.IsDeleted); // Global Query Filter
 
         // Không lọc theo IsDeleted — cùng lý do với IX_Tasks_ProjectId_Number: mã project

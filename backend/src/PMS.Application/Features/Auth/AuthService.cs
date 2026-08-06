@@ -1,6 +1,7 @@
 // Features/Auth/AuthService.cs
 using Microsoft.Extensions.Logging;
 using PMS.Application.Common.Exceptions;
+using PMS.Application.Common.Extensions;
 using PMS.Application.Common.Interfaces;
 using PMS.Domain.Entities;
 using PMS.Domain.Enums;
@@ -230,6 +231,51 @@ public class AuthService : IAuthService
         _logger.LogInformation(
             "Đặt lại mật khẩu thành công cho {EmployeeEmail} từ {Ip}, đã thu hồi mọi phiên",
             employee.Email, _currentUser.IpAddress);
+    }
+
+    // ---------- Đường ghi hồ sơ cá nhân (ADR-049) ----------
+
+    public async Task<AuthResponse> UpdateProfileAsync(
+        UpdateProfileRequest request, CancellationToken ct = default)
+    {
+        var employeeId = _currentUser.RequireEmployeeId();
+        var employee = await _uow.Employees.GetByIdAsync(employeeId, ct)
+            ?? throw new NotFoundException(nameof(Employee), employeeId);
+
+        employee.Rename(request.Name);   // DomainException -> 400 nếu tên rỗng
+
+        // Không RevokeAllAsync: đổi tên không phải sự kiện bảo mật, khác hẳn đổi mật khẩu.
+        var (response, _) = await BuildTokensAsync(employee, ct);
+        await _uow.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Đổi tên hồ sơ: {EmployeeId} -> {Name}", employeeId, employee.Name);
+        return response;
+    }
+
+    public async Task<AuthResponse> ChangePasswordAsync(
+        ChangePasswordRequest request, CancellationToken ct = default)
+    {
+        var employeeId = _currentUser.RequireEmployeeId();
+        var employee = await _uow.Employees.GetByIdAsync(employeeId, ct)
+            ?? throw new NotFoundException(nameof(Employee), employeeId);
+
+        if (!_passwordHasher.Verify(request.CurrentPassword, employee.PasswordHash))
+            throw new BusinessRuleException("Mật khẩu hiện tại không đúng.");
+
+        employee.PasswordHash = _passwordHasher.Hash(request.NewPassword);
+
+        // Cùng tiền lệ ResetPasswordAsync/ADR-015: đổi mật khẩu thu hồi mọi phiên KHÁC. Khác
+        // với reset-qua-email, ở đây người dùng đang có một phiên hợp lệ ngay lúc thao tác —
+        // BuildTokensAsync bên dưới phát token mới cho CHÍNH tab này, chỉ thiết bị/tab khác
+        // bị đăng xuất.
+        await RevokeAllAsync(employee.Id, ct);
+
+        var (response, _) = await BuildTokensAsync(employee, ct);
+        await _uow.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Đổi mật khẩu thành công cho {EmployeeId}, đã thu hồi các phiên khác", employeeId);
+        return response;
     }
 
     // ---------- private ----------
