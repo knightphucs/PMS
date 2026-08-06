@@ -19,14 +19,16 @@ public record BacklogInsightResponse(
 
 /// <summary>Một điểm trên biểu đồ velocity — một sprint đã đóng sổ.</summary>
 public record SprintVelocityPoint(
-    Guid SprintId, string Name, DateTime CompletedAt, int DoneCount, int TotalCount);
+    Guid SprintId, string Name, DateTime CompletedAt, int DoneCount, int TotalCount,
+    int DoneStoryPoints);
 
 /// <summary>
 /// Velocity — CHỈ tính sprint đã <c>Completed</c>. <c>AverageVelocity</c> là số task Done
 /// trung bình mỗi sprint đã đóng; <c>0</c> khi chưa có sprint nào đóng (không chia 0).
 /// </summary>
 public record VelocityResponse(
-    Guid ProjectId, IReadOnlyList<SprintVelocityPoint> Sprints, decimal AverageVelocity);
+    Guid ProjectId, IReadOnlyList<SprintVelocityPoint> Sprints, decimal AverageVelocity,
+    decimal AverageStoryPoints);
 
 /// <summary>
 /// Một sprint trên trục thời gian — MỌI vòng đời đều có mặt, khác <see cref="SprintVelocityPoint"/>

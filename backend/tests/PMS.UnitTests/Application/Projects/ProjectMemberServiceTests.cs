@@ -19,10 +19,14 @@ public class ProjectMemberServiceTests
     private readonly IEmployeeRepository _employeeRepo = Substitute.For<IEmployeeRepository>();
     private readonly ITaskRepository _taskRepo = Substitute.For<ITaskRepository>();
     private readonly IProjectMemberRepository _memberRepo = Substitute.For<IProjectMemberRepository>();
+    private readonly IProjectInvitationRepository _invitationRepo = Substitute.For<IProjectInvitationRepository>();
     private readonly IProjectAuthorizationService _authz = Substitute.For<IProjectAuthorizationService>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly IActivityLogger _activityLog = Substitute.For<IActivityLogger>();
     private readonly INotificationService _notifications = Substitute.For<INotificationService>();
+    private readonly ITokenService _tokenService = Substitute.For<ITokenService>();
+    private readonly IEmailSender _emailSender = Substitute.For<IEmailSender>();
+    private readonly IAppLinkBuilder _linkBuilder = Substitute.For<IAppLinkBuilder>();
 
     private readonly Guid _pmId = Guid.NewGuid();
     private readonly ProjectMemberService _sut;
@@ -33,11 +37,23 @@ public class ProjectMemberServiceTests
         _uow.Employees.Returns(_employeeRepo);
         _uow.Tasks.Returns(_taskRepo);
         _uow.ProjectMembers.Returns(_memberRepo);
+        _uow.ProjectInvitations.Returns(_invitationRepo);
         _currentUser.EmployeeId.Returns(_pmId);
+
+        // Mọi test đều có thể gọi InviteExternalAsync/AcceptExternalInvitationAsync, cả hai
+        // đều load "actor"/"current employee" bằng GetByIdAsync(currentUser.EmployeeId) —
+        // stub sẵn một Employee mặc định để không phải lặp lại ở từng test không quan tâm actor.
+        _employeeRepo.GetByIdAsync(_pmId, Arg.Any<CancellationToken>()).Returns(Emp(_pmId, "PM test"));
+
+        _tokenService.CreateSecureToken().Returns("raw-token");
+        _tokenService.HashToken(Arg.Any<string>()).Returns(ci => "hash-of-" + ci.Arg<string>());
+        _linkBuilder.BuildInvitationLink(Arg.Any<string>())
+            .Returns(ci => $"https://pms.test/invitations/{ci.Arg<string>()}");
 
         _sut = new ProjectMemberService(
             _uow, _authz, _currentUser, _activityLog, _notifications,
-            new ProjectMapper(), NullLogger<ProjectMemberService>.Instance);
+            new ProjectMapper(), NullLogger<ProjectMemberService>.Instance,
+            _tokenService, _emailSender, _linkBuilder);
     }
 
     // ---------- Helpers ----------
@@ -116,8 +132,8 @@ public class ProjectMemberServiceTests
         var result = await _sut.InviteAsync(
             project.Id, new InviteMemberRequest($"  {invitee.Email}  ", RoleInProject.Member));
 
-        result.InvitationStatus.ShouldBe(InvitationStatus.Pending);
-        result.JoinedDate.ShouldBeNull();
+        result.InvitationStatus.ShouldBe(InvitationStatus.Accepted);
+        result.JoinedDate.ShouldNotBeNull();
         result.EmployeeName.ShouldBe("Tran Thi C");   // navigation Employee được gán tay sau SaveChanges
 
         _activityLog.Received(1).Log(
@@ -260,5 +276,176 @@ public class ProjectMemberServiceTests
 
         await Should.ThrowAsync<DomainException>(() => _sut.RemoveMemberAsync(project.Id, _pmId));
         await _uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    // ---------- InviteExternalAsync ----------
+
+    [Fact]
+    public async Task InviteExternalAsync_tu_moi_chinh_minh_thi_400()
+    {
+        var project = ProjectOf();
+        var me = Emp(_pmId, "PM test");
+        _employeeRepo.GetByIdAsync(_pmId, Arg.Any<CancellationToken>()).Returns(me);
+
+        await Should.ThrowAsync<BusinessRuleException>(() => _sut.InviteExternalAsync(
+            project.Id, new InviteExternalRequest(me.Email, RoleInProject.Member)));
+
+        await _uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task InviteExternalAsync_email_da_la_thanh_vien_thi_409()
+    {
+        var memberId = Guid.NewGuid();
+        var project = ProjectOf((memberId, RoleInProject.Member, InvitationStatus.Accepted));
+        var member = project.Members.First(m => m.EmployeeId == memberId);
+        _employeeRepo.GetByEmailAsync(member.Employee.Email, Arg.Any<CancellationToken>())
+                     .Returns(member.Employee);
+
+        await Should.ThrowAsync<ConflictException>(() => _sut.InviteExternalAsync(
+            project.Id, new InviteExternalRequest(member.Employee.Email, RoleInProject.Member)));
+
+        await _uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task InviteExternalAsync_email_chua_co_tai_khoan_van_tao_duoc_loi_moi_va_gui_email()
+    {
+        var project = ProjectOf();
+        _employeeRepo.GetByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+                     .Returns((Employee?)null);
+
+        var result = await _sut.InviteExternalAsync(
+            project.Id, new InviteExternalRequest("nguoi.la@ngoai.test", RoleInProject.Member));
+
+        result.Email.ShouldBe("nguoi.la@ngoai.test");
+        result.ProjectId.ShouldBe(project.Id);
+
+        await _invitationRepo.Received(1).AddAsync(
+            Arg.Is<ProjectInvitation>(i => i!.Email == "nguoi.la@ngoai.test"), Arg.Any<CancellationToken>());
+        await _emailSender.Received(1).SendAsync(
+            "nguoi.la@ngoai.test", Arg.Any<string>(),
+            Arg.Is<string>(body => body!.Contains("https://pms.test/invitations/raw-token")),
+            Arg.Any<CancellationToken>());
+        await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task InviteExternalAsync_moi_lai_email_dang_Pending_thi_vo_hieu_loi_moi_cu()
+    {
+        var project = ProjectOf();
+        _employeeRepo.GetByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+                     .Returns((Employee?)null);
+
+        var oldInvitation = ProjectInvitation.Create(
+            project.Id, "nguoi.la@ngoai.test", RoleInProject.Viewer, _pmId,
+            "hash-cu", DateTime.UtcNow.AddDays(5), null);
+        _invitationRepo.GetPendingByProjectAndEmailAsync(
+            project.Id, "nguoi.la@ngoai.test", Arg.Any<CancellationToken>())
+            .Returns(oldInvitation);
+
+        await _sut.InviteExternalAsync(
+            project.Id, new InviteExternalRequest("nguoi.la@ngoai.test", RoleInProject.Member));
+
+        oldInvitation.IsUsable.ShouldBeFalse();
+    }
+
+    // ---------- GetInvitationPreviewAsync / AcceptExternalInvitationAsync ----------
+
+    private ProjectInvitation Invitation(
+        Guid projectId, string email, RoleInProject role, DateTime? expiresAt = null, DateTime? usedAt = null)
+    {
+        var invitation = ProjectInvitation.Create(
+            projectId, email, role, _pmId, "hash-of-raw-token",
+            expiresAt ?? DateTime.UtcNow.AddDays(7), null);
+        if (usedAt.HasValue) invitation.MarkUsed();
+        return invitation;
+    }
+
+    [Fact]
+    public async Task GetInvitationPreviewAsync_token_khong_ton_tai_hoac_het_han_thi_cung_mot_loi()
+    {
+        _invitationRepo.GetByHashAsync("hash-of-raw-token", Arg.Any<CancellationToken>())
+                       .Returns((ProjectInvitation?)null);
+
+        await Should.ThrowAsync<BusinessRuleException>(
+            () => _sut.GetInvitationPreviewAsync("raw-token"));
+    }
+
+    [Fact]
+    public async Task GetInvitationPreviewAsync_token_hop_le_thi_tra_thong_tin_project()
+    {
+        var project = ProjectOf();
+        var invitation = Invitation(project.Id, "ai.do@ngoai.test", RoleInProject.Member);
+        invitation.Project = project;
+        _invitationRepo.GetByHashAsync("hash-of-raw-token", Arg.Any<CancellationToken>())
+                       .Returns(invitation);
+
+        var preview = await _sut.GetInvitationPreviewAsync("raw-token");
+
+        preview.ProjectName.ShouldBe(project.Name);
+        preview.Email.ShouldBe("ai.do@ngoai.test");
+    }
+
+    [Fact]
+    public async Task AcceptExternalInvitationAsync_email_khong_khop_thi_403()
+    {
+        var project = ProjectOf();
+        var invitation = Invitation(project.Id, "email.duoc.moi@ngoai.test", RoleInProject.Member);
+        invitation.Project = project;
+        _invitationRepo.GetByHashAsync("hash-of-raw-token", Arg.Any<CancellationToken>())
+                       .Returns(invitation);
+
+        var caller = Emp(_pmId, "Người khác");   // email KHÁC invitation.Email
+        _employeeRepo.GetByIdAsync(_pmId, Arg.Any<CancellationToken>()).Returns(caller);
+
+        await Should.ThrowAsync<ForbiddenException>(
+            () => _sut.AcceptExternalInvitationAsync("raw-token"));
+        await _uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AcceptExternalInvitationAsync_email_khop_thi_them_thanh_vien_va_tieu_token()
+    {
+        var project = ProjectOf();
+        var caller = Emp(_pmId, "PM test");   // caller CHÍNH LÀ creator/PM sẵn có trong project
+        var invitation = Invitation(project.Id, caller.Email, RoleInProject.Viewer);
+        invitation.Project = project;
+        _invitationRepo.GetByHashAsync("hash-of-raw-token", Arg.Any<CancellationToken>())
+                       .Returns(invitation);
+        _employeeRepo.GetByIdAsync(_pmId, Arg.Any<CancellationToken>()).Returns(caller);
+
+        // Caller đã là PM Accepted (do ProjectOf tạo creator) -> nhánh idempotent: chỉ tiêu
+        // token, KHÔNG gọi AddMember lần hai.
+        var result = await _sut.AcceptExternalInvitationAsync("raw-token");
+
+        result.RoleInProject.ShouldBe(RoleInProject.ProjectManager);   // vai trò cũ giữ nguyên, không bị Viewer ghi đè
+        invitation.IsUsed.ShouldBeTrue();
+        await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AcceptExternalInvitationAsync_nguoi_moi_thi_tao_member_Accepted_ngay()
+    {
+        var project = ProjectOf();
+        var inviteeId = Guid.NewGuid();
+        var caller = Emp(inviteeId, "Người ngoài");
+        var invitation = Invitation(project.Id, caller.Email, RoleInProject.Member);
+        invitation.Project = project;
+        _invitationRepo.GetByHashAsync("hash-of-raw-token", Arg.Any<CancellationToken>())
+                       .Returns(invitation);
+        _currentUser.EmployeeId.Returns(inviteeId);
+        _employeeRepo.GetByIdAsync(inviteeId, Arg.Any<CancellationToken>()).Returns(caller);
+
+        var result = await _sut.AcceptExternalInvitationAsync("raw-token");
+
+        result.InvitationStatus.ShouldBe(InvitationStatus.Accepted);
+        result.RoleInProject.ShouldBe(RoleInProject.Member);
+        invitation.IsUsed.ShouldBeTrue();
+
+        _notifications.Received(1).NotifyMany(
+            Arg.Any<IEnumerable<Guid>>(), NotificationType.InvitationAccepted,
+            Arg.Any<string>(), project.Id);
+        await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 }

@@ -17,14 +17,16 @@ public record CreateTaskRequest(
     /// của project (hành vi cũ, ADR-052) — nút "Tạo task" chung và tạo subtask đều gửi
     /// <c>null</c>. Phải cùng project với <see cref="ProjectId"/>, không thì 404.
     /// </summary>
-    Guid? BoardColumnId = null);
+    Guid? BoardColumnId = null,
+    int StoryPoints = 0);
 
 public record UpdateTaskRequest(
     string Name,
     DateTime? DueDate,
     Priority Priority,
     byte[] RowVersion,
-    string? Description = null);
+    string? Description = null,
+    int StoryPoints = 0);
 
 public record MoveTaskToSprintRequest(Guid? SprintId);
 
@@ -71,6 +73,7 @@ public record TaskSummaryResponse(
     string Name,
     TaskStatusRef Status,
     Priority Priority,
+    int StoryPoints,
     DateTime? DueDate,
     bool IsOverdue,
     Guid? SprintId,
@@ -155,6 +158,7 @@ public record TaskDetailResponse(
     string? Description,
     TaskStatusRef Status,
     Priority Priority,
+    int StoryPoints,
     DateTime? DueDate,
     bool IsOverdue,
     Guid ProjectId,

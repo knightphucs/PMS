@@ -43,6 +43,7 @@ export function TaskSidebar({
 }) {
   const canEdit = canManageTasks(role);
   const [dueDraft, setDueDraft] = useState<string | null>(null);
+  const [storyPointsDraft, setStoryPointsDraft] = useState<string | null>(null);
 
   const save = (patch: Parameters<SaveField>[0]) => {
     void onSaveField(patch).catch((error: unknown) => toast.error(errorMessage(error)));
@@ -94,6 +95,30 @@ export function TaskSidebar({
           </Select>
         ) : (
           <PriorityLabel priority={task.priority} className="text-sm" />
+        )}
+      </TaskFieldRow>
+
+      <TaskFieldRow label="Story Point">
+        {canEdit ? (
+          <Input
+            type="number"
+            min="0"
+            max="1000"
+            step="1"
+            className="h-8"
+            disabled={isBusy}
+            value={storyPointsDraft ?? String(task.storyPoints)}
+            onChange={(event) => setStoryPointsDraft(event.target.value)}
+            onBlur={(event) => {
+              setStoryPointsDraft(null);
+              const value = event.target.valueAsNumber;
+              if (!Number.isInteger(value) || value < 0 || value > 1000 || value === task.storyPoints)
+                return;
+              save({ storyPoints: value });
+            }}
+          />
+        ) : (
+          <span className="text-sm tabular-nums">{task.storyPoints || '—'}</span>
         )}
       </TaskFieldRow>
 

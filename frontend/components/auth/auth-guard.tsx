@@ -1,7 +1,7 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect } from 'react';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSessionBootstrap } from '@/lib/hooks/use-auth';
@@ -73,12 +73,32 @@ function BootstrapSkeleton() {
  * chuyển hướng. Trường hợp đó hiếm hơn nhiều, và cái giá của nó nhẹ hơn.
  */
 export function GuestOnly({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      {/* `useSearchParams` cần Suspense bao ngoài — tách riêng để không bắt buộc CẢ
+          `children` (vd LoginForm/RegisterForm, vốn đã tự bọc Suspense của chính nó) phải
+          chờ theo. */}
+      <Suspense fallback={null}>
+        <GuestOnlyRedirect />
+      </Suspense>
+      {children}
+    </>
+  );
+}
+
+/**
+ * Đọc `?next=` giống `AuthGuard` — người ĐÃ đăng nhập mở `/login?next=/invitations/{token}`
+ * (vd bấm "Đăng nhập để tham gia" trên trang mời trong lúc đã đăng nhập ở tab khác) thì phải
+ * về đúng đó, không phải luôn `/projects`.
+ */
+function GuestOnlyRedirect() {
   const status = useSessionBootstrap();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (status === 'authenticated') router.replace('/projects');
-  }, [status, router]);
+    if (status === 'authenticated') router.replace(searchParams.get('next') || '/projects');
+  }, [status, searchParams, router]);
 
-  return <>{children}</>;
+  return null;
 }

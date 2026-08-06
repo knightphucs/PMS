@@ -104,6 +104,14 @@ public class Project : BaseEntity, ISoftDeletable
         return member;
     }
 
+    /// <summary>Thêm tài khoản đã tồn tại vào project ngay lập tức, không chờ phản hồi.</summary>
+    public ProjectMember AddMember(Employee employee, RoleInProject role)
+    {
+        var member = Invite(employee, role);
+        member.Accept();
+        return member;
+    }
+
     public void ChangeMemberRole(Guid employeeId, RoleInProject newRole)
     {
         var member = RequireMember(employeeId);

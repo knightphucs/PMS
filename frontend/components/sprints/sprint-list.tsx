@@ -3,6 +3,7 @@
 import {
   CalendarRangeIcon,
   ChevronRightIcon,
+  ListTreeIcon,
   MoreHorizontalIcon,
   PencilIcon,
   PlayIcon,
@@ -221,6 +222,12 @@ function SprintRow({
                       >
                         {task.name}
                       </span>
+                      {task.subtaskCount > 0 ? (
+                        <ListTreeIcon
+                          className="text-muted-foreground size-3.5 shrink-0"
+                          aria-label={`${task.subtaskCount} subtask`}
+                        />
+                      ) : null}
                     </span>
 
                     <TaskStatusChip status={task.status} className="justify-self-start" />

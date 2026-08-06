@@ -37,7 +37,11 @@ export default function VelocityPage() {
       ) : velocity.isPending ? (
         <Skeleton className="h-72" />
       ) : velocity.data.sprints.length > 0 ? (
-        <VelocityChart points={velocity.data.sprints} average={velocity.data.averageVelocity} />
+        <VelocityChart
+          points={velocity.data.sprints}
+          average={velocity.data.averageVelocity}
+          averageStoryPoints={velocity.data.averageStoryPoints}
+        />
       ) : (
         <EmptyState
           icon={<TrendingUpIcon className="size-8" />}

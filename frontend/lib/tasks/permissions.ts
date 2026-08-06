@@ -19,6 +19,10 @@ export const canManageSprints = (role: RoleInProject | null) => role === 'Projec
 /** Tạo / sửa / xóa task và chuyển task giữa sprint — chỉ PM. Member KHÔNG có. */
 export const canManageTasks = (role: RoleInProject | null) => role === 'ProjectManager';
 
+/** PM tạo được mọi subtask; Member chỉ được tạo dưới task đang được giao cho mình. */
+export const canCreateSubtask = (role: RoleInProject | null, isAssignee: boolean) =>
+  role === 'ProjectManager' || (role === 'Member' && isAssignee);
+
 /** Tự nhận / tự rút khỏi task. Viewer không có. */
 export const canSelfAssign = (role: RoleInProject | null) =>
   role === 'ProjectManager' || role === 'Member';

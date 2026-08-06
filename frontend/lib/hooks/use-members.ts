@@ -6,6 +6,7 @@ import {
   acceptInvitation,
   changeMemberRole,
   declineInvitation,
+  inviteExternalMember,
   inviteMember,
   listMembers,
   listMyInvitations,
@@ -13,7 +14,11 @@ import {
 } from '@/lib/api/endpoints/members';
 import { invitationKeys, memberKeys } from '@/lib/hooks/keys';
 import { projectKeys } from '@/lib/hooks/use-projects';
-import type { ChangeMemberRoleRequest, InviteMemberRequest } from '@/types/project';
+import type {
+  ChangeMemberRoleRequest,
+  InviteExternalRequest,
+  InviteMemberRequest,
+} from '@/types/project';
 
 export function useMembers(projectId: string) {
   return useQuery({
@@ -40,6 +45,16 @@ export function useInviteMember(projectId: string) {
   return useMutation({
     mutationFn: (body: InviteMemberRequest) => inviteMember(projectId, body),
     onSuccess: () => invalidateMembership(queryClient, projectId),
+  });
+}
+
+/**
+ * Mời qua link email — KHÔNG thêm ngay nên không cần invalidate `memberKeys`/`projectKeys`:
+ * danh sách thành viên chỉ đổi sau khi người được mời bấm chấp nhận (xem `use-invitation.ts`).
+ */
+export function useInviteExternalMember(projectId: string) {
+  return useMutation({
+    mutationFn: (body: InviteExternalRequest) => inviteExternalMember(projectId, body),
   });
 }
 

@@ -2,8 +2,8 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { Field } from '@/components/form/field';
@@ -24,9 +24,10 @@ import { registerSchema, type RegisterValues } from '@/lib/validation/auth-schem
 
 const FIELDS = ['name', 'email', 'password', 'confirmPassword'] as const;
 
-export default function RegisterPage() {
+function RegisterForm() {
   const { register: registerAccount } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [formError, setFormError] = useState<string | null>(null);
 
   const {
@@ -43,8 +44,9 @@ export default function RegisterPage() {
     setFormError(null);
     try {
       await registerAccount(values);
-      // Đăng ký trả về phiên luôn, không phải đăng nhập lại.
-      router.replace('/projects');
+      // Đăng ký trả về phiên luôn, không phải đăng nhập lại. `next` cho luồng chấp nhận
+      // lời mời project (`/invitations/{token}?...`) quay lại đúng chỗ, giống /login.
+      router.replace(searchParams.get('next') || '/projects');
     } catch (error) {
       // Email trùng trả 409 (không phải lỗi field) nên rơi xuống FormError.
       if (!applyServerErrors(error, setError, FIELDS)) {
@@ -115,5 +117,15 @@ export default function RegisterPage() {
         </CardFooter>
       </form>
     </Card>
+  );
+}
+
+export default function RegisterPage() {
+  // `useSearchParams` cần Suspense bao ngoài, nếu không `next build` sẽ đỏ ở bước
+  // prerender — lỗi chỉ hiện ở production build chứ `next dev` chạy im (giống /login).
+  return (
+    <Suspense fallback={null}>
+      <RegisterForm />
+    </Suspense>
   );
 }

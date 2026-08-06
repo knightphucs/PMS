@@ -5,6 +5,9 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Legend,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -16,11 +19,13 @@ import type { PriorityCount, StatusCount } from '@/types/statistics';
 
 /** Thang TUẦN TỰ nhạt → đậm: Highest là mức cao nhất nên đậm nhất. */
 const PRIORITY_COLOR: Record<string, string> = {
-  Highest: 'var(--viz-seq-5)',
-  High: 'var(--viz-seq-4)',
-  Medium: 'var(--viz-seq-3)',
-  Low: 'var(--viz-seq-2)',
-  Lowest: 'var(--viz-seq-1)',
+  // Donut cần các mảng phân biệt ngay bằng mắt; không dùng thang xanh tuần tự vốn phù hợp
+  // hơn cho bar chart có thứ tự. Tái dùng palette trực quan đã có của hệ thống.
+  Highest: 'var(--viz-load-overdue)',
+  High: 'var(--viz-status-review)',
+  Medium: 'var(--viz-status-inprogress)',
+  Low: 'var(--viz-status-todo)',
+  Lowest: 'var(--viz-status-done)',
 };
 
 const AXIS_TICK = { fontSize: 12, fill: 'var(--muted-foreground)' };
@@ -74,13 +79,56 @@ export function PriorityDistributionChart({ data }: { data: PriorityCount[] }) {
     count: d.count,
   }));
 
+  const total = rows.reduce((sum, row) => sum + row.count, 0);
+
   return (
-    <ChartCard
-      title="Task theo độ ưu tiên"
-      description="Độ ưu tiên là thang có thứ tự, nên màu đi từ nhạt tới đậm chứ không phải năm màu rời rạc."
-      rows={rows}
-      colorOf={(key) => PRIORITY_COLOR[key]}
-    />
+    <section className="bg-card grid min-w-0 gap-3 rounded-lg border p-4">
+      <div>
+        <h2 className="text-sm font-semibold">Task theo độ ưu tiên</h2>
+        <p className="text-muted-foreground text-xs">
+          Phân bổ toàn bộ task dưới dạng donut; 0 task vẫn được giữ trong chú giải.
+        </p>
+      </div>
+      <div className="h-56 w-full min-w-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={rows}
+              dataKey="count"
+              nameKey="label"
+              cx="50%"
+              cy="50%"
+              innerRadius="52%"
+              outerRadius="76%"
+              paddingAngle={2}
+              isAnimationActive={false}
+            >
+              {rows.map((row) => (
+                <Cell key={row.key} fill={PRIORITY_COLOR[row.key]} />
+              ))}
+            </Pie>
+            <Tooltip
+              content={({ active, payload }) =>
+                active && payload?.length ? (
+                  <div className="bg-popover rounded-md border px-2.5 py-1.5 text-xs shadow-sm">
+                    <p className="font-medium">{payload[0].name}</p>
+                    <p className="text-muted-foreground tabular-nums">
+                      {payload[0].value} task
+                      {total ? ` · ${Math.round((Number(payload[0].value) / total) * 100)}%` : ''}
+                    </p>
+                  </div>
+                ) : null
+              }
+            />
+            <Legend
+              iconType="circle"
+              iconSize={8}
+              formatter={(value) => <span className="text-muted-foreground text-xs">{value}</span>}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+    </section>
   );
 }
 

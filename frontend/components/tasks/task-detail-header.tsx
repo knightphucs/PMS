@@ -139,7 +139,7 @@ export function TaskDetailHeader({
         <div className="flex items-start gap-2">
           {/* `min-w-0` bắt buộc với `flex-1`: flex item mặc định không co nhỏ hơn nội dung,
               nên một tên task dài không dấu cách sẽ đẩy cả hàng (kể cả nút Sửa) ra ngoài. */}
-          <h1 className="min-w-0 flex-1 text-lg leading-snug font-semibold tracking-tight break-words">
+          <h1 className="min-w-0 text-lg leading-snug font-semibold tracking-tight break-words">
             {task.name}
           </h1>
           {canEdit ? (

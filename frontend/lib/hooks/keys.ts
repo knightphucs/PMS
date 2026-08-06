@@ -104,6 +104,15 @@ export const invitationKeys = {
   all: ['my-invitations'] as const,
 };
 
+/**
+ * Xem trước một lời mời qua TOKEN trong link (`/invitations/{token}`) — cố ý TÁCH khỏi
+ * `invitationKeys`: đây là public, theo token thô, không thuộc "hộp thư lời mời" của một
+ * người đã đăng nhập như `invitationKeys` ở trên.
+ */
+export const invitationPreviewKeys = {
+  detail: (token: string) => ['invitation-preview', token] as const,
+};
+
 /** Nhật ký cấp hệ thống — chỉ SystemAdmin, không thuộc project nào (ADR-042). */
 export const systemAuditKeys = {
   all: ['system-audit-logs'] as const,
