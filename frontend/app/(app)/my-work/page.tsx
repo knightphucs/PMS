@@ -26,8 +26,8 @@ type ViewMode = 'grouped' | 'flat';
  * 📌 Đây là màn hình duy nhất không nằm dưới `/projects/{id}`, và cũng là màn hình duy nhất
  * trả lời được câu *"sáng nay tôi cần làm gì"* — mọi màn khác đều bắt chọn dự án trước.
  *
- * 🔴 Phạm vi do SERVER quyết: hạn ≤ hôm nay, gồm cả **quá hạn**. Lọc "đúng hôm nay" sẽ giấu
- * việc trễ đi, mà đó chính là thứ cần thấy nhất.
+ * 🔴 Phạm vi do SERVER quyết: mọi việc chưa xong được giao cho tôi, gồm quá hạn, hôm nay,
+ * tương lai và chưa đặt hạn.
  */
 export default function MyWorkPage() {
   const myWork = useMyWork();
@@ -44,8 +44,8 @@ export default function MyWorkPage() {
         count={myWork.data?.totalTasks}
         description={
           myWork.data
-            ? `Việc được giao cho bạn, có hạn tới ${formatDate(myWork.data.today)} — gồm cả việc đã quá hạn.`
-            : 'Việc được giao cho bạn, có hạn tới hôm nay.'
+            ? `Mọi việc chưa hoàn thành được giao cho bạn, tính đến ${formatDate(myWork.data.today)}.`
+            : 'Mọi việc chưa hoàn thành được giao cho bạn.'
         }
         actions={
           <div className="flex items-center gap-1">
@@ -91,8 +91,8 @@ export default function MyWorkPage() {
       ) : myWork.data.totalTasks === 0 ? (
         <EmptyState
           icon={<CheckCircle2Icon className="size-8" />}
-          title="Không có việc nào tới hạn"
-          description="Bạn không có task nào được giao mà tới hạn hôm nay hoặc đã quá hạn."
+          title="Không có việc nào đang mở"
+          description="Bạn không có task chưa hoàn thành nào được giao."
         />
       ) : view === 'grouped' ? (
         <div className="grid gap-4">

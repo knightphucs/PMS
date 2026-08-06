@@ -202,34 +202,39 @@ function SprintRow({
                 <li key={task.id}>
                   <Link
                     href={`/projects/${projectId}/tasks/${task.id}`}
-                    className="hover:bg-accent flex items-center gap-3 px-3 py-2 text-[13px] transition-colors"
+                    className="hover:bg-accent grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-3 py-2 text-[13px] transition-colors sm:grid-cols-[minmax(0,1fr)_9.5rem_6.75rem_5rem]"
                   >
-                    {/* Mã do backend ghép sẵn (ADR-034) — đừng nối projectKey + number. */}
-                    <span className="text-muted-foreground shrink-0 font-medium tabular-nums">
-                      {task.code}
-                    </span>
-                    <span
-                      className={cn(
-                        'min-w-0 flex-1 truncate',
-                        // Gạch ngang theo NHÓM cột, không theo tên (ADR-052).
-                        task.status.category === 'Done' && 'text-muted-foreground line-through',
-                      )}
-                    >
-                      {task.name}
+                    {/* Nhóm mã + tên thành một cột co giãn. Ba cột bên phải có bề rộng cố
+                        định trên desktop, nên chip status, hạn và assignee luôn thẳng hàng
+                        giữa các task dù tên dài/ngắn khác nhau. */}
+                    <span className="flex min-w-0 items-center gap-3">
+                      {/* Mã do backend ghép sẵn (ADR-034) — đừng nối projectKey + number. */}
+                      <span className="text-muted-foreground shrink-0 font-medium tabular-nums">
+                        {task.code}
+                      </span>
+                      <span
+                        className={cn(
+                          'min-w-0 truncate',
+                          // Gạch ngang theo NHÓM cột, không theo tên (ADR-052).
+                          task.status.category === 'Done' && 'text-muted-foreground line-through',
+                        )}
+                      >
+                        {task.name}
+                      </span>
                     </span>
 
-                    <TaskStatusChip status={task.status} className="shrink-0" />
+                    <TaskStatusChip status={task.status} className="justify-self-start" />
 
                     <span
                       className={cn(
-                        'text-muted-foreground w-24 shrink-0 text-right text-xs tabular-nums',
+                        'text-muted-foreground justify-self-end text-right text-xs tabular-nums',
                         task.isOverdue && 'text-destructive font-medium',
                       )}
                     >
                       {task.dueDate ? formatDate(task.dueDate) : '—'}
                     </span>
 
-                    <AvatarStack people={task.assignees} className="shrink-0" />
+                    <AvatarStack people={task.assignees} className="justify-self-end" />
                   </Link>
                 </li>
               ))}

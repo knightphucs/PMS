@@ -1,6 +1,7 @@
 /** Soi gương `PMS.Application/Features/TaskLinks/TaskLinkDtos.cs`. */
 
-import type { LinkType, Status } from './enums';
+import type { LinkType } from './enums';
+import type { TaskStatusRef } from './task';
 
 /**
  * Một liên kết nhìn từ phía task đang mở.
@@ -17,7 +18,8 @@ export interface TaskLinkResponse {
   /** Mã `PMS-12` của task đối diện, backend đã ghép sẵn. */
   relatedTaskCode: string;
   relatedTaskName: string;
-  relatedTaskStatus: Status;
+  /** Cột hiện tại của task liên quan (ADR-052), không còn là enum cố định. */
+  relatedTaskStatus: TaskStatusRef;
 }
 
 /**

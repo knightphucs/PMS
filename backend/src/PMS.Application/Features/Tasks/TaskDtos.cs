@@ -97,8 +97,8 @@ public record MyWorkGroup(
     IReadOnlyList<TaskSummaryResponse> Tasks);
 
 public record MyWorkResponse(
-    /// <summary>Mốc "hôm nay" mà SERVER dùng để lọc, theo UTC. Trả về để client hiển thị
-    /// đúng phạm vi đang xem thay vì tự tính lại rồi lệch múi giờ (ADR-046b).</summary>
+    /// <summary>Mốc "hôm nay" của SERVER theo UTC. Trả về để client hiển thị nhất quán
+    /// thay vì tự tính lại rồi lệch múi giờ (ADR-046b); không dùng để lọc task.</summary>
     DateTime Today,
     int TotalTasks,
     int OverdueTasks,

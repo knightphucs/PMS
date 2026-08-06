@@ -72,7 +72,11 @@ export default function SprintsPage() {
       <PageHeader
         title="Sprint"
         count={sprints.data?.length}
-        description="Các chu kỳ làm việc của dự án. Bấm tên sprint để mở bảng của riêng nó."
+        description={
+          canManage
+            ? 'Các chu kỳ làm việc của dự án. Dùng nút “Bắt đầu sprint” trên sprint đã lên kế hoạch để chạy chu kỳ.'
+            : 'Các chu kỳ làm việc của dự án. Chỉ Project Manager mới có thể bắt đầu hoặc đóng sprint.'
+        }
         actions={createButton}
       />
 

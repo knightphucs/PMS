@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 
 import { EmptyState } from '@/components/common/empty-state';
 import { QueryError } from '@/components/common/query-error';
-import { STATUS_TONE } from '@/components/tasks/status-tone';
+import { TaskStatusDot } from '@/components/tasks/task-status-chip';
 import { TaskSection } from '@/components/tasks/task-section';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,7 +34,7 @@ import { errorMessage } from '@/lib/api/problem';
 import { useCreateTaskLink, useDeleteTaskLink, useTaskLinks } from '@/lib/hooks/use-task-links';
 import { useProjectTaskOptions } from '@/lib/hooks/use-tasks';
 import { cn } from '@/lib/utils';
-import { LINK_TYPE_LABEL, STATUS_LABEL, type LinkType } from '@/types/enums';
+import { LINK_TYPE_LABEL, type LinkType } from '@/types/enums';
 import type { TaskLinkResponse } from '@/types/task-link';
 
 /** Thứ tự nhóm khi hiển thị — quan hệ chặn lên trước vì nó ảnh hưởng tới việc làm được. */
@@ -105,13 +105,7 @@ export function TaskLinks({
                 <div className="bg-card divide-y rounded-lg border">
                   {items.map((link) => (
                     <div key={link.id} className="flex items-center gap-2.5 px-3 py-2">
-                      <span
-                        className={cn(
-                          'size-2 shrink-0 rounded-full',
-                          STATUS_TONE[link.relatedTaskStatus].dot,
-                        )}
-                        title={STATUS_LABEL[link.relatedTaskStatus]}
-                      />
+                      <TaskStatusDot status={link.relatedTaskStatus} />
                       <Link
                         replace
                         href={`/projects/${projectId}/tasks/${link.relatedTaskId}`}

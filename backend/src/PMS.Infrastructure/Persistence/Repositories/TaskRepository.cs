@@ -206,8 +206,8 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
     /// đó rời dự án, nên phép nối theo assignment đã bao hàm điều kiện ấy.
     /// </para>
     /// </summary>
-    public async Task<IReadOnlyList<TaskItem>> GetMyDueTasksAsync(
-        Guid employeeId, DateTime todayUtc, CancellationToken ct = default)
+    public async Task<IReadOnlyList<TaskItem>> GetMyOpenAssignedTasksAsync(
+        Guid employeeId, CancellationToken ct = default)
         => await DbSet
             .AsNoTracking()
             .Include(t => t.Assignments).ThenInclude(a => a.Employee)
@@ -216,13 +216,10 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
             .Include(t => t.Project)
             .AsSplitQuery()
             .Where(t => t.Assignments.Any(a => a.EmployeeId == employeeId)
-                     && t.Category != StatusCategory.Done
-                     && t.DueDate != null
-                     // So THẲNG với mốc nửa đêm, không dùng `.Value.Date`: mọi cột DateTime
-                     // đi qua ValueConverter đóng dấu Kind=Utc (ADR-046b), và EF KHÔNG dịch
-                     // được `.Date` trên cột đã chuyển đổi — nó ném lúc chạy thành HTTP 500.
-                     && t.DueDate < todayUtc.AddDays(1))
-            .OrderBy(t => t.DueDate).ThenBy(t => t.Priority).ThenBy(t => t.Id)
+                     && t.Category != StatusCategory.Done)
+            // Task chưa có hạn để cuối: màn này ưu tiên lịch làm việc đã có mốc thời gian,
+            // nhưng không giấu việc chỉ vì PM chưa đặt hạn.
+            .OrderBy(t => t.DueDate == null).ThenBy(t => t.DueDate).ThenBy(t => t.Priority).ThenBy(t => t.Id)
             .ToListAsync(ct);
 
     public async Task<IReadOnlyList<TaskItem>> GetUnfinishedBlockersAsync(

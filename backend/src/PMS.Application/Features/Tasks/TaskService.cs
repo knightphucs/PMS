@@ -125,7 +125,7 @@ public class TaskService : ITaskService
         var employeeId = _currentUser.RequireEmployeeId();
         var today = DateTime.UtcNow.Date;
 
-        var tasks = await _uow.Tasks.GetMyDueTasksAsync(employeeId, today, ct);
+        var tasks = await _uow.Tasks.GetMyOpenAssignedTasksAsync(employeeId, ct);
 
         var groups = tasks
             .GroupBy(t => new { t.ProjectId, t.Project.Name, t.Project.Key })

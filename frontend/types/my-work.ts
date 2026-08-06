@@ -5,17 +5,11 @@ import type { TaskSummaryResponse } from './task';
 /**
  * Việc của người đang đăng nhập, gom theo dự án (ADR-053).
  *
- * Bộ lọc do SERVER áp: được gán cho tôi · chưa thuộc cột nhóm `Done` · có hạn ≤ hôm nay.
- * "≤" chứ không "=" là cố ý — việc trễ hạn phải nổi lên cùng việc hôm nay, giấu nó đi là
- * đúng cách để nó bị quên tiếp.
+ * Bộ lọc do SERVER áp: được gán cho tôi · chưa thuộc cột nhóm `Done`. Bao gồm task quá hạn,
+ * hôm nay, tương lai và chưa đặt hạn; danh sách được xếp hạn gần trước, không hạn ở cuối.
  */
 export interface MyWorkResponse {
-  /**
-   * Mốc "hôm nay" mà SERVER dùng để lọc, ISO 8601 UTC.
-   *
-   * ⚠️ Hiện lại mốc này thay vì để client tự tính `new Date()`: hai bên ở hai múi giờ thì
-   * "hôm nay" khác nhau, và người dùng cần biết phạm vi mình đang xem là gì (ADR-046b).
-   */
+  /** Mốc "hôm nay" của server, ISO 8601 UTC, để client hiển thị nhất quán (ADR-046b). */
   today: string;
   totalTasks: number;
   overdueTasks: number;
