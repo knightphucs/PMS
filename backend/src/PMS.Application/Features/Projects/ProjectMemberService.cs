@@ -59,19 +59,20 @@ public class ProjectMemberService : IProjectMemberService
 
         var project = await LoadProjectAsync(projectId, ct);
 
-        // Invariant mời trùng / mời lại người Declined nằm trong domain -> DomainException = 409
-        var member = project.Invite(invitee, request.Role);
+        // Thành viên được thêm trực tiếp để có thể cộng tác ngay; vẫn chỉ chọn được tài
+        // khoản đã tồn tại trong hệ thống, nên không có đường thêm email lạ vào project.
+        var member = project.AddMember(invitee, request.Role);
 
         _activityLog.Log(nameof(Project), projectId, ActivityAction.MemberInvited,
-            $"Mời {invitee.Name} ({invitee.Email}) với vai trò {request.Role}");
+            $"Thêm {invitee.Name} ({invitee.Email}) với vai trò {request.Role}");
 
         _notifications.Notify(invitee.Id, NotificationType.InvitedToProject,
-            $"Bạn được mời tham gia project '{project.Name}' với vai trò {request.Role}",
+            $"Bạn đã được thêm vào project '{project.Name}' với vai trò {request.Role}",
             projectId);
 
         await _uow.SaveChangesAsync(ct);
 
-        _logger.LogInformation("Mời {InviteeId} vào project {ProjectId} bởi {ActorId}",
+        _logger.LogInformation("Thêm {InviteeId} vào project {ProjectId} bởi {ActorId}",
             invitee.Id, projectId, _currentUser.EmployeeId);
 
         // member vừa được tạo trong bộ nhớ nên navigation Employee còn null ->
@@ -182,6 +183,11 @@ public class ProjectMemberService : IProjectMemberService
 
         var member = project.Members.FirstOrDefault(m => m.EmployeeId == employeeId)
             ?? throw new NotFoundException("Không tìm thấy lời mời tham gia project này.");
+
+        // Endpoint cũ vẫn có thể được client gọi sau POST /members. Thành viên nay được
+        // thêm ngay lập tức, vì vậy accept lần nữa là no-op để tương thích ngược.
+        if (accept && member.IsActive())
+            return _mapper.ToMemberResponse(member);
 
         // Trạng thái != Pending -> DomainException = 409 (chống double-click / replay request)
         if (accept) member.Accept();

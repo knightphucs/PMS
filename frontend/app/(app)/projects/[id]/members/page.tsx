@@ -24,7 +24,7 @@ export default function MembersPage() {
   const [changingRole, setChangingRole] = useState<ProjectMemberResponse | null>(null);
   const [removing, setRemoving] = useState<ProjectMemberResponse | null>(null);
 
-  // `isResolving` để nút "Mời thành viên" không nháy hiện rồi biến mất.
+  // `isResolving` để nút "Thêm thành viên" không nháy hiện rồi biến mất.
   const canManage = !isResolving && canManageMembers(role);
 
   return (
@@ -49,7 +49,7 @@ export default function MembersPage() {
         <EmptyState
           icon={<UsersIcon className="size-8" />}
           title="Chưa có thành viên nào"
-          description="Mời đồng nghiệp bằng email để cùng làm việc trên dự án này."
+          description="Thêm đồng nghiệp bằng email để cùng làm việc ngay trên dự án này."
           action={canManage ? <InviteMemberDialog projectId={id} /> : undefined}
         />
       ) : (

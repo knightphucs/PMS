@@ -116,8 +116,8 @@ public class ProjectMemberServiceTests
         var result = await _sut.InviteAsync(
             project.Id, new InviteMemberRequest($"  {invitee.Email}  ", RoleInProject.Member));
 
-        result.InvitationStatus.ShouldBe(InvitationStatus.Pending);
-        result.JoinedDate.ShouldBeNull();
+        result.InvitationStatus.ShouldBe(InvitationStatus.Accepted);
+        result.JoinedDate.ShouldNotBeNull();
         result.EmployeeName.ShouldBe("Tran Thi C");   // navigation Employee được gán tay sau SaveChanges
 
         _activityLog.Received(1).Log(

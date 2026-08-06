@@ -9,6 +9,8 @@ public class TaskItem : BaseEntity, ISoftDeletable
     public string? Description { get; set; }
     public DateTime? DueDate { get; set; }
     public Priority Priority { get; set; } = Priority.Medium;
+    /// <summary>Ước lượng độ lớn công việc theo Story Point (0 = chưa ước lượng).</summary>
+    public int StoryPoints { get; set; }
 
     /// <summary>Cột board mà task đang đứng — thay cho enum <c>Status</c> cũ (ADR-052).</summary>
     public Guid BoardColumnId { get; set; }

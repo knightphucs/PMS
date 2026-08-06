@@ -10,6 +10,7 @@ public class CreateTaskRequestValidator : AbstractValidator<CreateTaskRequest>
         RuleFor(x => x.Description).MaximumLength(4000);      // nullable -> không NotEmpty
         RuleFor(x => x.ProjectId).NotEmpty();
         RuleFor(x => x.Priority).IsInEnum();
+        RuleFor(x => x.StoryPoints).GreaterThanOrEqualTo(0).LessThanOrEqualTo(1000);
 
         // DueDate cho phép ở quá khứ: task quá hạn là trạng thái hợp lệ và cần hiển thị
         // được (IsOverdue), khác với ExpectedCompletionDate của Project.
@@ -49,6 +50,7 @@ public class UpdateTaskRequestValidator : AbstractValidator<UpdateTaskRequest>
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Description).MaximumLength(4000);
         RuleFor(x => x.Priority).IsInEnum();
+        RuleFor(x => x.StoryPoints).GreaterThanOrEqualTo(0).LessThanOrEqualTo(1000);
         RuleFor(x => x.RowVersion)
             .NotEmpty()
             .WithMessage("Thiếu RowVersion — client phải gửi lại giá trị đã nhận từ lần GET gần nhất.");

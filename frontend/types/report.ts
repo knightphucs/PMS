@@ -25,6 +25,7 @@ export interface SprintVelocityPoint {
   completedAt: string;
   doneCount: number;
   totalCount: number;
+  doneStoryPoints: number;
 }
 
 /**
@@ -36,6 +37,7 @@ export interface VelocityResponse {
   projectId: string;
   sprints: SprintVelocityPoint[];
   averageVelocity: number;
+  averageStoryPoints: number;
 }
 
 /**

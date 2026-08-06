@@ -157,7 +157,7 @@ public class ProjectStatisticsRepository : IProjectStatisticsRepository
         Guid projectId, CancellationToken ct = default)
     {
         await using var cmd = await CreateCommandAsync(
-            "SELECT SprintId, Name, CompletedAt, TotalTasks, DoneTasks " +
+            "SELECT SprintId, Name, CompletedAt, TotalTasks, DoneTasks, DoneStoryPoints " +
             "FROM vw_SprintVelocity WHERE ProjectId = @projectId ORDER BY CompletedAt;",
             ct, ("@projectId", projectId));
 
@@ -166,7 +166,7 @@ public class ProjectStatisticsRepository : IProjectStatisticsRepository
         while (await reader.ReadAsync(ct))
             result.Add(new SprintVelocityTally(
                 reader.GetGuid(0), reader.GetString(1), reader.GetDateTime(2),
-                reader.GetInt32(3), reader.GetInt32(4)));
+                reader.GetInt32(3), reader.GetInt32(4), reader.GetInt32(5)));
         return result;
     }
 

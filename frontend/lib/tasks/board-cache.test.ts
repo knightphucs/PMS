@@ -15,7 +15,7 @@ const statuses: Record<string, TaskStatusRef> = {
 const task = (id: string, status: TaskStatusRef, over = false, pinned = false): TaskSummaryResponse => {
   const number = nextNumber++;
   return {
-    id, number, code: `PMS-${number}`, name: `Task ${id}`, status, priority: 'Medium',
+    id, number, code: `PMS-${number}`, name: `Task ${id}`, status, priority: 'Medium', storyPoints: 0,
     dueDate: '2026-01-01T00:00:00Z', isOverdue: over, sprintId: null, parentTaskId: null,
     subtaskProgress: 40, subtaskCount: 1, isPinned: pinned, assignees: [], labels: [],
   };

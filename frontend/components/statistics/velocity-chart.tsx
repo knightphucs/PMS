@@ -27,9 +27,11 @@ const AXIS_TICK = { fontSize: 12, fill: 'var(--muted-foreground)' };
 export function VelocityChart({
   points,
   average,
+  averageStoryPoints,
 }: {
   points: SprintVelocityPoint[];
   average: number;
+  averageStoryPoints: number;
 }) {
   const rows = points.map((p) => ({
     key: p.sprintId,
@@ -37,21 +39,25 @@ export function VelocityChart({
     date: formatShortDate(p.completedAt),
     done: p.doneCount,
     total: p.totalCount,
+    storyPoints: p.doneStoryPoints,
   }));
 
   return (
     <section className="bg-card grid min-w-0 gap-3 rounded-lg border p-4">
       <div>
-        <h2 className="text-sm font-semibold">Velocity</h2>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <h2 className="text-sm font-semibold">Velocity</h2>
+          <span className="text-muted-foreground text-xs tabular-nums">TB {average} task</span>
+          <span className="text-muted-foreground text-xs tabular-nums">TB {averageStoryPoints} SP</span>
+        </div>
         <p className="text-muted-foreground text-xs">
-          Số task Xong mỗi sprint đã đóng sổ. Chỉ sprint đã đóng mới có mặt — sprint đang chạy
-          hoặc chưa bắt đầu chưa có gì để đo tốc độ theo.
+          Task Xong và Story Point hoàn thành của mỗi sprint đã đóng sổ.
         </p>
       </div>
 
       <div className="h-56 w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
+          <BarChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 8 }}>
             <CartesianGrid vertical={false} stroke="var(--viz-grid)" />
             <XAxis dataKey="label" tick={AXIS_TICK} tickLine={false} axisLine={false} />
             <YAxis
@@ -59,7 +65,7 @@ export function VelocityChart({
               tickLine={false}
               axisLine={false}
               allowDecimals={false}
-              width={32}
+              width={42}
             />
             <Tooltip
               cursor={{ fill: 'var(--muted)', opacity: 0.4 }}
@@ -68,7 +74,8 @@ export function VelocityChart({
                   <div className="bg-popover rounded-md border px-2.5 py-1.5 text-xs shadow-sm">
                     <p className="font-medium">{payload[0].payload.label}</p>
                     <p className="text-muted-foreground tabular-nums">
-                      {payload[0].payload.done}/{payload[0].payload.total} task Xong · đóng{' '}
+                      {payload[0].payload.done}/{payload[0].payload.total} task Xong ·{' '}
+                      {payload[0].payload.storyPoints} SP · đóng{' '}
                       {payload[0].payload.date}
                     </p>
                   </div>

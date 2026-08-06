@@ -85,7 +85,7 @@ export function InviteMemberDialog({ projectId }: { projectId: string }) {
 
       try {
         await inviteMember.mutateAsync(values);
-        toast.success(`Đã gửi lời mời tới ${values.email}.`);
+        toast.success(`Đã thêm ${values.email} vào project.`);
         handleOpenChange(false);
       } catch (error) {
         // Ba lỗi nghiệp vụ đều có câu tiếng Việt sẵn ở `title`, và đều KHÁC nhau về cách
@@ -117,16 +117,16 @@ export function InviteMemberDialog({ projectId }: { projectId: string }) {
         render={
           <Button size="sm">
             <UserPlusIcon className="size-4" />
-            Mời thành viên
+            Thêm thành viên
           </Button>
         }
       />
       <DialogContent showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>Mời thành viên</DialogTitle>
+          <DialogTitle>Thêm thành viên</DialogTitle>
           <DialogDescription>
-            Người được mời phải đã có tài khoản trong hệ thống. Lời mời ở trạng thái chờ
-            cho tới khi họ chấp nhận.
+            Chọn người đã có tài khoản trong hệ thống. Họ sẽ được thêm vào project và có thể
+            làm việc ngay.
           </DialogDescription>
         </DialogHeader>
 
@@ -227,7 +227,7 @@ export function InviteMemberDialog({ projectId }: { projectId: string }) {
               {role === 'ProjectManager'
                 ? 'Toàn quyền: quản lý thành viên, sprint và task.'
                 : role === 'Member'
-                  ? 'Tự nhận việc và bình luận. Không tạo/sửa được task hay sprint.'
+                  ? 'Tự nhận việc, bình luận và tách subtask từ việc được giao. Không tạo/sửa task hay sprint.'
                   : 'Chỉ xem. Không tự nhận việc, không bình luận.'}
             </p>
           </div>
@@ -235,7 +235,7 @@ export function InviteMemberDialog({ projectId }: { projectId: string }) {
           <DialogFooter className="mt-2">
             <DialogClose render={<Button type="button" variant="outline" />}>Hủy</DialogClose>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Đang gửi…' : 'Gửi lời mời'}
+              {isSubmitting ? 'Đang thêm…' : 'Thêm vào project'}
             </Button>
           </DialogFooter>
         </form>
