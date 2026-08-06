@@ -4,6 +4,7 @@ import { ListTodoIcon, PlusIcon } from 'lucide-react';
 import { useParams } from 'next/navigation';
 
 import { BacklogTable, BacklogTableSkeleton } from '@/components/backlog/backlog-table';
+import { BacklogInsightsPanel } from '@/components/backlog/backlog-insights-panel';
 import { EmptyState } from '@/components/common/empty-state';
 import { PageHeader } from '@/components/common/page-header';
 import { QueryError } from '@/components/common/query-error';
@@ -42,13 +43,20 @@ export default function BacklogPage() {
     </Button>
   ) : undefined;
 
+  const actions = (
+    <>
+      <BacklogInsightsPanel projectId={id} />
+      {createButton}
+    </>
+  );
+
   return (
     <div className="grid gap-4">
       <PageHeader
         title="Backlog"
         count={backlog.data?.length}
         description="Task chưa xếp vào sprint nào. Dùng menu ở cuối dòng để chuyển sang sprint."
-        actions={createButton}
+        actions={actions}
       />
 
       {backlog.isError ? (
