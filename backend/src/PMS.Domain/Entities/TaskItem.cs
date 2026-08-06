@@ -188,6 +188,22 @@ public class TaskItem : BaseEntity, ISoftDeletable
         }
     }
 
+    /// <summary>
+    /// Ghim — task luôn đứng ĐẦU cột trên board, bất kể độ ưu tiên (2026-08-06).
+    ///
+    /// <para>
+    /// Ghim CHUNG cho cả project, không phải riêng theo người xem: một cờ trên chính
+    /// <see cref="TaskItem"/> là đủ, không cần bảng quan hệ Employee–Task riêng. Đây là
+    /// hành động quản lý board (ai cũng thấy cùng một thứ tự), cùng nhóm quyền với
+    /// <c>ProjectAction.UpdateTask</c> — không có action riêng cho việc này.
+    /// </para>
+    /// <para><c>private set</c>: chỉ <see cref="Pin"/>/<see cref="Unpin"/> ghi được.</para>
+    /// </summary>
+    public bool IsPinned { get; private set; }
+
+    public void Pin() => IsPinned = true;
+    public void Unpin() => IsPinned = false;
+
     public void AddSubtask(TaskItem child)
     {
         // DomainException chứ không phải InvalidOperationException: middleware chỉ map

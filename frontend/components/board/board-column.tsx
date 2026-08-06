@@ -21,6 +21,12 @@ interface Props {
   onToggleCollapse: () => void;
   /** Menu thao tác cho từng thẻ; `null` khi người dùng không có quyền nào. */
   renderMenu?: (task: TaskSummaryResponse) => React.ReactNode;
+  /** `undefined` = ẩn hẳn nút ghim trên mọi thẻ (không đủ quyền UpdateTask). */
+  onTogglePin?: (task: TaskSummaryResponse) => void;
+  /** Id các task đang có request ghim/gỡ ghim bay dở — disable đúng MỘT thẻ, không cả cột. */
+  pinningIds?: ReadonlySet<string>;
+  /** `undefined` = ẩn hẳn (Viewer). Mở dialog "Người đảm nhận" khi bấm cụm avatar trên thẻ. */
+  onAssignClick?: (task: TaskSummaryResponse) => void;
 }
 
 export function BoardColumn({
@@ -33,6 +39,9 @@ export function BoardColumn({
   collapsed,
   onToggleCollapse,
   renderMenu,
+  onTogglePin,
+  pinningIds,
+  onAssignClick,
 }: Props) {
   /**
    * 🔴 MỘT nguồn sự thật cho cả hành vi lẫn hình thức.
@@ -147,10 +156,14 @@ export function BoardColumn({
             <TaskCard
               key={task.id}
               task={task}
+              projectId={projectId}
               href={`/projects/${projectId}/tasks/${task.id}`}
               canDrag={canDragTask(task)}
               disabledReason={dragDisabledReason}
               menu={renderMenu?.(task)}
+              onTogglePin={onTogglePin}
+              isPinning={pinningIds?.has(task.id)}
+              onAssignClick={onAssignClick}
             />
           ))
         )}

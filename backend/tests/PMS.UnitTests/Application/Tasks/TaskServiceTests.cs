@@ -284,6 +284,66 @@ public class TaskServiceTests
             _projectId, ProjectAction.ManageSprint, Arg.Any<CancellationToken>());
     }
 
+    // ---------- PinAsync ----------
+
+    [Fact]
+    public async Task PinAsync_Pinned_true_thi_dat_IsPinned_va_luu()
+    {
+        var task = NewTask();
+        _taskRepo.GetWithSubtasksAsync(task.Id, Arg.Any<CancellationToken>()).Returns(task);
+
+        var result = await _sut.PinAsync(task.Id, new PinTaskRequest(true));
+
+        task.IsPinned.ShouldBeTrue();
+        result.IsPinned.ShouldBeTrue();
+        await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PinAsync_Pinned_false_go_ghim()
+    {
+        var task = NewTask();
+        task.Pin();
+        _taskRepo.GetWithSubtasksAsync(task.Id, Arg.Any<CancellationToken>()).Returns(task);
+
+        var result = await _sut.PinAsync(task.Id, new PinTaskRequest(false));
+
+        task.IsPinned.ShouldBeFalse();
+        result.IsPinned.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task PinAsync_gia_tri_khong_doi_thi_KHONG_goi_SaveChanges()
+    {
+        var task = NewTask();
+        _taskRepo.GetWithSubtasksAsync(task.Id, Arg.Any<CancellationToken>()).Returns(task);
+
+        // Đã Unpinned sẵn — gọi lại false là no-op, không phải một lượt ghi.
+        await _sut.PinAsync(task.Id, new PinTaskRequest(false));
+
+        await _uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PinAsync_yeu_cau_quyen_UpdateTask()
+    {
+        var task = NewTask();
+        _taskRepo.GetWithSubtasksAsync(task.Id, Arg.Any<CancellationToken>()).Returns(task);
+
+        await _sut.PinAsync(task.Id, new PinTaskRequest(true));
+
+        // AuthorizeTaskAsync là extension method chuyển tiếp sang AuthorizeAsync thật —
+        // không mock được chính nó, nên kiểm ở lời gọi thật bên dưới (cùng khuôn
+        // MoveToSprintAsync_yeu_cau_quyen_ManageSprint).
+        await _authz.Received(1).AuthorizeAsync(
+            _projectId, ProjectAction.UpdateTask, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PinAsync_task_khong_ton_tai_thi_404()
+        => await Should.ThrowAsync<NotFoundException>(
+            () => _sut.PinAsync(Guid.NewGuid(), new PinTaskRequest(true)));
+
     // ---------- GetBoardAsync ----------
 
     [Fact]

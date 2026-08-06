@@ -2,9 +2,9 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { changeTaskStatus, getBoard } from '@/lib/api/endpoints/tasks';
+import { changeTaskStatus, getBoard, pinTask } from '@/lib/api/endpoints/tasks';
 import { boardKeys, projectDataKeys } from '@/lib/hooks/keys';
-import { moveTaskInBoard, patchTaskInBoard } from '@/lib/tasks/board-cache';
+import { moveTaskInBoard, patchTaskInBoard, pinTaskInBoard } from '@/lib/tasks/board-cache';
 import type { BoardResponse } from '@/types/task';
 
 /**
@@ -73,6 +73,50 @@ export function useChangeTaskStatus(projectId: string, sprintId: string | null) 
     onSettled: () => {
       // Cùng một task xuất hiện trên cả board "tất cả task" LẪN board của sprint chứa nó,
       // nên làm mới cả nhánh chứ không chỉ khóa đang xem.
+      void queryClient.invalidateQueries({ queryKey: projectDataKeys.all(projectId) });
+    },
+  });
+}
+
+/**
+ * Ghim/gỡ ghim, cùng khuôn cập nhật lạc quan với {@link useChangeTaskStatus}.
+ *
+ * Khác drag–drop ở một điểm: `pinTaskInBoard` không chỉ vá trường `isPinned` mà còn SẮP
+ * LẠI cột đó ngay lập tức — cả điểm của việc ghim là thấy thẻ nhảy lên đầu tức thì, không
+ * phải đợi round-trip rồi mới re-sort.
+ */
+export function usePinTask(projectId: string, sprintId: string | null) {
+  const queryClient = useQueryClient();
+  const key = boardKeys.detail(projectId, sprintId);
+
+  return useMutation({
+    mutationFn: ({ taskId, pinned }: { taskId: string; pinned: boolean }) =>
+      pinTask(taskId, pinned),
+
+    onMutate: async ({ taskId, pinned }) => {
+      await queryClient.cancelQueries({ queryKey: key });
+
+      const previous = queryClient.getQueryData<BoardResponse>(key);
+      queryClient.setQueryData<BoardResponse>(key, (old) =>
+        old ? pinTaskInBoard(old, taskId, pinned) : old,
+      );
+
+      return { previous };
+    },
+
+    onSuccess: (summary) => {
+      // Vị trí đã đúng từ `onMutate` — chỉ cần vá lại các trường tính sẵn từ server,
+      // KHÔNG gọi `pinTaskInBoard` lần hai (sẽ sort thừa một lượt vô hại nhưng thừa).
+      queryClient.setQueryData<BoardResponse>(key, (old) =>
+        old ? patchTaskInBoard(old, summary) : old,
+      );
+    },
+
+    onError: (_error, _variables, context) => {
+      if (context?.previous) queryClient.setQueryData(key, context.previous);
+    },
+
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: projectDataKeys.all(projectId) });
     },
   });

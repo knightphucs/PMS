@@ -156,9 +156,12 @@ export function useTaskActions({
 
   return {
     canManage,
+    canAssign,
     movingIds,
     renderMenu,
     dialogs,
     openCreate: () => setCreating(true),
+    /** Mở thẳng dialog "Người đảm nhận" — dùng cho lối tắt bấm avatar trên thẻ Kanban. */
+    openAssign: setAssigning,
   };
 }

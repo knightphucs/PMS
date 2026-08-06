@@ -84,6 +84,36 @@ export function patchTaskInBoard(board: BoardResponse, task: TaskSummaryResponse
   };
 }
 
+/**
+ * Ghim/gỡ ghim MỘT thẻ và sắp lại đúng cột chứa nó — thẻ ghim luôn nhảy lên ĐẦU cột ngay
+ * lập tức, khớp với thứ tự server trả (`GetBoardAsync` sắp `IsPinned` giảm dần trước khi
+ * tới độ ưu tiên).
+ *
+ * KHÔNG tái dùng `patchTaskInBoard`: hàm đó CHỦ Ý giữ nguyên vị trí (dùng sau khi kéo–thả,
+ * lúc vị trí không nên nhảy). Ở đây thì ngược lại — cả điểm của việc ghim là nhảy lên đầu.
+ */
+export function pinTaskInBoard(
+  board: BoardResponse,
+  taskId: string,
+  pinned: boolean,
+): BoardResponse {
+  const current = board.columns.find((column) => column.tasks.some((t) => t.id === taskId));
+  if (!current) return board;
+
+  const updatedTasks = current.tasks
+    .map((t) => (t.id === taskId ? { ...t, isPinned: pinned } : t))
+    // `Array.prototype.sort` ỔN ĐỊNH kể từ ES2019 — task cùng nhóm ghim/không-ghim giữ
+    // nguyên thứ tự tương đối, chỉ nhóm đã ghim nổi lên đầu.
+    .sort((a, b) => Number(b.isPinned) - Number(a.isPinned));
+
+  return {
+    ...board,
+    columns: board.columns.map((column) =>
+      column.column.id === current.column.id ? { ...column, tasks: updatedTasks } : column,
+    ),
+  };
+}
+
 /** Tìm một thẻ trên board mà không phải duyệt cột ở nơi gọi. */
 export function findTaskInBoard(
   board: BoardResponse,

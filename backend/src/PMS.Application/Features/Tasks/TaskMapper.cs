@@ -69,6 +69,8 @@ public partial class TaskMapper
         task.SprintId,
         task.ParentTaskId,
         task.SubtaskProgress,
+        task.Subtasks.Count,
+        task.IsPinned,
         task.Assignments.Select(ToCardAssignee).ToList(),
         task.Labels.Select(ToLabelResponse).ToList());
 

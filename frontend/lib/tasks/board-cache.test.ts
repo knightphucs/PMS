@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { findTaskInBoard, moveTaskInBoard, patchTaskInBoard } from './board-cache';
+import { findTaskInBoard, moveTaskInBoard, patchTaskInBoard, pinTaskInBoard } from './board-cache';
 
 import type { BoardResponse, TaskStatusRef, TaskSummaryResponse } from '@/types/task';
 
@@ -12,12 +12,12 @@ const statuses: Record<string, TaskStatusRef> = {
   done: { columnId: 'done', name: 'Hoàn thành', color: '#10b981', category: 'Done' },
 };
 
-const task = (id: string, status: TaskStatusRef, over = false): TaskSummaryResponse => {
+const task = (id: string, status: TaskStatusRef, over = false, pinned = false): TaskSummaryResponse => {
   const number = nextNumber++;
   return {
     id, number, code: `PMS-${number}`, name: `Task ${id}`, status, priority: 'Medium',
     dueDate: '2026-01-01T00:00:00Z', isOverdue: over, sprintId: null, parentTaskId: null,
-    subtaskProgress: 40, assignees: [], labels: [],
+    subtaskProgress: 40, subtaskCount: 1, isPinned: pinned, assignees: [], labels: [],
   };
 };
 
@@ -64,5 +64,29 @@ describe('patchTaskInBoard', () => {
     const moved = patchTaskInBoard(board(), task('a', statuses.review));
     expect(idsIn(moved, 'todo')).toEqual(['b']);
     expect(idsIn(moved, 'review')).toEqual(['a']);
+  });
+});
+
+describe('pinTaskInBoard', () => {
+  it('ghim đẩy thẻ lên đầu cột, giữ nguyên thứ tự tương đối của phần còn lại', () => {
+    // 'todo' có sẵn ['a', 'b'] — ghim 'b' phải đưa nó lên trước 'a'.
+    const pinned = pinTaskInBoard(board(), 'b', true);
+    expect(idsIn(pinned, 'todo')).toEqual(['b', 'a']);
+    expect(findTaskInBoard(pinned, 'b')!.isPinned).toBe(true);
+  });
+
+  it('gỡ ghim trả thẻ về nhóm không-ghim, không tự ý đổi thứ tự trong nhóm đó', () => {
+    const twicePinned = pinTaskInBoard(pinTaskInBoard(board(), 'a', true), 'b', true);
+    expect(idsIn(twicePinned, 'todo')).toEqual(['a', 'b']);
+
+    const unpinnedA = pinTaskInBoard(twicePinned, 'a', false);
+    // 'a' rớt xuống dưới 'b' (vẫn đang ghim) — đúng ngữ nghĩa "ghim luôn đứng trên chưa ghim".
+    expect(idsIn(unpinnedA, 'todo')).toEqual(['b', 'a']);
+    expect(findTaskInBoard(unpinnedA, 'a')!.isPinned).toBe(false);
+  });
+
+  it('không đổi cache khi task không có trên board', () => {
+    const previous = board();
+    expect(pinTaskInBoard(previous, 'missing', true)).toBe(previous);
   });
 });

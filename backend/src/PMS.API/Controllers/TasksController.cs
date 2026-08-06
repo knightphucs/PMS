@@ -94,6 +94,19 @@ public class TasksController : ControllerBase
         Guid id, MoveTaskToSprintRequest req, CancellationToken ct)
         => Ok(await _tasks.MoveToSprintAsync(id, req, ct));
 
+    /// <summary>
+    /// Ghim/gỡ ghim — task ghim luôn đứng đầu cột trên board, cho MỌI người xem project này
+    /// (2026-08-06). Cùng quyền với sửa task (<c>ProjectAction.UpdateTask</c>, PM), không
+    /// cần <c>rowVersion</c> — cùng lý do <c>ChangeStatus</c>/<c>MoveToSprint</c> không cần.
+    /// </summary>
+    [HttpPatch("tasks/{id:guid}/pin")]
+    [ProducesResponseType(typeof(TaskSummaryResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<TaskSummaryResponse>> Pin(
+        Guid id, PinTaskRequest req, CancellationToken ct)
+        => Ok(await _tasks.PinAsync(id, req, ct));
+
     /// <summary>Task chưa gán sprint của project.</summary>
     [HttpGet("projects/{projectId:guid}/backlog")]
     [ProducesResponseType(typeof(IReadOnlyList<TaskSummaryResponse>), StatusCodes.Status200OK)]

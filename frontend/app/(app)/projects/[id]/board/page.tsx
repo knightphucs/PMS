@@ -117,6 +117,7 @@ function BoardContent() {
           role={role}
           myEmployeeId={myEmployeeId}
           renderMenu={taskActions.renderMenu}
+          onAssignClick={taskActions.canAssign ? taskActions.openAssign : undefined}
         />
       )}
 

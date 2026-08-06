@@ -20,8 +20,8 @@ import { toast } from 'sonner';
 import { BoardColumn } from '@/components/board/board-column';
 import { TaskCard } from '@/components/board/task-card';
 import { errorMessage } from '@/lib/api/problem';
-import { useChangeTaskStatus } from '@/lib/hooks/use-board';
-import { canChangeTaskStatus } from '@/lib/tasks/permissions';
+import { useChangeTaskStatus, usePinTask } from '@/lib/hooks/use-board';
+import { canChangeTaskStatus, canManageTasks } from '@/lib/tasks/permissions';
 import { cn } from '@/lib/utils';
 import { type RoleInProject } from '@/types/enums';
 import type { BoardResponse, TaskSummaryResponse } from '@/types/task';
@@ -64,6 +64,7 @@ export function BoardView({
   role,
   myEmployeeId,
   renderMenu,
+  onAssignClick,
 }: {
   projectId: string;
   sprintId: string | null;
@@ -71,10 +72,37 @@ export function BoardView({
   role: RoleInProject | null;
   myEmployeeId: string | null;
   renderMenu?: (task: TaskSummaryResponse) => React.ReactNode;
+  /** `undefined` = ẩn hẳn lối tắt bấm avatar để giao việc (Viewer). */
+  onAssignClick?: (task: TaskSummaryResponse) => void;
 }) {
   const sensors = useBoardSensors();
   const changeStatus = useChangeTaskStatus(projectId, sprintId);
+  const pinTask = usePinTask(projectId, sprintId);
   const [activeTask, setActiveTask] = useState<TaskSummaryResponse | null>(null);
+
+  /**
+   * Task đang có request ghim/gỡ ghim bay dở — cùng lý do `pending` (dưới đây) tồn tại: vá
+   * đúng MỘT thẻ chứ không khóa cả board trong lúc chờ.
+   */
+  const [pinningIds, setPinningIds] = useState<ReadonlySet<string>>(new Set());
+  // Ghim là hành động quản lý board (mọi người cùng thấy một thứ tự) — cùng ngưỡng quyền
+  // với sửa/xóa task, KHÔNG mở cho assignee tự ghim task của mình.
+  const canPin = canManageTasks(role);
+
+  const handleTogglePin = async (task: TaskSummaryResponse) => {
+    setPinningIds((prev) => new Set(prev).add(task.id));
+    try {
+      await pinTask.mutateAsync({ taskId: task.id, pinned: !task.isPinned });
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setPinningIds((prev) => {
+        const next = new Set(prev);
+        next.delete(task.id);
+        return next;
+      });
+    }
+  };
 
   /**
    * Các task đang có request bay dở.
@@ -188,6 +216,9 @@ export function BoardView({
                 collapsed={isCollapsed}
                 onToggleCollapse={() => toggleCollapse(column.column.id)}
                 renderMenu={renderMenu}
+                onTogglePin={canPin ? handleTogglePin : undefined}
+                pinningIds={pinningIds}
+                onAssignClick={onAssignClick}
               />
             </div>
           );
@@ -205,7 +236,9 @@ export function BoardView({
           `dropAnimation={null}` vì thẻ sẽ được thay bằng bản cập nhật lạc quan ngay lập
           tức; hiệu ứng bay-về mặc định đọc thành "thả không thành công". */}
       <DragOverlay dropAnimation={null}>
-        {activeTask ? <TaskCard task={activeTask} canDrag={false} overlay /> : null}
+        {activeTask ? (
+          <TaskCard task={activeTask} projectId={projectId} canDrag={false} overlay />
+        ) : null}
       </DragOverlay>
     </DndContext>
   );

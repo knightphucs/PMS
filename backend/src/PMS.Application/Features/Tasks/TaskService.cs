@@ -260,6 +260,29 @@ public class TaskService : ITaskService
         return _mapper.ToSummary(task, await RequireProjectKeyAsync(task.ProjectId, ct));
     }
 
+    public async Task<TaskSummaryResponse> PinAsync(
+        Guid id, PinTaskRequest request, CancellationToken ct = default)
+    {
+        // GetWithSubtasksAsync chứ không GetByIdAsync: cùng lý do MoveToSprintAsync ở
+        // trên — ToSummary cần Subtasks nạp sẵn cho cả SubtaskProgress lẫn SubtaskCount.
+        var task = await _uow.Tasks.GetWithSubtasksAsync(id, ct)
+            ?? throw new NotFoundException(nameof(TaskItem), id);
+
+        await _authz.AuthorizeTaskAsync(task, ProjectAction.UpdateTask, ct);
+
+        if (task.IsPinned == request.Pinned) return _mapper.ToSummary(
+            task, await RequireProjectKeyAsync(task.ProjectId, ct));   // no-op, không log/save thừa
+
+        if (request.Pinned) task.Pin(); else task.Unpin();
+
+        _activityLog.Log(nameof(TaskItem), id, ActivityAction.Updated,
+            request.Pinned ? $"Ghim task '{task.Name}'" : $"Gỡ ghim task '{task.Name}'");
+
+        await _uow.SaveChangesAsync(ct);
+
+        return _mapper.ToSummary(task, await RequireProjectKeyAsync(task.ProjectId, ct));
+    }
+
     public async Task<IReadOnlyList<TaskSummaryResponse>> GetBacklogAsync(
         Guid projectId, CancellationToken ct = default)
     {
@@ -308,7 +331,12 @@ public class TaskService : ITaskService
                     // Board lọc theo sprint, nên hai con số đó khác nhau và cái người dùng
                     // đang nhìn mới là cái đúng để hiển thị.
                     tasks.Count(t => t.BoardColumnId == column.Id)),
+                // Task ghim luôn đứng ĐẦU cột (2026-08-06). `OrderByDescending` trên LINQ-to-
+                // Objects là SẮP XẾP ỔN ĐỊNH (bảo đảm từ .NET Framework, không phải tình cờ),
+                // nên thứ tự Priority mà `GetRootTasksByProjectAsync`/`GetBySprintAsync` đã
+                // sắp sẵn vẫn giữ nguyên bên trong từng nhóm ghim/không-ghim.
                 tasks.Where(t => t.BoardColumnId == column.Id)
+                     .OrderByDescending(t => t.IsPinned)
                      .Select(t => _mapper.ToSummary(t, projectKey))
                      .ToList()))
             .ToList();

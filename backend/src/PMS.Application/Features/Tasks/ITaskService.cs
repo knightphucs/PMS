@@ -19,6 +19,10 @@ public interface ITaskService
     Task<TaskSummaryResponse> MoveToSprintAsync(
         Guid id, MoveTaskToSprintRequest request, CancellationToken ct = default);
 
+    /// <summary>Ghim/gỡ ghim — cùng quyền với <c>UpdateTask</c> (PM), không có action riêng.</summary>
+    Task<TaskSummaryResponse> PinAsync(
+        Guid id, PinTaskRequest request, CancellationToken ct = default);
+
     Task<IReadOnlyList<TaskSummaryResponse>> GetBacklogAsync(
         Guid projectId, CancellationToken ct = default);
 
