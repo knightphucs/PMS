@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PMS.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using PMS.Infrastructure.Persistence;
 namespace PMS.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(PmsDbContext))]
-    partial class PmsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260806031236_AddReportingDbObjects")]
+    partial class AddReportingDbObjects
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -730,11 +733,6 @@ namespace PMS.Infrastructure.Persistence.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
-                    b.Property<bool>("IsPinned")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -786,12 +784,7 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.HasIndex("ProjectId", "Number")
                         .IsUnique();
 
-                    b.ToTable("Tasks", null, t =>
-                        {
-                            t.HasTrigger("trg_Tasks_MaintainProjectTaskCount");
-                        });
-
-                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
+                    b.ToTable("Tasks", (string)null);
                 });
 
             modelBuilder.Entity("PMS.Domain.Entities.TaskLink", b =>

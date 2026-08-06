@@ -8,7 +8,15 @@ public class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
 {
     public void Configure(EntityTypeBuilder<TaskItem> builder)
     {
-        builder.ToTable("Tasks");
+        // 🔴 `HasTrigger` là BẮT BUỘC sau khi thêm `trg_Tasks_MaintainProjectTaskCount`
+        // (migration AddReportingDbObjects), không phải trang trí. Không khai báo thì mọi
+        // INSERT/UPDATE qua EF vào bảng này NÉM `DbUpdateException` ngay lập tức: EF Core
+        // mặc định sinh `OUTPUT INSERTED.RowVersion` để đọc lại giá trị `rowversion` vừa
+        // ghi, và SQL Server CẤM `OUTPUT` không có `INTO` trên bảng có trigger đang bật —
+        // lỗi 334, không liên quan gì tới logic của trigger. Khai báo này báo cho provider
+        // chuyển sang chiến lược `OUTPUT INTO @bảng_tạm`, né đúng giới hạn đó.
+        // Xem https://aka.ms/efcore-docs-sqlserver-save-changes-and-output-clause.
+        builder.ToTable("Tasks", t => t.HasTrigger("trg_Tasks_MaintainProjectTaskCount"));
         builder.HasKey(t => t.Id);
 
         builder.Property(t => t.Name).IsRequired().HasMaxLength(200);
