@@ -37,7 +37,7 @@ export default function BacklogPage() {
   });
 
   const createButton = taskActions.canManage ? (
-    <Button size="sm" onClick={taskActions.openCreate}>
+    <Button size="sm" onClick={() => taskActions.openCreate()}>
       <PlusIcon className="size-4" />
       Tạo task
     </Button>

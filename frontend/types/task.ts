@@ -182,6 +182,12 @@ export interface CreateTaskRequest {
   priority: Priority;
   /** Bỏ qua hoặc gửi `null` nếu chưa có mô tả — ĐỪNG gửi chuỗi `"string"`. */
   description?: string | null;
+  /**
+   * Cột đích khi bấm "+" trên MỘT cột cụ thể (2026-08-06). Bỏ qua hoặc gửi `null` = cột
+   * trái nhất của project (hành vi cũ) — nút "Tạo task" chung và tạo subtask đều bỏ trường
+   * này. Phải cùng project với `projectId`, không thì 404.
+   */
+  boardColumnId?: string | null;
 }
 
 /**

@@ -65,6 +65,7 @@ export function BoardView({
   myEmployeeId,
   renderMenu,
   onAssignClick,
+  onCreateTask,
 }: {
   projectId: string;
   sprintId: string | null;
@@ -74,6 +75,11 @@ export function BoardView({
   renderMenu?: (task: TaskSummaryResponse) => React.ReactNode;
   /** `undefined` = ẩn hẳn lối tắt bấm avatar để giao việc (Viewer). */
   onAssignClick?: (task: TaskSummaryResponse) => void;
+  /**
+   * `undefined` = ẩn hẳn nút "+" trên mọi cột (không đủ quyền CreateTask). Nhận
+   * `columnId` — task mới rơi ĐÚNG cột đó, dù cột trống hay đã có task (2026-08-06).
+   */
+  onCreateTask?: (columnId: string) => void;
 }) {
   const sensors = useBoardSensors();
   const changeStatus = useChangeTaskStatus(projectId, sprintId);
@@ -219,6 +225,7 @@ export function BoardView({
                 onTogglePin={canPin ? handleTogglePin : undefined}
                 pinningIds={pinningIds}
                 onAssignClick={onAssignClick}
+                onCreateTask={onCreateTask}
               />
             </div>
           );

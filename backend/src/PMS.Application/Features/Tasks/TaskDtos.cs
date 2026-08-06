@@ -11,7 +11,13 @@ public record CreateTaskRequest(
     Guid? ParentTaskId,
     DateTime? DueDate,
     Priority Priority,
-    string? Description = null);
+    string? Description = null,
+    /// <summary>
+    /// Cột đích khi bấm "+" trên MỘT cột cụ thể (2026-08-06). <c>null</c> = cột trái nhất
+    /// của project (hành vi cũ, ADR-052) — nút "Tạo task" chung và tạo subtask đều gửi
+    /// <c>null</c>. Phải cùng project với <see cref="ProjectId"/>, không thì 404.
+    /// </summary>
+    Guid? BoardColumnId = null);
 
 public record UpdateTaskRequest(
     string Name,

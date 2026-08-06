@@ -86,6 +86,33 @@ public class TaskServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_co_BoardColumnId_thi_vao_dung_cot_do_khong_phai_cot_trai_nhat()
+    {
+        TaskItem? captured = null;
+        await _taskRepo.AddAsync(Arg.Do<TaskItem>(t => captured = t));
+        _columnRepo.GetByIdAsync(_columns[2].Id, Arg.Any<CancellationToken>()).Returns(_columns[2]);
+
+        await _sut.CreateAsync(NewRequest() with { BoardColumnId = _columns[2].Id });
+
+        captured.ShouldNotBeNull();
+        captured.BoardColumnId.ShouldBe(_columns[2].Id);
+        // KHÔNG hỏi cột mặc định — bấm "+" trên một cột cụ thể là đủ, không cần suy cột trái nhất.
+        await _columnRepo.DidNotReceive().GetDefaultForProjectAsync(
+            Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_BoardColumnId_thuoc_project_khac_thi_404()
+    {
+        var otherProjectId = Guid.NewGuid();
+        var otherColumn = new BoardColumn { Id = Guid.NewGuid(), Name = "Cột lạ", ProjectId = otherProjectId };
+        _columnRepo.GetByIdAsync(otherColumn.Id, Arg.Any<CancellationToken>()).Returns(otherColumn);
+
+        await Should.ThrowAsync<NotFoundException>(
+            () => _sut.CreateAsync(NewRequest() with { BoardColumnId = otherColumn.Id }));
+    }
+
+    [Fact]
     public async Task CreateAsync_co_ParentTaskId_thi_thanh_subtask_va_thua_ke_ProjectId()
     {
         var parent = NewTask();

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using PMS.Application.Common.Models;
+using PMS.Application.Features.BoardColumns;
 using PMS.Application.Features.Tasks;
 using PMS.Domain.Enums;
 using PMS.IntegrationTests.Infrastructure;
@@ -28,6 +29,61 @@ public class TasksCrudTests : IntegrationTestBase
         detail.ProjectId.ShouldBe(projectId);
         detail.Assignees.ShouldBeEmpty();
         detail.RowVersion.ShouldNotBeEmpty();
+    }
+
+    // ---------- Bấm "+" trên một cột cụ thể (2026-08-06) ----------
+
+    [Fact]
+    public async Task Tao_task_voi_BoardColumnId_thi_vao_dung_cot_do_khong_phai_cot_trai_nhat()
+    {
+        var pm = await CreateUserAsync();
+        var projectId = await CreateProjectAsync(pm.Client);
+
+        var columns = await pm.Client.GetFromJsonAsync<List<BoardColumnResponse>>(
+            $"/api/v1/projects/{projectId}/columns", TestJson.Options);
+        var targetColumn = columns!.Single(c => c.Order == 2);   // KHÔNG phải cột trái nhất (Order 0)
+
+        var res = await pm.Client.PostAsJsonAsync("/api/v1/tasks",
+            new CreateTaskRequest("Việc dở dang", projectId, null, null, null, Priority.Medium,
+                BoardColumnId: targetColumn.Id));
+        res.StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        var body = await res.Content.ReadFromJsonAsync<TaskSummaryResponse>(TestJson.Options);
+        body!.Status.ColumnId.ShouldBe(targetColumn.Id);
+    }
+
+    [Fact]
+    public async Task Tao_task_khong_truyen_BoardColumnId_van_vao_cot_trai_nhat_nhu_truoc()
+    {
+        var pm = await CreateUserAsync();
+        var projectId = await CreateProjectAsync(pm.Client);
+
+        var columns = await pm.Client.GetFromJsonAsync<List<BoardColumnResponse>>(
+            $"/api/v1/projects/{projectId}/columns", TestJson.Options);
+        var leftmost = columns!.Single(c => c.Order == 0);
+
+        var taskId = await CreateTaskAsync(pm.Client, projectId);
+        var detail = await pm.Client.GetFromJsonAsync<TaskDetailResponse>(
+            $"/api/v1/tasks/{taskId}", TestJson.Options);
+
+        detail!.Status.ColumnId.ShouldBe(leftmost.Id);
+    }
+
+    [Fact]
+    public async Task Tao_task_voi_BoardColumnId_thuoc_project_khac_tra_404()
+    {
+        var pm = await CreateUserAsync();
+        var projectA = await CreateProjectAsync(pm.Client, "Project A");
+        var projectB = await CreateProjectAsync(pm.Client, "Project B");
+
+        var columnsB = await pm.Client.GetFromJsonAsync<List<BoardColumnResponse>>(
+            $"/api/v1/projects/{projectB}/columns", TestJson.Options);
+
+        var res = await pm.Client.PostAsJsonAsync("/api/v1/tasks",
+            new CreateTaskRequest("Việc lạc chỗ", projectA, null, null, null, Priority.Medium,
+                BoardColumnId: columnsB!.First().Id));
+
+        res.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     // ---------- ADR-033/034: mã task PMS-12 ----------

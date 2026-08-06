@@ -36,11 +36,28 @@ public class TaskService : ITaskService
     {
         await _authz.AuthorizeAsync(request.ProjectId, ProjectAction.CreateTask, ct);
 
-        // Cột trái nhất của project (ADR-052). Project luôn có ít nhất một cột — bốn cột mặc
-        // định được cấp lúc tạo project và không xóa được cột cuối cùng — nên `null` ở đây
-        // nghĩa là dữ liệu đã hỏng chứ không phải một trạng thái hợp lệ cần xử lý mềm.
-        var defaultColumn = await _uow.BoardColumns.GetDefaultForProjectAsync(request.ProjectId, ct)
-            ?? throw new NotFoundException(nameof(BoardColumn), request.ProjectId);
+        BoardColumn targetColumn;
+        if (request.BoardColumnId is { } columnId)
+        {
+            // Bấm "+" trên MỘT cột cụ thể (2026-08-06) — task phải rơi ĐÚNG cột đó, không
+            // phải luôn luôn cột trái nhất như trước. Cùng khuôn kiểm tra với
+            // TaskStatusTransitionService.ChangeStatusAsync: cột của project khác -> 404,
+            // không xác nhận nó có tồn tại (ADR-019).
+            targetColumn = await _uow.BoardColumns.GetByIdAsync(columnId, ct)
+                ?? throw new NotFoundException(nameof(BoardColumn), columnId);
+
+            if (targetColumn.ProjectId != request.ProjectId)
+                throw new NotFoundException(nameof(BoardColumn), columnId);
+        }
+        else
+        {
+            // Không chỉ định cột (nút "Tạo task" chung, tạo subtask, …) -> cột trái nhất
+            // của project (ADR-052). Project luôn có ít nhất một cột — bốn cột mặc định
+            // được cấp lúc tạo project và không xóa được cột cuối cùng — nên `null` ở đây
+            // nghĩa là dữ liệu đã hỏng chứ không phải một trạng thái hợp lệ cần xử lý mềm.
+            targetColumn = await _uow.BoardColumns.GetDefaultForProjectAsync(request.ProjectId, ct)
+                ?? throw new NotFoundException(nameof(BoardColumn), request.ProjectId);
+        }
 
         var task = new TaskItem
         {
@@ -53,7 +70,7 @@ public class TaskService : ITaskService
             Priority = request.Priority
         };
 
-        task.MoveTo(defaultColumn);
+        task.MoveTo(targetColumn);
 
         if (request.SprintId is { } sprintId)
             task.SprintId = await RequireSprintOfProjectAsync(sprintId, request.ProjectId, ct);
