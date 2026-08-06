@@ -1,14 +1,17 @@
 import type { Status } from '@/types/enums';
+import type { StatusCategory } from '@/types/task';
 
 /**
- * Một định nghĩa màu trạng thái duy nhất, dùng chung bởi `StatusBadge` (bảng dự án) và
- * header cột Kanban. Trước đây bảng màu chỉ nằm trong `status-badge.tsx`, nên cột board
- * chắc chắn sẽ trôi khỏi nó.
+ * Màu trạng thái của **PROJECT** — vẫn là bốn giá trị enum cố định.
  *
- * Giữ bảng màu của Tailwind ở đây thay vì đổi sang biến CSS: bốn màu này đã có sẵn biến
- * thể `dark:` và đọc tốt ở cả hai chế độ, mà chúng mang nghĩa NGỮ NGHĨA cố định (xám =
- * chưa bắt đầu, xanh lá = xong) chứ không phải màu thương hiệu — đổi theo `--primary`
- * là làm mất chính thông tin đó.
+ * 🔴 **KHÔNG dùng cho task nữa** (ADR-052). Trạng thái task nay là một CỘT do người dùng
+ * tạo, mang màu hex riêng, nên tra bảng này bằng `task.status` sẽ ra `undefined` —
+ * chính là lỗi `STATUS_TONE[status].badge` đã gặp lúc backend đổi hợp đồng còn frontend
+ * chưa theo kịp. Dùng {@link columnChipStyle} cho task.
+ *
+ * Giữ bảng màu Tailwind ở đây thay vì biến CSS: bốn màu này đã có sẵn biến thể `dark:` và
+ * đọc tốt ở cả hai chế độ, mà chúng mang nghĩa NGỮ NGHĨA cố định (xám = chưa bắt đầu, xanh
+ * lá = xong) chứ không phải màu thương hiệu — đổi theo `--primary` là làm mất thông tin đó.
  */
 export const STATUS_TONE: Record<Status, { badge: string; dot: string }> = {
   ToDo: {
@@ -28,3 +31,44 @@ export const STATUS_TONE: Record<Status, { badge: string; dot: string }> = {
     dot: 'bg-emerald-500',
   },
 };
+
+/**
+ * Màu cho chip trạng thái của **TASK** — dựng từ mã hex của cột (ADR-052).
+ *
+ * <p>Không tra bảng được nữa: người dùng đặt màu, nên không có tập màu hữu hạn nào để lập
+ * bảng. Trả về inline style thay vì class Tailwind vì cùng lý do — Tailwind cần biết trước
+ * giá trị lúc build.</p>
+ *
+ * 🔐 An toàn với `style`: server validate `^#[0-9A-Fa-f]{6}$` (`BoardColumnValidators`),
+ * nên chuỗi này không mang được dấu `;` hay `)` để thoát ra ngoài khai báo CSS. Vẫn lọc
+ * lại ở đây một lần nữa — dữ liệu cũ trong DB có thể vào trước khi validator tồn tại.
+ */
+export function columnChipStyle(color: string): React.CSSProperties {
+  const safe = /^#[0-9A-Fa-f]{6}$/.test(color) ? color : FALLBACK_COLOR;
+
+  return {
+    color: safe,
+    // `1F` = ~12% alpha. Nền mờ của chính màu chữ giữ được tương phản ở CẢ hai chế độ sáng
+    // /tối mà không phải sinh hai bảng màu — nền tối thì lớp phủ 12% gần như trong suốt,
+    // nền sáng thì nó thành một mảng nhạt.
+    backgroundColor: `${safe}1F`,
+  };
+}
+
+/** Chấm tròn cùng màu cột — dùng ở header cột Kanban và ô chọn trạng thái. */
+export function columnDotStyle(color: string): React.CSSProperties {
+  return { backgroundColor: /^#[0-9A-Fa-f]{6}$/.test(color) ? color : FALLBACK_COLOR };
+}
+
+/** Xám trung tính, khớp cột "Cần làm" mặc định của backend. */
+const FALLBACK_COLOR = '#6B7280';
+
+/**
+ * Task đã kết thúc chưa — đọc NHÓM, không so tên cột.
+ *
+ * Một project đặt cột tên "Đã ship" hay "Hủy bỏ" thì tên không nói lên điều gì; `category`
+ * là hợp đồng duy nhất giữa tên do người dùng đặt và ngữ nghĩa mà mã nguồn cần.
+ */
+export function isDoneCategory(category: StatusCategory): boolean {
+  return category === 'Done';
+}

@@ -15,6 +15,16 @@ export const projectDataKeys = {
   all: (projectId: string) => ['project-data', projectId] as const,
 };
 
+/**
+ * Cấu hình cột board của project (ADR-052).
+ *
+ * Nằm DƯỚI `projectDataKeys` vì đổi cột làm cũ cả board lẫn backlog lẫn thống kê — một
+ * lệnh `invalidateQueries(projectDataKeys.all)` phải cuốn theo được nó.
+ */
+export const boardColumnKeys = {
+  all: (projectId: string) => [...projectDataKeys.all(projectId), 'columns'] as const,
+};
+
 export const boardKeys = {
   all: (projectId: string) => [...projectDataKeys.all(projectId), 'board'] as const,
   /** `sprintId === null` = board "tất cả task", khóa bằng chuỗi 'all' cho ổn định. */
@@ -96,6 +106,18 @@ export const systemAuditKeys = {
 export const adminEmployeeKeys = {
   all: ['admin-employees'] as const,
   list: (request: unknown) => [...adminEmployeeKeys.all, 'list', request] as const,
+};
+
+/**
+ * Tra nhân sự cho ô gợi ý — `GET /employees?search=` (ADR-048).
+ *
+ * Cố ý TÁCH khỏi `adminEmployeeKeys`: hai endpoint khác nhau, khác quyền, và DTO ở đây chỉ
+ * có 3 trường. Dùng chung khóa thì một lần invalidate ở màn quản trị sẽ kéo theo cache của
+ * ô gợi ý với hình dạng dữ liệu khác hẳn.
+ */
+export const employeeLookupKeys = {
+  all: ['employee-lookup'] as const,
+  search: (keyword: string) => [...employeeLookupKeys.all, keyword] as const,
 };
 
 /**

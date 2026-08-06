@@ -22,6 +22,13 @@ public interface ITaskService
     Task<IReadOnlyList<TaskSummaryResponse>> GetBacklogAsync(
         Guid projectId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Việc của người đang gọi, gom theo dự án (ADR-053). KHÔNG nhận <c>employeeId</c> từ
+    /// tham số: nó luôn là người đang đăng nhập. Cho phép truyền vào là mở một endpoint
+    /// xem lịch làm việc của người khác mà không ai chủ ý thiết kế.
+    /// </summary>
+    Task<MyWorkResponse> GetMyWorkAsync(CancellationToken ct = default);
+
     Task<BoardResponse> GetBoardAsync(
         Guid projectId, Guid? sprintId, CancellationToken ct = default);
 }

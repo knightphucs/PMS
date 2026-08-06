@@ -6,6 +6,7 @@ public interface IUnitOfWork
 {
     IProjectRepository Projects { get; }
     ITaskRepository Tasks { get; }
+    IBoardColumnRepository BoardColumns { get; }
     IEmployeeRepository Employees { get; }
     IRefreshTokenRepository RefreshTokens { get; }
     ISprintRepository Sprints { get; }

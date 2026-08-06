@@ -1,26 +1,249 @@
 # Chuẩn bị cho phiên Frontend kế tiếp
 
 > Soạn ngày 2026-07-31, cuối phiên "Frontend — nền tảng".
-> **Cập nhật 2026-08-05** — **đọc §0 trước**, rồi §0a; các mục bên dưới lỗi thời phần lớn.
-> Đọc cùng `ARCHITECTURE.md` §6 và ADR-027 → ADR-048.
+> **Cập nhật 2026-08-05 (tối)** — **đọc §0 trước**, rồi §0-chiều, §0-cũ và §0a; các mục bên
+> dưới lỗi thời phần lớn. Đọc cùng `ARCHITECTURE.md` §6 và ADR-027 → **ADR-053**.
 
 ---
 
-## 0. 🆕 Cập nhật 2026-08-05 — việc cho phiên tới
+## 0. 🆕 Cập nhật 2026-08-05 (tối) — cột tuỳ biến · vòng đời Sprint · Việc của tôi
 
-**Đây là mục mới nhất. §0a bên dưới là bản của 2026-08-04, vẫn đúng nhưng chưa đủ.**
+**Đây là mục mới nhất.** Ba mục §0 bên dưới là các đợt trước trong cùng ngày.
 
-### ⚠️ Đọc trước một dòng lệnh: kiểm nhánh
+### ⚠️ Đọc dòng này trước khi sửa bất kỳ thứ gì chạm tới trạng thái task
 
-Nhánh làm việc là **`module/authorization-permission`**, **không phải `main`** — `main` đi
-sau 8 commit. Chạy `git log --oneline -5` trước khi sửa bất cứ gì.
+**`task.status` KHÔNG còn là chuỗi enum.** Nó là một object:
 
-> Bài học 2026-08-05, trả giá thật: một phiên đã được giao đi sửa lỗi tràn ngang 8px ở
-> `/board` và **sửa lại thứ commit `894d7f0` đã sửa 22 giờ trước đó**, vì nó làm việc trên
-> một worktree tách từ `main`. Mô tả lỗi nghe hợp lý, mã nguồn trong tầm mắt cũng khớp — chỉ
-> có `git log` của nhánh kia là biết sự thật. **Kiểm lịch sử trước khi tin một mô tả lỗi.**
+```ts
+{ columnId: string; name: string; color: string; category: 'ToDo' | 'InProgress' | 'Done' }
+```
 
-### Ba tính năng backend đã xong mà frontend CHƯA CÓ GÌ (ADR-048)
+Nếu bạn thấy một trong hai lỗi này, đây là nguyên nhân — không phải bug mới:
+
+| Triệu chứng | Nguyên nhân |
+|---|---|
+| `undefined is not an object (evaluating 'STATUS_TONE[status].badge')` | Tra bảng enum bằng một object → `undefined` |
+| `Each child in a list should have a unique "key" prop … from ChartCard` | `d.status` không còn tồn tại → mọi `<Cell key={undefined}>` |
+
+🔴 **Luật thay thế:**
+- Màu/tên chip trạng thái task → `TaskStatusChip` / `TaskStatusDot`
+  (`components/tasks/task-status-chip.tsx`), màu lấy từ `status.color`.
+- `STATUS_TONE` **chỉ còn** cho trạng thái **PROJECT** (vẫn là enum 4 giá trị).
+- Mọi phép kiểm "task xong chưa" → `status.category === 'Done'`.
+  **Không so tên cột** (người dùng đặt tuỳ ý), **không so `columnId` với hằng**.
+
+### ✅ Đã làm xong trong đợt này
+
+| Việc | Kết quả |
+|---|---|
+| **Cột board tuỳ biến** (ADR-052) | Dialog "Quản lý cột" trên trang Bảng: thêm/sửa/đổi màu/đổi thứ tự/xóa. **Xóa cột còn task bắt buộc chọn cột đích**; không xóa được cột cuối |
+| **Thu/mở cột** | Cột thu về `w-11`, tên xoay dọc; vẫn nhận thả được |
+| **Board cuộn ngang** | Đổi từ lưới 4 cột sang flex cuộn — số cột nay không cố định |
+| **Vòng đời Sprint** (ADR-050) | Tab Sprint kiểu Jira: thu/mở, dòng task inline, nút Bắt đầu/Đóng, dialog đóng **hỏi task chưa xong đi đâu** |
+| **"Việc của tôi"** (ADR-053) | `/my-work` — gom theo dự án hoặc xếp phẳng theo hạn. Mục đầu trong sidebar |
+| Ô chọn trạng thái ở chi tiết Task | Liệt kê **mọi cột**, không còn lọc theo ma trận chuyển trạng thái |
+| Biểu đồ thống kê | Dùng **đúng màu cột** người dùng đặt, `key` là `columnId` |
+
+### 🪤 Năm cái bẫy MỚI của đợt này
+
+1. 🔴 **`min-width:auto` cắn thêm HAI lần nữa** (tổng cộng năm).
+   - Board cuộn ngang: `min-w-0` trên chính dải cuộn **chưa đủ** — grid trần có track ngầm
+     cỡ `auto`, mà `auto` phân giải thành **max-content**. Phải thêm
+     `grid-cols-[minmax(0,1fr)]` lên container cha.
+   - Hàng nút `PageHeader` ba nút ở 375px: rộng 439px trong khung 343px, đẩy `scrollWidth`
+     lên 455. Sửa gốc là `flex-wrap` + `min-w-0` **ở chính `PageHeader`**, không ở từng trang
+     — mọi màn có từ ba nút trở lên đều sẽ gặp.
+
+   📌 **Cách chẩn đoán nhanh nhất, dùng lại:** duyệt mọi phần tử, tìm cái nào rộng hơn cha
+   *mà cha không phải scroll container*. Nó chỉ thẳng ra thủ phạm thay vì hậu quả:
+   ```js
+   document.querySelectorAll('*').forEach(el => {
+     const p = el.parentElement; if (!p) return;
+     const ox = getComputedStyle(p).overflowX;
+     if (el.getBoundingClientRect().width > p.getBoundingClientRect().width + 1
+         && ox !== 'auto' && ox !== 'scroll') console.log(el.className, el.getBoundingClientRect().width);
+   });
+   ```
+   ⚠️ **Nút TanStack devtools nằm ngoài mép phải là BÌNH THƯỜNG** — nó `position: fixed` và
+   không có ở production build. Đo `main.scrollWidth === main.clientWidth` thay vì
+   `document`, nếu không bạn sẽ đuổi theo một con ma.
+
+2. 🔴 **`patchTaskInBoard` từng ĐỆ QUY VÔ HẠN.** Nó gọi `moveTaskInBoard` rồi tự gọi lại;
+   `moveTaskInBoard` trả về **chính board cũ** khi cột đích không có trên board đang xem —
+   chuyện xảy ra thật sau ADR-052 (người khác vừa tạo cột, hoặc board đang lọc theo sprint).
+   Đã thêm chốt `if (movedBoard === board) return board;`. Thiếu nó là **treo cứng tab**.
+
+3. 🔴 **`useBoard(projectId, null)` KHÔNG phải "không nạp"** — `null` nghĩa là board
+   **"Tất cả task"** của project. Muốn hoãn thì dùng `{ enabled }`. Nhầm hai thứ này là nạp
+   cả project trong khi chỉ muốn một sprint.
+
+4. **`SprintResponse.status` ≠ `SprintResponse.isActive`.** `isActive` suy từ NGÀY; `status`
+   do người dùng bấm. Chỗ chúng **lệch nhau** chính là tín hiệu đáng hiện: `status==='Active'`
+   mà `isActive===false` nghĩa là **sprint quá hạn mà chưa ai đóng** → badge riêng.
+
+5. **`DELETE /columns/{id}` có THÂN request.** Khác thường nhưng cố ý — `targetColumnId`
+   không được nằm trên query string. Nhớ `apiFetch` hỗ trợ `body` cho DELETE.
+
+### ⬜ Việc còn lại cho phiên sau
+
+1. **Nhóm báo cáo kiểu Jira** — backlog insight · velocity · report · timeline.
+   ✅ **Velocity ĐÃ mở khóa** (`Sprint.CompletedAt`). Sidebar có sẵn nhóm **LẬP KẾ HOẠCH**.
+   ⚠️ Gom theo `columnId`/`category`, **không theo enum** — số cột khác nhau giữa các project.
+2. **Áp kỹ thuật DB** — trigger · stored procedure · view · index. Không có giao diện nào.
+3. **Đường GHI cho hồ sơ cá nhân** — đọc **ADR-049** trước.
+4. Search toàn cục (Elasticsearch) · SignalR.
+
+### 📌 Nợ kiểm chứng của đợt này — nói thẳng
+
+- **Kéo–thả bằng chuột/cảm ứng/bàn phím trên board cột động chưa kiểm bằng tay.** Logic
+  `useDroppable` đã đổi (bỏ lọc theo ma trận), và công cụ trình duyệt của phiên không bắn
+  được sự kiện kéo tổng hợp. Phần đổi trạng thái đã kiểm qua **ô chọn ở chi tiết Task** và
+  qua API trực tiếp, nhưng đó không thay được một lần kéo thật.
+- **Đổi thứ tự cột (nút ← →) chưa bấm thử trên giao diện** — endpoint `PUT /columns/order`
+  đã có test, nhưng đường UI thì chưa.
+- **Đổi `category` của một cột đang có task chưa thử trên UI.** Backend có
+  `SyncTaskCategoriesAsync` và cảnh báo đã hiện trong form, nhưng chưa xác nhận bằng mắt
+  rằng số liệu thống kê đổi theo.
+
+---
+
+## 0-chiều. Cập nhật 2026-08-05 (chiều) — phiên "ba lỗ hổng UI + ADR-048" ĐÃ XONG
+
+**Đây là mục mới nhất.** §0-cũ ngay bên dưới là bản buổi sáng cùng ngày; nó đã hoàn thành
+nhiệm vụ và **cảnh báo nhánh của nó là SAI** — xem ngay dưới đây.
+
+### 🔴 Đính chính: cảnh báo nhánh ở §0-cũ đã tự nói sai về chính nó
+
+§0-cũ viết *"nhánh làm việc là `module/authorization-permission`, `main` đi sau 8 commit"*.
+Đo lại lúc bắt đầu phiên này:
+
+```bash
+git rev-list --left-right --count main...module/authorization-permission   # -> 15   0
+```
+
+**Ngược hẳn:** `main` đi **trước 15 commit**, và `module/authorization-permission` **không
+còn commit riêng nào** — nó đã merge vào `main` qua PR #23, rồi PR #24 merge tiếp `dev`.
+Nhánh đó nay là một con trỏ chết. `git status` cũng sạch tuyệt đối, `git stash list` rỗng —
+không có "5 file chưa commit trong `components/tasks/`" nào cả (công việc đó nằm trong commit
+`5968108`, đã có trong `main`).
+
+> **Đây là lần thứ hai cùng một hình dạng lỗi, và lần này nạn nhân là chính tài liệu.**
+> Buổi sáng: một phiên tin mô tả lỗi mà không kiểm `git log`, sửa lại thứ đã sửa. Buổi chiều:
+> tài liệu viết ra để cảnh báo chuyện đó lại chứa một khẳng định nhánh đã cũ, và nếu tin nó
+> thì phiên này đã làm việc trên một nhánh đi sau 15 commit.
+>
+> Bài học cập nhật: **`git log` không phải bước kiểm tra một lần rồi ghi vào tài liệu — nó là
+> bước phải chạy lại mỗi phiên.** Một dòng "nhánh làm việc là X" trong file markdown có hạn
+> sử dụng tính bằng giờ. Câu lệnh thì luôn đúng; câu chữ thì không.
+
+### ✅ Đã làm xong trong phiên này
+
+| Việc | Kết quả |
+|---|---|
+| Nút "Mở trang riêng" no-op | ✅ `<a href>` thường thay `<Link>` — `task-detail-header.tsx` |
+| Không có trang hồ sơ | ✅ `/profile` **chỉ đọc** + mục trong `UserMenu` (**ADR-049**) |
+| Sidebar quá thưa | ✅ Khối ngữ cảnh dự án + "Dự án của tôi"; comment sai đã sửa |
+| ADR-048 (a) `Project.Status` | ✅ Nút Hoàn thành / Mở lại ở header dự án, PM-only |
+| ADR-048 (b) `GET /employees?search=` | ✅ Ô gợi ý trong dialog mời thành viên |
+| ADR-048 (c) @mention | ✅ Ô chọn + `lib/comments/mentions.ts` (6 test mới) |
+| 🆕 **Menu người dùng SẬP** (lỗi có sẵn) | ✅ Đã sửa — xem bẫy #1 bên dưới |
+
+> ⚠️ **Hai dòng trong bảng trên đã bị đợt hai cùng ngày sửa lại** (xem mục ngay dưới): sidebar
+> nay **đổi hẳn theo ngữ cảnh** chứ không phải thêm khối, và `/profile` đã gỡ khối quyền.
+
+### 🪤 Bốn cái bẫy MỚI của phiên này
+
+1. 🔴 **`DropdownMenuLabel` làm SẬP cả menu — lỗi có sẵn trên `main`, không ai biết.**
+
+   Nó ánh xạ sang `Menu.GroupLabel` của Base UI, thứ **bắt buộc** phải nằm trong một
+   `Menu.Group`. `UserMenu` dùng nó trần từ ngày dựng → mở menu là ném
+   `MenuGroupContext is missing` và **toàn bộ menu sập**, kéo theo **lối ra duy nhất để
+   Đăng xuất**.
+
+   **Đã kiểm chứng là có sẵn chứ không phải do phiên này gây ra**: `git stash` thay đổi của
+   phiên rồi mở lại menu — vẫn sập y hệt.
+
+   > Đây là lần thứ **sáu** dự án gặp đúng hình dạng lỗi mà §15 đã đặt tên từ 2026-07-30:
+   > *thứ cần kiểm chứng chưa có ai gọi tới.* Và lần này nó nằm ở chỗ khó tin nhất — nút
+   > Đăng xuất, thứ mọi phiên "kiểm chứng trên trình duyệt" đều đi ngang qua mà **chưa ai
+   > bấm mở**. Tài liệu ghi ✅ cho `UserMenu` từ 2026-07-31.
+   >
+   > Cách sửa **không** phải bọc vào `Menu.Group`: khối đó là **danh tính** người đang đăng
+   > nhập, không phải nhãn của một nhóm mục. Một `<div>` thường mới đúng ngữ nghĩa — bọc
+   > `Group` chỉ để hết lỗi là hứa với trình đọc màn hình một quan hệ không tồn tại.
+
+2. 🔴 **"Dự án gần đây" là thứ backend KHÔNG dựng được.** `ProjectRepository` chỉ nhận
+   `sortBy` = `name` / `status` / `expectedCompletionDate` — **không có khóa thời gian nào**.
+   Đã đổi nhãn thành **"Dự án của tôi"** (A→Z) thay vì sắp theo tên rồi gắn nhãn "gần đây",
+   vì cái sau là nói dối người dùng về ý nghĩa của danh sách. Muốn "gần đây" thật thì phải
+   thêm cột `LastAccessedAt` (hoặc `UpdatedAt` + `sortBy` mới) ở backend trước.
+
+3. **@mention: chữ và id có thể trôi khỏi nhau.** Client gửi **id**, còn người dùng thì sửa
+   **chữ** — chèn `@Nam` rồi xóa đi trước khi gửi thì id vẫn nằm trong state. `reconcileMentions`
+   (`lib/comments/mentions.ts`) lọc lại theo nội dung thật lúc submit.
+   **Đã kiểm chứng trên máy chủ thật, không chỉ bằng unit test**: chọn cả Bình và Cường, xóa
+   chữ `@Le Van Cuong`, gửi → Bình nhận `Mentioned`, **Cường không nhận gì**.
+
+4. **Ô SỬA comment không có @mention** — `UpdateCommentRequest` chỉ có `content`. Đừng thêm
+   nút nhắc tên vào nhánh sửa.
+
+### 📌 Cách kiểm "điều hướng cứng hay soft nav" — dùng lại
+
+Với ADR-043, URL **không đổi** khi thoát dialog ra trang thật, nên nhìn URL không phân biệt
+được. Gieo một biến lên `window` rồi bấm; biến **mất** nghĩa là ngữ cảnh JS bị hủy, tức là
+tải trang đầy đủ:
+
+```js
+window.__marker = 1;                                  // trước khi bấm
+// … bấm "Mở trang riêng" …
+window.__marker   // undefined  -> hard nav ✅ ;  1 -> vẫn là soft nav ❌
+```
+
+Kèm hai dấu hiệu nữa: `[role="dialog"]` biến mất, và `nav[aria-label="Khu vực của dự án"]`
+**ẩn** (`showTabs === false` khi segment là `'tasks'`).
+
+### 🆕 Đợt hai cùng ngày — sidebar kiểu Jira, hai vỏ Task, gọn hồ sơ (ADR-051)
+
+| Việc | Kết quả |
+|---|---|
+| Sidebar **đổi hẳn theo ngữ cảnh** | Ngoài dự án → nav toàn cục. Trong dự án → **chỉ của dự án đó** (link "Tất cả dự án" · đầu đề + vai trò của bạn · LẬP KẾ HOẠCH · QUẢN LÝ). Bỏ hẳn danh sách "Dự án của tôi" |
+| Hai vỏ chi tiết Task **khác nhau thật** | Ở trang thật, `Bình luận \| Lịch sử` xuống dưới hai cột, lấy trọn bề ngang: ô soạn **608px → 1096px** ở viewport 1400px |
+| `/profile` gọn lại | Gỡ khối "Quyền hệ thống" — đó là màn hình cho người viết code, không phải người dùng |
+
+**Ba nhận xét dẫn tới đợt này, đáng ghi vì cả ba đều đúng:**
+
+1. *"Để quá nhiều Project rồi Dự án trong sidebar thì thừa"* — **thừa nặng hơn thế**: có ba
+   đường tới cùng một chỗ, cộng trang mặc định sau đăng nhập cũng là `/projects`.
+2. *"Task details cần trang riêng để làm gì nếu không khác dialog?"* — trang là **bắt buộc**
+   (F5/deep-link/tab mới, nếu không thì 404), nhưng **nút "Mở trang riêng" thì đang hứa một
+   khác biệt không tồn tại**. Sửa bằng cách cho nó khác thật, chứ không bỏ trang.
+3. *"Không ai show chi tiết Quyền hệ thống ra vậy"* — đúng, và người dùng cũng không hành
+   động được gì với danh sách đó.
+
+> 📌 **Bài học chung của cả ba:** chúng đều là *thừa* chứ không phải *thiếu* — và một phiên
+> đang hào hứng "dựng thêm" thì rất khó tự thấy. Đợt sáng cùng ngày vừa **thêm** khối dự án
+> và danh sách "Dự án của tôi" vào sidebar; đợt chiều **gỡ** đúng thứ vừa thêm, vì thêm đủ
+> rồi mới lộ ra là quá nhiều.
+
+### ⬜ ~~Việc còn lại cho phiên sau~~ — ✅ mục 1 đã xong ngay trong ngày
+
+> ⚠️ Danh sách này của **đợt chiều**; mục 1 (vòng đời Sprint) đã hoàn thành ở **đợt tối**
+> cùng ngày. Danh sách còn hiệu lực nằm ở **§0**.
+
+1. ~~**Vòng đời Sprint**~~ ✅ **xong 2026-08-05 tối** — ADR-050 đã cài đặt đầy đủ.
+2. **Nhóm báo cáo kiểu Jira** — velocity nay đã mở khóa.
+3. **Áp kỹ thuật DB** — không có giao diện nào.
+4. **Đường GHI cho hồ sơ cá nhân** — đọc **ADR-049** trước.
+5. Search toàn cục (Elasticsearch) · SignalR.
+
+---
+
+## 0-cũ. Cập nhật 2026-08-05 (sáng) — ĐÃ XỬ LÝ HẾT, giữ lại làm hồ sơ
+
+> ⚠️ Cảnh báo nhánh trong mục này **đã sai** — xem §0. Phần kỹ thuật thì đúng nguyên văn và
+> đã được dùng làm đề bài cho phiên chiều.
+
+### Ba tính năng backend đã xong mà frontend CHƯA CÓ GÌ (ADR-048) — ✅ nay đã có
 
 Không bị chặn, không cần quyết định. Cả ba **vô hình nếu chỉ nhìn UI** — backend có đường
 đi, người dùng không có nút.
@@ -31,7 +254,7 @@ Không bị chặn, không cần quyết định. Cả ba **vô hình nếu ch�
 | `GET /employees?search=` | Ô gợi ý khi mời thành viên | Từ khóa **≥ 2 ký tự**, ngắn hơn là **400**. DTO chỉ 3 trường — đừng trông chờ `systemRole`/`isLocked` |
 | `mentionedEmployeeIds` | Ô chọn @mention trong comment | Client **gửi id**; server **không** parse `@tên`. Nhắc người ngoài dự án vẫn trả **thành công**, phần nhắc bị lọc bỏ im lặng (trả 400 sẽ là rò rỉ) |
 
-### 🪤 Ba chỗ "bấm vào không thấy gì" — rà giao diện 2026-08-05
+### 🪤 Ba chỗ "bấm vào không thấy gì" — rà giao diện 2026-08-05 sáng (✅ đã gỡ cả ba)
 
 1. 🔴 **Nút "Mở trang riêng" trong dialog chi tiết Task là một NO-OP.**
    `components/tasks/task-detail-header.tsx` dùng `<Link>` trỏ tới
@@ -445,24 +668,35 @@ Jira/Linear **dày**, không thoáng. Hiện app đang thoáng sai chỗ.
 Đây là kiến thức đã trả giá, đừng phát hiện lại.
 
 **Kanban:**
-- Thả thẻ về **đúng cột nó đang đứng** → **409** (state machine từ chối "đứng yên"). Kéo–thả phải **chặn trước**, không được để bắn request rồi hiện toast đỏ.
-- **Nhảy bước** `ToDo → Done` → **409**.
-- ⚠️ **ĐÍNH CHÍNH 2026-08-02:** dòng trên trước đây viết *"Chỉ cho thả sang cột kề"* — **SAI**,
-  và cài theo nó là ship bug theo cả hai chiều. Đã đối chiếu `TaskItem.CanTransitionTo`
-  (`PMS.Domain/Entities/TaskItem.cs:77-86`), state machine thật có **đúng sáu** bước:
-  ```
-  ToDo → InProgress          InProgress → Review        Review → Done
-  InProgress → ToDo          Review → InProgress        Done → Review
-  ```
-  Nghĩa là `Done → Review` và `Review → InProgress` là **bước lùi HỢP LỆ** (task bị
-  trả về sửa), còn `ToDo → Review` **trông như cột kề nhưng KHÔNG hợp lệ**.
-  Bản sao phía frontend nằm ở `lib/tasks/status-transitions.ts`, có test khóa lại đúng
-  hai phản ví dụ này.
-- Task đang bị `Blocks` chặn cũng → 409, **nhưng chỉ khi đích là `InProgress`** —
-  `TaskStatusTransitionService` chỉ gọi `EnsureNotBlockedAsync` cho nhánh đó. Mọi cột
-  khác đều đoán trước được hoàn toàn ở client.
+
+> 🔴 **BA MỤC ĐẦU CỦA KHỐI NÀY ĐÃ HẾT HIỆU LỰC TỪ 2026-08-05 (ADR-052).** Giữ lại gạch ngang
+> vì chúng từng là kiến thức trả giá đắt, và vì ai đọc code cũ sẽ gặp lại dấu vết của chúng.
+> **Đừng cài theo.**
+
+- ~~Thả thẻ về **đúng cột nó đang đứng** → **409**~~ → nay trả **200** (no-op). Vẫn nên chặn
+  ở client để khỏi bắn request thừa, nhưng lọt qua thì cũng không hỏng.
+- ~~**Nhảy bước** `ToDo → Done` → **409**~~ → nay **200**. Không còn "bước" nào để nhảy.
+- ~~**Đúng sáu bước hợp lệ** (`ToDo→InProgress`, `Done→Review`…)~~ → **ma trận đã GỠ**.
+  `ALLOWED_TRANSITIONS` và `canTransition` **không còn tồn tại** trong
+  `lib/tasks/status-transitions.ts`; file đó nay chỉ còn `mayFailUnpredictably`.
+
+  **Vì sao gỡ:** cột do NGƯỜI DÙNG tạo thì không còn cơ sở nào nói cặp nào hợp lệ — hệ thống
+  không biết "Chờ QA" đứng trước hay sau "Đang sửa". Dựng lại một bảng luật ở client "cho
+  chắc" sẽ chặn đúng những nước đi backend cho phép, và người dùng không có cách nào biết
+  vì sao.
+
+  ⚠️ Kèm theo, ADR-021 mất một chốt: state machine từng **thay `RowVersion`** làm chốt chặn
+  concurrency cho đổi trạng thái. Nay đổi trạng thái là **idempotent** nên không còn gì để
+  tranh chấp — đó là đánh đổi có ghi nhận, không phải bỏ sót.
+
+- Task đang bị `Blocks` chặn → **409**, nhưng chỉ khi **NHÓM của cột đích là `InProgress`**.
+  ⚠️ Điều kiện đổi từ "đích là `InProgress`" sang **`category`** (ADR-052): nhờ vậy một cột
+  người dùng tự đặt tên "Chờ QA" thuộc nhóm InProgress cũng được bảo vệ. So theo tên sẽ
+  trượt ngay lần đầu ai đó đổi cấu hình board. Dùng `mayFailUnpredictably(target.category)`.
 - `PATCH /tasks/{id}/status` và `PUT /tasks/{id}/sprint` **KHÔNG** cần `RowVersion` (ADR-021); `PUT /tasks/{id}` thì **bắt buộc**.
-- Board luôn trả **đủ 4 cột** kể cả cột rỗng.
+  ⚠️ Thân request nay là `{ targetColumnId }`, **không phải** `{ target }`.
+- Board luôn trả **đủ MỌI cột của project** kể cả cột rỗng, đã sắp theo `order`.
+  ⚠️ Số cột **không còn cố định 4** — đừng viết code dựa trên độ dài mảng.
 - Board **không có `sprintId`** KHÔNG phải "board của backlog": backend rơi xuống
   `GetRootTasksByProjectAsync`, tức **tất cả** task gốc kể cả task thuộc sprint khác.
   Nhãn đúng cho lựa chọn đó là **"Tất cả task"**.

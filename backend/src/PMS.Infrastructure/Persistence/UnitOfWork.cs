@@ -14,6 +14,7 @@ public class UnitOfWork : IUnitOfWork
     private IEmployeeRepository? _employees;
     private IRefreshTokenRepository ? _refreshTokens;
     private ISprintRepository? _sprints;
+    private IBoardColumnRepository? _boardColumns;
     private IProjectMemberRepository? _projectMembers;
     private IRepository<TaskAssignment>? _taskAssignments;
     private IActivityLogRepository? _activityLogs;
@@ -31,6 +32,7 @@ public class UnitOfWork : IUnitOfWork
 
     public IProjectRepository Projects  => _projects  ??= new ProjectRepository(_context);
     public ITaskRepository Tasks        => _tasks     ??= new TaskRepository(_context);
+    public IBoardColumnRepository BoardColumns => _boardColumns ??= new BoardColumnRepository(_context);
     public IEmployeeRepository Employees => _employees ??= new EmployeeRepository(_context);
     public IRefreshTokenRepository RefreshTokens => _refreshTokens ??= new RefreshTokenRepository(_context);
     public ISprintRepository Sprints => _sprints ??= new SprintRepository(_context);

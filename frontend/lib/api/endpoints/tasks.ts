@@ -1,5 +1,5 @@
 import type { PagedRequest, PagedResult } from '@/types/common';
-import type { Status } from '@/types/enums';
+import type { MyWorkResponse } from '@/types/my-work';
 import type {
   AssignTaskRequest,
   BoardResponse,
@@ -51,7 +51,7 @@ export function getTask(id: string, signal?: AbortSignal) {
   return apiFetch<TaskDetailResponse>(`/tasks/${id}`, { signal });
 }
 
-/** Task mới LUÔN ở trạng thái `ToDo` — request không có trường status. */
+/** Task mới LUÔN rơi vào cột TRÁI NHẤT của project — request không có trường cột (ADR-052). */
 export function createTask(body: CreateTaskRequest) {
   return apiFetch<TaskSummaryResponse>('/tasks', { method: 'POST', body });
 }
@@ -67,17 +67,22 @@ export function deleteTask(id: string) {
 }
 
 /**
- * Đổi trạng thái. **KHÔNG** cần `rowVersion` (ADR-021) — state machine đã tự bảo vệ.
+ * Chuyển task sang cột khác. **KHÔNG** cần `rowVersion` (ADR-021).
  *
- * Trả **409** khi: bước chuyển không hợp lệ (kể cả `target` trùng trạng thái hiện tại),
- * hoặc task đang bị `TaskLink` loại `IsBlockedBy` chặn — trường hợp sau CHỈ xảy ra khi
- * `target === 'InProgress'` và client không đoán trước được.
- * Trả **403** khi người gọi không phải assignee và cũng không phải PM (ADR-017).
+ * 🔄 Đổi theo ADR-052 — hai điều từng đúng nay không còn:
+ * - Không còn "bước chuyển không hợp lệ": mọi cột đều tới thẳng được.
+ * - Gửi đúng cột task đang đứng nay trả **200** (no-op), không còn 409.
+ *
+ * Còn lại:
+ * - **409** khi task đang bị `TaskLink` chặn và cột đích thuộc **nhóm** `InProgress` —
+ *   trường hợp duy nhất client không đoán trước được (xem `mayFailUnpredictably`).
+ * - **404** khi cột đích thuộc project khác (ADR-019: không xác nhận nó có tồn tại).
+ * - **403** khi người gọi không phải assignee và cũng không phải PM (ADR-017).
  */
-export function changeTaskStatus(id: string, target: Status) {
+export function changeTaskStatus(id: string, targetColumnId: string) {
   return apiFetch<TaskSummaryResponse>(`/tasks/${id}/status`, {
     method: 'PATCH',
-    body: { target },
+    body: { targetColumnId },
   });
 }
 
@@ -107,4 +112,16 @@ export function selfAssignTask(id: string) {
 /** Gỡ người khỏi task. Tự rút thì không cần PM duyệt. */
 export function unassignTask(id: string, employeeId: string) {
   return apiFetch<void>(`/tasks/${id}/assignees/${employeeId}`, { method: 'DELETE' });
+}
+
+/**
+ * Việc của CHÍNH người đang đăng nhập, xuyên mọi dự án, gom sẵn theo dự án (ADR-053).
+ *
+ * ⚠️ Endpoint này **không nhận `employeeId` ở đâu cả** — kể cả query string. Nhận vào là
+ * biến nó thành đường xem lịch làm việc của người khác.
+ *
+ * Server lọc: được gán cho tôi · chưa thuộc cột nhóm `Done` · có hạn ≤ hôm nay (gồm quá hạn).
+ */
+export function getMyWork(signal?: AbortSignal) {
+  return apiFetch<MyWorkResponse>('/tasks/my', { signal });
 }

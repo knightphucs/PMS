@@ -26,6 +26,12 @@ public class Project : BaseEntity, ISoftDeletable
     public ICollection<TaskItem> Tasks { get; set; } = [];
     public ICollection<Sprint> Sprints { get; set; } = [];
 
+    /// <summary>
+    /// Các cột board của project (ADR-052). Luôn có ít nhất một cột — cấp sẵn bốn cột mặc
+    /// định lúc tạo project, và <c>BoardColumnService</c> chặn xóa cột cuối cùng.
+    /// </summary>
+    public ICollection<BoardColumn> BoardColumns { get; set; } = [];
+
     public bool IsCompleted() => Status == Status.Done;
 
     /// <summary>
@@ -137,6 +143,13 @@ public class Project : BaseEntity, ISoftDeletable
         };
 
         project.Members.Add(ProjectMember.CreateOwner(project.Id, creatorId));
+
+        // Cấp bốn cột mặc định ngay lúc tạo. Bắt buộc, không phải tiện ích: task mới cần một
+        // `BoardColumnId` hợp lệ, nên một project không cột là project không tạo được task
+        // nào — và lỗi đó sẽ chỉ lộ ra ở lần tạo task đầu tiên chứ không phải lúc tạo project.
+        foreach (var column in BoardColumn.CreateDefaults(project.Id))
+            project.BoardColumns.Add(column);
+
         return project;
     }
 }

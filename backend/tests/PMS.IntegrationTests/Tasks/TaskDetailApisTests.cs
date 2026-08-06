@@ -278,7 +278,7 @@ public class TaskDetailApisTests : IntegrationTestBase
         var projectId = await CreateProjectAsync(pm.Client);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
-        await AdvanceStatusAsync(pm.Client, taskId, Status.InProgress);
+        await MoveToColumnAsync(pm.Client, taskId, 1);
 
         var log = await pm.Client.GetFromJsonAsync<PagedResult<ActivityLogResponse>>(
             $"/api/v1/tasks/{taskId}/activity", TestJson.Options);

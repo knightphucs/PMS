@@ -1,0 +1,9 @@
+$kind: http-request
+name: Get permissions
+url: "{{api_url}}/admin/permissions"
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1785922026596

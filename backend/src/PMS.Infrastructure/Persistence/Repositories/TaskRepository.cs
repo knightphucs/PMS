@@ -106,8 +106,11 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
             ("name", true)      => query.OrderByDescending(t => t.Name).ThenBy(t => t.Id),
             ("priority", false) => query.OrderBy(t => t.Priority).ThenBy(t => t.Id),
             ("priority", true)  => query.OrderByDescending(t => t.Priority).ThenBy(t => t.Id),
-            ("status", false)   => query.OrderBy(t => t.Status).ThenBy(t => t.Id),
-            ("status", true)    => query.OrderByDescending(t => t.Status).ThenBy(t => t.Id),
+            // Sắp theo VỊ TRÍ cột trái->phải, không theo tên: "status tăng dần" nghĩa là
+            // đi từ đầu quy trình tới cuối, còn sắp theo tên thì "Đang làm" đứng trước
+            // "Cần làm" chỉ vì chữ Đ trước chữ C.
+            ("status", false)   => query.OrderBy(t => t.BoardColumn.Order).ThenBy(t => t.Id),
+            ("status", true)    => query.OrderByDescending(t => t.BoardColumn.Order).ThenBy(t => t.Id),
             (_, true)           => query.OrderByDescending(t => t.DueDate).ThenBy(t => t.Id),
             _                   => query.OrderBy(t => t.DueDate).ThenBy(t => t.Id)
         };
@@ -186,6 +189,39 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
             .OrderBy(t => t.Priority)
             .ToListAsync(ct);
 
+    /// <summary>
+    /// Việc của MỘT người, XUYÊN mọi dự án họ tham gia (ADR-053).
+    ///
+    /// <para>
+    /// Lọc: được gán cho người đó · chưa thuộc nhóm <c>Done</c> · có hạn và hạn ≤ hôm nay.
+    /// "≤" chứ không "=" là cố ý — việc trễ hạn phải nổi lên cùng việc hôm nay, giấu nó đi
+    /// là đúng cách để nó bị quên tiếp.
+    /// </para>
+    /// <para>
+    /// ⚠️ <c>Include(Project)</c> vì kết quả cần tên dự án để gom nhóm; đây là endpoint duy
+    /// nhất không có <c>projectId</c> trong URL nên client không tự biết được.
+    /// </para>
+    /// <para>
+    /// ⚠️ Không cần lọc "còn là thành viên project": <c>TaskAssignment</c> bị gỡ khi người
+    /// đó rời dự án, nên phép nối theo assignment đã bao hàm điều kiện ấy.
+    /// </para>
+    /// </summary>
+    public async Task<IReadOnlyList<TaskItem>> GetMyOpenAssignedTasksAsync(
+        Guid employeeId, CancellationToken ct = default)
+        => await DbSet
+            .AsNoTracking()
+            .Include(t => t.Assignments).ThenInclude(a => a.Employee)
+            .Include(t => t.Subtasks)
+            .Include(t => t.Labels)
+            .Include(t => t.Project)
+            .AsSplitQuery()
+            .Where(t => t.Assignments.Any(a => a.EmployeeId == employeeId)
+                     && t.Category != StatusCategory.Done)
+            // Task chưa có hạn để cuối: màn này ưu tiên lịch làm việc đã có mốc thời gian,
+            // nhưng không giấu việc chỉ vì PM chưa đặt hạn.
+            .OrderBy(t => t.DueDate == null).ThenBy(t => t.DueDate).ThenBy(t => t.Priority).ThenBy(t => t.Id)
+            .ToListAsync(ct);
+
     public async Task<IReadOnlyList<TaskItem>> GetUnfinishedBlockersAsync(
         Guid taskId, CancellationToken ct = default)
     {
@@ -197,7 +233,7 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
 
         return await DbSet
             .AsNoTracking()
-            .Where(t => blockerIds.Contains(t.Id) && t.Status != Status.Done)
+            .Where(t => blockerIds.Contains(t.Id) && t.Category != StatusCategory.Done)
             .ToListAsync(ct);
     }
 
@@ -213,7 +249,7 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
             .AsNoTracking()
             .Where(t => t.DueDate != null
                      && t.DueDate < today
-                     && t.Status != Status.Done)
+                     && t.Category != StatusCategory.Done)
             .ToListAsync(ct);
     }
 
@@ -232,14 +268,14 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
             .AsSplitQuery()
             .Where(t => t.DueDate != null
                      && t.DueDate < horizonExclusive
-                     && t.Status != Status.Done)
+                     && t.Category != StatusCategory.Done)
             .ToListAsync(ct);
     }
 
     public async Task<int> CountActiveAssignedAsync(Guid projectId, Guid employeeId, CancellationToken ct = default)
         => await DbSet.CountAsync(
             t => t.ProjectId == projectId
-            && t.Status != Status.Done
+            && t.Category != StatusCategory.Done
             && t.Assignments.Any(a => a.EmployeeId == employeeId), ct
         );
 }

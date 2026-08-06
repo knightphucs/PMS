@@ -34,14 +34,31 @@ public class ProjectStatisticsRepository : IProjectStatisticsRepository
         return TasksOf(projectId)
             .CountAsync(t => t.DueDate != null
                           && t.DueDate < today
-                          && t.Status != Status.Done, ct);
+                          && t.Category != StatusCategory.Done, ct);
     }
 
+    /// <summary>
+    /// Đếm task theo CỘT (ADR-052).
+    ///
+    /// <para>
+    /// 🔑 Bắt đầu từ bảng <c>BoardColumns</c> chứ không <c>GroupBy</c> trên Tasks — nhờ vậy
+    /// <b>cột rỗng vẫn có mặt với số 0</b>. GroupBy chỉ nhìn thấy cột đang có task, và một
+    /// biểu đồ thiếu cột khiến người đọc tưởng cột đó không tồn tại chứ không phải đang trống.
+    /// Trước ADR-052 việc bù 0 do <c>StatisticsService.ZeroFill</c> làm dựa trên
+    /// <c>Enum.GetValues</c>; nay danh mục nằm trong DB nên nguồn bù 0 cũng phải là DB.
+    /// </para>
+    /// <para>
+    /// Global query filter tự loại task đã xóa mềm, kể cả bên trong <c>c.Tasks.Count()</c>.
+    /// </para>
+    /// </summary>
     public async Task<IReadOnlyList<StatusTally>> TallyByStatusAsync(
         Guid projectId, CancellationToken ct = default)
-        => await TasksOf(projectId)
-            .GroupBy(t => t.Status)
-            .Select(g => new StatusTally(g.Key, g.Count()))
+        => await _context.BoardColumns
+            .AsNoTracking()
+            .Where(c => c.ProjectId == projectId)
+            .OrderBy(c => c.Order).ThenBy(c => c.Id)
+            .Select(c => new StatusTally(
+                c.Id, c.Name, c.Color, c.Order, c.Category, c.Tasks.Count()))
             .ToListAsync(ct);
 
     public async Task<IReadOnlyList<PriorityTally>> TallyByPriorityAsync(
@@ -79,10 +96,10 @@ public class ProjectStatisticsRepository : IProjectStatisticsRepository
                 g.Key.EmployeeId,
                 g.Key.Name,
                 g.Count(),
-                g.Count(a => a.Task.Status == Status.Done),
+                g.Count(a => a.Task.Category == StatusCategory.Done),
                 g.Count(a => a.Task.DueDate != null
                           && a.Task.DueDate < today
-                          && a.Task.Status != Status.Done)))
+                          && a.Task.Category != StatusCategory.Done)))
             .ToListAsync(ct);
     }
 
@@ -95,6 +112,6 @@ public class ProjectStatisticsRepository : IProjectStatisticsRepository
             .Select(s => new SprintTally(
                 s.Id, s.Name, s.StartDate, s.EndDate,
                 s.Tasks.Count,
-                s.Tasks.Count(t => t.Status == Status.Done)))
+                s.Tasks.Count(t => t.Category == StatusCategory.Done)))
             .ToListAsync(ct);
 }

@@ -43,8 +43,12 @@ public class StatisticsTests : IntegrationTestBase
         var stats = await pm.Client.GetFromJsonAsync<ProjectStatisticsResponse>(
             $"/api/v1/projects/{projectId}/statistics", TestJson.Options);
 
-        stats!.ByStatus.Select(s => s.Status)
-             .ShouldBe(Enum.GetValues<Status>(), ignoreOrder: true);
+        // ADR-052: ByStatus nay là DANH SÁCH CỘT của project (bốn cột mặc định), không
+        // còn là bốn giá trị enum. Cột rỗng vẫn phải có mặt với số 0 — biểu đồ thiếu cột
+        // khiến người đọc tưởng cột đó không tồn tại chứ không phải đang trống.
+        stats!.ByStatus.Select(s => s.Name)
+             .ShouldBe(["Cần làm", "Đang làm", "Đang duyệt", "Hoàn thành"]);
+        stats.ByStatus.ShouldAllBe(s => s.Count == 0);
         stats.ByPriority.Select(p => p.Priority)
              .ShouldBe(Enum.GetValues<Priority>(), ignoreOrder: true);
     }
@@ -61,15 +65,15 @@ public class StatisticsTests : IntegrationTestBase
         await CreateTaskAsync(pm.Client, projectId);
         await CreateTaskAsync(pm.Client, projectId);
 
-        await AdvanceStatusAsync(pm.Client, done, Status.Done);
+        await MoveToColumnAsync(pm.Client, done, 3);
 
         var stats = await pm.Client.GetFromJsonAsync<ProjectStatisticsResponse>(
             $"/api/v1/projects/{projectId}/statistics", TestJson.Options);
 
         stats!.TotalTasks.ShouldBe(4);
         stats.CompletionRate.ShouldBe(25m);
-        stats.ByStatus.Single(s => s.Status == Status.Done).Count.ShouldBe(1);
-        stats.ByStatus.Single(s => s.Status == Status.ToDo).Count.ShouldBe(3);
+        stats.ByStatus.Single(s => s.Name == "Hoàn thành").Count.ShouldBe(1);
+        stats.ByStatus.Single(s => s.Name == "Cần làm").Count.ShouldBe(3);
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using PMS.Application.Features.Tasks;
 using PMS.Domain.Enums;
 
 namespace PMS.Application.Features.TaskLinks;
@@ -15,4 +16,4 @@ public record TaskLinkResponse(
     Guid RelatedTaskId,
     string RelatedTaskCode,
     string RelatedTaskName,
-    Status RelatedTaskStatus);
+    TaskStatusRef RelatedTaskStatus);

@@ -46,7 +46,9 @@ public class Notification : BaseEntity
         or NotificationType.RoleChanged
         or NotificationType.RemovedFromProject
         or NotificationType.MemberLeftProject
-        or NotificationType.ProjectStatusChanged => RelatedEntityKind.Project,
+        or NotificationType.ProjectStatusChanged
+        // Sprint không có trang riêng — đường vào là tab Sprint của dự án (ADR-050).
+        or NotificationType.SprintCompleted     => RelatedEntityKind.Project,
 
         NotificationType.TaskAssigned
         or NotificationType.TaskUnassigned

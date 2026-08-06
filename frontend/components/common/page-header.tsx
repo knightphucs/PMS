@@ -47,7 +47,14 @@ export function PageHeader({
         </div>
         {description ? <p className="text-muted-foreground text-sm">{description}</p> : null}
       </div>
-      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+      {/* 🔴 `flex-wrap` + `min-w-0`: hàng nút phải XUỐNG DÒNG được, không phải đẩy tràn trang.
+          Đã đo ở 375px khi board có ba nút (chọn sprint · quản lý cột · tạo task): hàng này
+          rộng 439px trong một khung 343px, và vì nó là block thường nên nó khai báo trọn bề
+          rộng đó lên tận `<body>` — `scrollWidth 455 > clientWidth 375`.
+
+          Sửa ở đây chứ không ở từng trang: mọi màn có từ ba nút trở lên đều sẽ gặp, và
+          `PageHeader` là chỗ duy nhất biết được điều đó. */}
+      {actions ? <div className="flex min-w-0 flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
   );
 }

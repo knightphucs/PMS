@@ -6,6 +6,7 @@ using PMS.Application.Common.Services;
 using PMS.Application.Features.ActivityLogs;
 using PMS.Application.Features.Admin;
 using PMS.Application.Features.Attachments;
+using PMS.Application.Features.BoardColumns;
 using PMS.Application.Features.Auth;
 using PMS.Application.Features.Comments;
 using PMS.Application.Features.Employees;
@@ -34,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<ISprintService, SprintService>();
         services.AddSingleton<SprintMapper>();
         services.AddScoped<ITaskService, TaskService>();
+        services.AddScoped<IBoardColumnService, BoardColumnService>();
         services.AddScoped<ITaskStatusTransitionService, TaskStatusTransitionService>();
         services.AddScoped<ITaskAssignmentService, TaskAssignmentService>();
         services.AddSingleton<TaskMapper>();

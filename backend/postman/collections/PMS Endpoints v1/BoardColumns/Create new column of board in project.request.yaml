@@ -1,0 +1,34 @@
+$kind: http-request
+name: Create new column of board in project
+url: "{{api_url}}/projects/:project_id/columns"
+method: POST
+pathVariables:
+  - key: project_id
+    value: ""
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: |-
+    {
+        "name": "string",
+        "color": "string",
+        "category": "ToDo"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1422832777269997

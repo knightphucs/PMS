@@ -1,0 +1,37 @@
+$kind: http-request
+name: Update permission in role
+url: "{{api_url}}/admin/roles/:role/permissions"
+method: PUT
+pathVariables:
+  - key: role
+    value: ""
+    description: "Available values : User, SystemAdmin"
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "enum": [
+              "User",
+              " SystemAdmin"
+            ]
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: |-
+    {
+        "permissions": [
+            "string"
+        ]
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 2046513949457075

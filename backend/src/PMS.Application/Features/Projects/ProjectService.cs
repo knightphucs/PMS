@@ -184,7 +184,7 @@ public class ProjectService : IProjectService
         var project = await _uow.Projects.GetForDeletionAsync(id, ct)
             ?? throw new NotFoundException(nameof(Project), id);
 
-        var activeCount = project.Tasks.Count(t => t.Status != Status.Done);
+        var activeCount = project.Tasks.Count(t => t.Category != StatusCategory.Done);
         if (activeCount > 0)
             throw new ConflictException(
                 $"Không thể xóa project khi còn {activeCount} task chưa hoàn thành. " +

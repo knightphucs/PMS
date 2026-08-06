@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { UserAvatar } from '@/components/common/user-avatar';
 import { Field } from '@/components/form/field';
 import { FormError } from '@/components/form/form-error';
 import { Button } from '@/components/ui/button';
@@ -29,8 +30,11 @@ import {
 } from '@/components/ui/select';
 import { errorMessage } from '@/lib/api/problem';
 import { applyServerErrors } from '@/lib/form';
-import { useInviteMember } from '@/lib/hooks/use-members';
+import { useDebounced } from '@/lib/hooks/use-debounced';
+import { useEmployeeSearch } from '@/lib/hooks/use-employees';
+import { useInviteMember, useMembers } from '@/lib/hooks/use-members';
 import { inviteMemberSchema, type InviteMemberValues } from '@/lib/validation/member-schema';
+import { EMPLOYEE_SEARCH_MIN_LENGTH } from '@/types/employee';
 import { ROLE_IN_PROJECT_LABEL, type RoleInProject } from '@/types/enums';
 
 /** ⚠️ Phải khớp ĐÚNG tên property của `InviteMemberRequest` phía backend. */
@@ -57,6 +61,23 @@ export function InviteMemberDialog({ projectId }: { projectId: string }) {
   });
 
   const role = watch('role');
+
+  // Ô email vẫn là NGUỒN SỰ THẬT của form: schema, `applyServerErrors` và cả ba mã lỗi
+  // nghiệp vụ giữ nguyên. Gợi ý chỉ là một cách điền nhanh vào chính ô đó, không phải một
+  // trường mới — nên không có gì phải đồng bộ giữa hai nơi.
+  const email = watch('email');
+  const [suggesting, setSuggesting] = useState(false);
+  const keyword = useDebounced(email);
+  const suggestions = useEmployeeSearch(suggesting ? keyword : '');
+
+  // Người đã ở trong dự án (kể cả đang chờ) chắc chắn nhận 409 — chặn ở đây thì nước đi đó
+  // không tạo ra request nào, thay vì để người dùng bấm rồi đọc lỗi.
+  // So bằng `employeeId`: `ProjectMemberResponse` KHÔNG mang email, và id là thứ duy nhất
+  // hai DTO này có chung.
+  const members = useMembers(projectId);
+  const memberIds = new Set(members.data?.map((m) => m.employeeId) ?? []);
+
+  const emailField = register('email');
 
   const onSubmit = handleSubmit(
     async (values) => {
@@ -86,6 +107,7 @@ export function InviteMemberDialog({ projectId }: { projectId: string }) {
     if (!next) {
       reset();
       setFormError(null);
+      setSuggesting(false);
     }
   };
 
@@ -111,14 +133,74 @@ export function InviteMemberDialog({ projectId }: { projectId: string }) {
         <form onSubmit={onSubmit} noValidate className="grid gap-4">
           <FormError message={formError} />
 
-          <Field
-            label="Email"
-            type="email"
-            autoFocus
-            placeholder="ban@congty.com"
-            error={errors.email?.message}
-            {...register('email')}
-          />
+          <div className="grid gap-2">
+            <Field
+              label="Email"
+              type="email"
+              autoFocus
+              autoComplete="off"
+              placeholder="Gõ tên hoặc email để tìm…"
+              error={errors.email?.message}
+              {...emailField}
+              onChange={(event) => {
+                void emailField.onChange(event);
+                setSuggesting(true);
+              }}
+            />
+
+            {suggesting && email.trim().length > 0 ? (
+              email.trim().length < EMPLOYEE_SEARCH_MIN_LENGTH ? (
+                // Không phải lỗi — chỉ là chưa đủ để tra. Server trả 400 dưới ngưỡng này nên
+                // `useEmployeeSearch` cố ý chưa bắn request nào.
+                <p className="text-muted-foreground text-xs">
+                  Nhập tối thiểu {EMPLOYEE_SEARCH_MIN_LENGTH} ký tự để tìm nhân sự.
+                </p>
+              ) : suggestions.data && suggestions.data.length > 0 ? (
+                <ul className="grid max-h-48 gap-0.5 overflow-y-auto rounded-lg border p-1">
+                  {suggestions.data.map((employee) => {
+                    const already = memberIds.has(employee.id);
+
+                    return (
+                      <li key={employee.id}>
+                        <button
+                          type="button"
+                          disabled={already}
+                          onClick={() => {
+                            setValue('email', employee.email, { shouldValidate: true });
+                            setSuggesting(false);
+                          }}
+                          className="hover:bg-accent flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors disabled:pointer-events-none disabled:opacity-50"
+                        >
+                          <UserAvatar
+                            id={employee.id}
+                            name={employee.name}
+                            className="size-6 text-[10px]"
+                          />
+                          <span className="grid min-w-0 flex-1">
+                            <span className="truncate text-[13px] font-medium">
+                              {employee.name}
+                            </span>
+                            <span className="text-muted-foreground truncate text-xs">
+                              {employee.email}
+                            </span>
+                          </span>
+                          {already ? (
+                            <span className="text-muted-foreground shrink-0 text-xs">
+                              Đã trong dự án
+                            </span>
+                          ) : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : suggestions.isFetched ? (
+                <p className="text-muted-foreground text-xs">
+                  Không tìm thấy nhân sự nào khớp “{keyword.trim()}”.
+                </p>
+              ) : null
+            ) : null}
+          </div>
 
           <div className="grid gap-2">
             <Label htmlFor="invite-role">Vai trò</Label>

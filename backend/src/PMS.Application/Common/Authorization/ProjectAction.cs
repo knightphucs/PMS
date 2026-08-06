@@ -20,6 +20,14 @@ public enum ProjectAction
     ManageAssignees,
     ManageSprint,
 
+    /// <summary>
+    /// Thêm/sửa/xóa/sắp xếp cột board (ADR-052). Action RIÊNG chứ không mượn
+    /// <see cref="Update"/>: đổi cấu hình board tác động tới cách CẢ ĐỘI nhìn công việc,
+    /// và nếu sau này muốn nới cho Member thì chỉ cần sửa một dòng ở ProjectPermissions
+    /// thay vì phải tách một action đang gánh hai nghĩa.
+    /// </summary>
+    ManageBoardColumns,
+
     /// <summary>Tự nhận / tự rút khỏi task — Member cũng làm được, Viewer thì không.</summary>
     SelfAssign,
 

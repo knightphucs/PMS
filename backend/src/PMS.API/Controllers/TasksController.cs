@@ -104,7 +104,8 @@ public class TasksController : ControllerBase
 
     /// <summary>
     /// Board Kanban của project. Bỏ trống sprintId để lấy board toàn project.
-    /// Luôn trả đủ 4 cột theo Status, kể cả cột rỗng.
+    /// Luôn trả đủ MỌI cột của project, kể cả cột rỗng — số cột do người dùng cấu hình
+    /// (ADR-052), không còn cố định 4.
     /// </summary>
     [HttpGet("projects/{projectId:guid}/board")]
     [ProducesResponseType(typeof(BoardResponse), StatusCodes.Status200OK)]
@@ -113,6 +114,22 @@ public class TasksController : ControllerBase
     public async Task<ActionResult<BoardResponse>> GetBoard(
         Guid projectId, [FromQuery] Guid? sprintId, CancellationToken ct)
         => Ok(await _tasks.GetBoardAsync(projectId, sprintId, ct));
+
+    /// <summary>
+    /// Việc của CHÍNH người đang đăng nhập, xuyên mọi dự án, gom theo dự án (ADR-053).
+    ///
+    /// <para>
+    /// Lọc: được gán cho tôi · chưa xong · có hạn ≤ hôm nay (gồm cả quá hạn).
+    /// </para>
+    /// <para>
+    /// ⚠️ Không nhận <c>employeeId</c> ở đâu cả — kể cả query string. Nhận vào là biến nó
+    /// thành endpoint xem lịch làm việc của người khác.
+    /// </para>
+    /// </summary>
+    [HttpGet("tasks/my")]
+    [ProducesResponseType(typeof(MyWorkResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<MyWorkResponse>> GetMyWork(CancellationToken ct)
+        => Ok(await _tasks.GetMyWorkAsync(ct));
 
     [HttpGet("tasks/{id:guid}/assignees")]
     [ProducesResponseType(typeof(IReadOnlyList<TaskAssigneeResponse>), StatusCodes.Status200OK)]

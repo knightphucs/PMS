@@ -1,14 +1,15 @@
 $kind: http-request
-url: "{{api_url}}/admin/audit-logs?Page=&PageSize=&SortBy=&SortDirection=&Search=&IsDescending=&Skip="
+url: "{{api_url}}/admin/employees?Page=1&PageSize=20&SortBy=&SortDirection=&Sea\
+  rch=&IsDescending=&Skip="
 method: GET
 queryParams:
   - key: Page
-    value: ""
+    value: "1"
     disabled: false
     description: ""
     $type: integer
   - key: PageSize
-    value: ""
+    value: "20"
     disabled: false
     description: ""
     $type: integer
@@ -41,4 +42,4 @@ auth:
   type: bearer
   credentials:
     token: "{{access_token}}"
-order: 1178426868470316
+order: 1785921992549

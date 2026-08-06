@@ -25,9 +25,11 @@ public class EnumSerializationTests : IntegrationTestBase
 
         var json = await pm.Client.GetStringAsync($"/api/v1/tasks/{taskId}");
 
-        json.ShouldContain("\"status\":\"ToDo\"");
+        // ADR-052: `status` nay là một OBJECT (cột board) chứ không còn là chuỗi enum. Enum
+        // duy nhất còn lại trong đó là `category` — và nó vẫn phải ra dạng TÊN.
+        json.ShouldContain("\"category\":\"ToDo\"");
         json.ShouldContain("\"priority\":\"Highest\"");
-        json.ShouldNotContain("\"status\":0");
+        json.ShouldNotContain("\"category\":0");
         json.ShouldNotContain("\"priority\":0");
     }
 

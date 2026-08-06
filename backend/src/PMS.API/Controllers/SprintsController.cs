@@ -56,4 +56,49 @@ public class SprintsController : ControllerBase
         await _sprints.DeleteAsync(id, ct);
         return NoContent();
     }
+
+    /// <summary>
+    /// Bắt đầu sprint (ADR-050). Idempotent — gọi lại trên sprint đang chạy trả 200.
+    /// <b>409</b> khi project đã có sprint khác đang chạy, hoặc sprint này đã đóng.
+    /// </summary>
+    [HttpPost("sprints/{id:guid}/start")]
+    [ProducesResponseType(typeof(SprintResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<SprintResponse>> Start(Guid id, CancellationToken ct)
+        => Ok(await _sprints.StartAsync(id, ct));
+
+    /// <summary>
+    /// Xem trước việc đóng sprint — số task chưa xong và danh sách sprint đích hợp lệ.
+    /// Frontend gọi cái này để dựng dialog đóng sprint (ADR-050).
+    /// </summary>
+    [HttpGet("sprints/{id:guid}/completion-preview")]
+    [ProducesResponseType(typeof(SprintCompletionPreview), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<SprintCompletionPreview>> PreviewCompletion(
+        Guid id, CancellationToken ct)
+        => Ok(await _sprints.PreviewCompletionAsync(id, ct));
+
+    /// <summary>
+    /// Đóng sprint (ADR-050) — <b>hỏi task chưa xong đi đâu, không tự quyết hộ</b>.
+    ///
+    /// <para>
+    /// <c>targetSprintId = null</c> nghĩa là đẩy về Backlog, và đó là một lựa chọn hợp lệ
+    /// chứ không phải "chưa chọn".
+    /// </para>
+    /// <para>
+    /// <b>409</b> khi sprint chưa bắt đầu hoặc đã đóng · <b>400</b> khi sprint đích đã đóng
+    /// hoặc trùng chính nó · <b>404</b> khi sprint đích thuộc project khác.
+    /// </para>
+    /// </summary>
+    [HttpPost("sprints/{id:guid}/complete")]
+    [ProducesResponseType(typeof(SprintResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<SprintResponse>> Complete(
+        Guid id, CompleteSprintRequest req, CancellationToken ct)
+        => Ok(await _sprints.CompleteAsync(id, req, ct));
 }

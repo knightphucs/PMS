@@ -43,14 +43,14 @@ public class SubtaskTests : IntegrationTestBase
 
         await pm.Client.PostAsJsonAsync($"/api/v1/tasks/{subId}/assignees",
             new AssignTaskRequest(member.EmployeeId, RoleInTask.Owner));
-        await AdvanceStatusAsync(member.Client, subId, Status.InProgress);
+        await MoveToColumnAsync(member.Client, subId, 1);
 
         var sub = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{subId}", TestJson.Options);
-        sub!.Status.ShouldBe(Status.InProgress);
+        sub!.Status.Name.ShouldBe("Đang làm");
         sub.Assignees.ShouldHaveSingleItem().EmployeeId.ShouldBe(member.EmployeeId);
 
         var parent = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{parentId}", TestJson.Options);
-        parent!.Status.ShouldBe(Status.ToDo);          // task cha độc lập
+        parent!.Status.Name.ShouldBe("Cần làm");          // task cha độc lập
         parent.Assignees.ShouldBeEmpty();
     }
 
@@ -93,12 +93,12 @@ public class SubtaskTests : IntegrationTestBase
         var sub1 = await CreateTaskAsync(pm.Client, projectId, "Sub 1", parentTaskId: parentId);
         await CreateTaskAsync(pm.Client, projectId, "Sub 2", parentTaskId: parentId);
 
-        await AdvanceStatusAsync(pm.Client, sub1, Status.Done);
+        await MoveToColumnAsync(pm.Client, sub1, 3);
 
         var parent = await pm.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{parentId}", TestJson.Options);
         parent!.SubtaskProgress.ShouldBe(50m);
         // Task cha KHÔNG tự động Done — Jira behavior, §5
-        parent.Status.ShouldBe(Status.ToDo);
+        parent.Status.Name.ShouldBe("Cần làm");
     }
 
     // ---------- ADR-018 ----------
@@ -133,7 +133,7 @@ public class SubtaskTests : IntegrationTestBase
         var projectId = await CreateProjectAsync(pm.Client);
         var parentId = await CreateTaskAsync(pm.Client, projectId, "Task cha");
         var subId = await CreateTaskAsync(pm.Client, projectId, "Subtask", parentTaskId: parentId);
-        await AdvanceStatusAsync(pm.Client, subId, Status.Done);
+        await MoveToColumnAsync(pm.Client, subId, 3);
 
         (await pm.Client.DeleteAsync($"/api/v1/tasks/{parentId}")).StatusCode
             .ShouldBe(HttpStatusCode.NoContent);

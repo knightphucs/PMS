@@ -3,6 +3,7 @@
 import { useParams, useSelectedLayoutSegment } from 'next/navigation';
 
 import { QueryError } from '@/components/common/query-error';
+import { ProjectStatusActions } from '@/components/projects/project-status-actions';
 import { ProjectTabs } from '@/components/projects/project-tabs';
 import { StatusBadge } from '@/components/projects/status-badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -88,6 +89,7 @@ export default function ProjectDetailLayout({
                     <span className="text-muted-foreground text-xs">
                       Dự kiến hoàn thành {formatDate(overview.data.expectedCompletionDate)}
                     </span>
+                    <ProjectStatusActions projectId={id} status={overview.data.status} />
                   </div>
                   {overview.data.description ? (
                     <p className="text-muted-foreground max-w-3xl text-sm">

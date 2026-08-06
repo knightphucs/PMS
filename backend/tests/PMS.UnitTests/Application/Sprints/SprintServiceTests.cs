@@ -4,6 +4,7 @@ using PMS.Application.Common.Authorization;
 using PMS.Application.Common.Exceptions;
 using PMS.Application.Common.Interfaces;
 using PMS.Application.Features.Sprints;
+using PMS.Domain.Common;
 using PMS.Domain.Entities;
 using PMS.Domain.Enums;
 using Shouldly;
@@ -18,6 +19,7 @@ public class SprintServiceTests
     private readonly IProjectAuthorizationService _authz = Substitute.For<IProjectAuthorizationService>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly IActivityLogger _activityLog = Substitute.For<IActivityLogger>();
+    private readonly INotificationService _notifications = Substitute.For<INotificationService>();
 
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _projectId = Guid.NewGuid();
@@ -29,7 +31,7 @@ public class SprintServiceTests
         _currentUser.EmployeeId.Returns(_userId);
 
         _sut = new SprintService(
-            _uow, _authz, _currentUser, _activityLog,
+            _uow, _authz, _currentUser, _activityLog, _notifications,
             new SprintMapper(),
             NullLogger<SprintService>.Instance);
     }
@@ -133,7 +135,106 @@ public class SprintServiceTests
         ex.Message.ShouldNotContain(_projectId.ToString());
     }
 
+    // ---------- Vòng đời sprint (ADR-050) ----------
+
+    [Fact]
+    public async Task StartAsync_project_da_co_sprint_dang_chay_thi_409()
+    {
+        // Bất biến: một project tối đa MỘT sprint Active. Không phải luật Scrum cho vui —
+        // "sprint hiện tại" là khái niệm mà backlog, board mặc định và velocity đều dựa vào.
+        var running = NewSprint();
+        running.Start();
+        var sprint = ArrangeSprint(ProjectAction.ManageSprint);
+        _sprintRepo.GetActiveOfProjectAsync(_projectId, Arg.Any<CancellationToken>())
+                   .Returns(running);
+
+        var ex = await Should.ThrowAsync<ConflictException>(() => _sut.StartAsync(sprint.Id));
+
+        ex.Message.ShouldContain(running.Name);
+        await _uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CompleteAsync_TargetSprintId_null_thi_day_task_chua_xong_ve_Backlog()
+    {
+        var sprint = ArrangeSprint(ProjectAction.ManageSprint);
+        sprint.Start();
+        var chuaXong = TaskInColumn(StatusCategory.InProgress, sprint.Id);
+        var daXong = TaskInColumn(StatusCategory.Done, sprint.Id);
+        sprint.Tasks.Add(chuaXong);
+        sprint.Tasks.Add(daXong);
+
+        await _sut.CompleteAsync(sprint.Id, new CompleteSprintRequest(null));
+
+        // ADR-050: `null` là "về Backlog", một lựa chọn hợp lệ chứ không phải "chưa chọn".
+        chuaXong.SprintId.ShouldBeNull();
+        // Task đã xong Ở LẠI sprint — đó là thứ velocity đếm. Đẩy nó đi là xóa mất kết quả
+        // của chính sprint vừa đóng.
+        daXong.SprintId.ShouldBe(sprint.Id);
+        sprint.Status.ShouldBe(SprintStatus.Completed);
+        sprint.CompletedAt.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task CompleteAsync_sprint_chua_bat_dau_thi_409()
+    {
+        var sprint = ArrangeSprint(ProjectAction.ManageSprint);   // vẫn Planned
+
+        await Should.ThrowAsync<DomainException>(
+            () => _sut.CompleteAsync(sprint.Id, new CompleteSprintRequest(null)));
+    }
+
+    [Fact]
+    public async Task CompleteAsync_sprint_dich_thuoc_project_khac_tra_404()
+    {
+        // 404 chứ không 400: sprint của project khác thì với người gọi nó không tồn tại.
+        var sprint = ArrangeSprint(ProjectAction.ManageSprint);
+        sprint.Start();
+        sprint.Tasks.Add(TaskInColumn(StatusCategory.ToDo, sprint.Id));
+
+        var foreign = new Sprint
+        {
+            Id = Guid.NewGuid(), Name = "Sprint lạ", ProjectId = Guid.NewGuid(),
+            StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(7)
+        };
+        _sprintRepo.GetWithTasksAsync(foreign.Id, Arg.Any<CancellationToken>()).Returns(foreign);
+
+        await Should.ThrowAsync<NotFoundException>(
+            () => _sut.CompleteAsync(sprint.Id, new CompleteSprintRequest(foreign.Id)));
+    }
+
     // ---------- helpers ----------
+
+    private Sprint ArrangeSprint(ProjectAction action)
+    {
+        var sprint = NewSprint();
+        _sprintRepo.GetWithTasksAsync(sprint.Id, Arg.Any<CancellationToken>()).Returns(sprint);
+        _authz.AuthorizeAsync(_projectId, action, Arg.Any<CancellationToken>())
+              .Returns(RoleInProject.ProjectManager);
+        return sprint;
+    }
+
+    /// <summary>
+    /// Task đặt sẵn ở một cột thuộc nhóm cho trước (ADR-052), và ĐANG thuộc sprint.
+    ///
+    /// <para>
+    /// ⚠️ Phải gán <c>SprintId</c> bằng tay: ngoài EF thì việc thêm vào
+    /// <c>sprint.Tasks</c> không tự đặt khóa ngoại, nên bỏ qua bước này sẽ khiến mọi task
+    /// vào test với <c>SprintId = null</c> — và phép khẳng định "task đã xong Ở LẠI sprint"
+    /// sẽ đỏ vì lý do sai.
+    /// </para>
+    /// </summary>
+    private TaskItem TaskInColumn(StatusCategory category, Guid sprintId)
+    {
+        var task = NewTask();
+        task.MoveTo(new BoardColumn
+        {
+            Id = Guid.NewGuid(), ProjectId = _projectId,
+            Name = category.ToString(), Category = category,
+        });
+        task.SprintId = sprintId;
+        return task;
+    }
 
     private Sprint NewSprint() => new()
     {

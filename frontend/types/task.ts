@@ -1,7 +1,31 @@
 /** Soi gương `PMS.Application/Features/Tasks/TaskDtos.cs`. */
 
-import type { Priority, RoleInTask, Status } from './enums';
+import type { Priority, RoleInTask } from './enums';
 import type { LabelResponse } from './label';
+
+/**
+ * Nhóm ngữ nghĩa của một cột (ADR-052) — soi gương `StatusCategory` phía backend.
+ *
+ * 🔴 Đây là thứ DUY NHẤT client được phép suy luận từ. Tên cột là chuỗi do người dùng đặt
+ * ("Đã ship", "Hủy bỏ"), nên mọi phép kiểm "task này xong chưa" phải đọc `category`, KHÔNG
+ * so tên và cũng không so `columnId` với một hằng nào.
+ */
+export type StatusCategory = 'ToDo' | 'InProgress' | 'Done';
+
+/**
+ * Tham chiếu cột được gắn vào task. Cột là dữ liệu do từng project cấu hình, vì vậy
+ * client không được suy tên/màu/trạng thái hoàn thành từ một enum cố định.
+ *
+ * ⚠️ Không có `order`: thẻ không cần biết cột đứng thứ mấy, và board trả hàng chục thẻ một
+ * lượt. Cần danh sách cột đầy đủ thì gọi `GET /projects/{id}/columns`.
+ */
+export interface TaskStatusRef {
+  columnId: string;
+  name: string;
+  /** Mã màu `#RRGGBB` do người dùng chọn — dùng cho chip trạng thái. */
+  color: string;
+  category: StatusCategory;
+}
 
 /**
  * Người đảm nhận rút gọn, chỉ đủ vẽ avatar trên thẻ.
@@ -26,7 +50,8 @@ export interface TaskSummaryResponse {
    */
   code: string;
   name: string;
-  status: Status;
+  /** Cột đang đứng (ADR-052) — object, KHÔNG còn là chuỗi enum. */
+  status: TaskStatusRef;
   priority: Priority;
   dueDate: string | null;
   /** ⚠️ Tính sẵn phía server. ĐỪNG tự tính lại — `lib/format.ts:isPastDue` chỉ dành cho Project. */
@@ -62,7 +87,8 @@ export interface TaskDetailResponse {
   name: string;
   /** `null` khi chưa có mô tả. Backend chuẩn hóa chuỗi rỗng/toàn khoảng trắng thành `null`. */
   description: string | null;
-  status: Status;
+  /** Cột đang đứng (ADR-052) — object, KHÔNG còn là chuỗi enum. */
+  status: TaskStatusRef;
   priority: Priority;
   dueDate: string | null;
   isOverdue: boolean;
@@ -87,8 +113,18 @@ export interface TaskDetailResponse {
   rowVersion: string;
 }
 
+export interface BoardColumnResponse {
+  id: string;
+  name: string;
+  color: string;
+  order: number;
+  category: TaskStatusRef['category'];
+  taskCount: number;
+}
+
+/** Một cột trên board kèm task trong đó. Soi gương `BoardColumnGroup` phía backend. */
 export interface BoardColumn {
-  status: Status;
+  column: BoardColumnResponse;
   tasks: TaskSummaryResponse[];
 }
 
@@ -97,10 +133,35 @@ export interface BoardResponse {
   /** `null` = board "tất cả task" của project. */
   sprintId: string | null;
   /**
-   * Backend LUÔN trả đủ **4 cột** theo thứ tự `ToDo, InProgress, Review, Done`, kể cả
-   * cột rỗng — không phải tự dựng cột thiếu.
+   * Backend LUÔN trả đủ **MỌI cột của project**, kể cả cột rỗng, đã sắp theo `order`
+   * trái→phải — không phải tự dựng cột thiếu và cũng không phải tự sắp xếp.
+   *
+   * ⚠️ Số cột **không cố định 4** kể từ ADR-052: người dùng thêm/xóa được. Đừng viết code
+   * dựa trên độ dài mảng này.
    */
   columns: BoardColumn[];
+}
+
+export interface CreateBoardColumnRequest {
+  name: string;
+  /** `#RRGGBB` — server validate bằng regex, gửi sai định dạng nhận 400. */
+  color: string;
+  category: StatusCategory;
+}
+
+export type UpdateBoardColumnRequest = CreateBoardColumnRequest;
+
+/**
+ * Xóa cột. `targetColumnId` **bắt buộc khi cột còn task** — server trả 400 kèm số task nếu
+ * thiếu. Không có đường "xóa cuốn theo task".
+ */
+export interface DeleteBoardColumnRequest {
+  targetColumnId: string | null;
+}
+
+/** Gửi TRỌN danh sách theo thứ tự mới, không phải "chuyển cột X tới vị trí n". */
+export interface ReorderBoardColumnsRequest {
+  orderedColumnIds: string[];
 }
 
 export interface CreateTaskRequest {
@@ -118,8 +179,7 @@ export interface CreateTaskRequest {
 
 /**
  * ⚠️ Đây là request DUY NHẤT của Task cần `rowVersion` (ADR-021).
- * `PATCH /tasks/{id}/status` và `PUT /tasks/{id}/sprint` thì KHÔNG — state machine và
- * ràng buộc sprint đã tự bảo vệ chúng.
+ * `PATCH /tasks/{id}/status` và `PUT /tasks/{id}/sprint` thì KHÔNG.
  */
 export interface UpdateTaskRequest {
   name: string;
@@ -129,9 +189,17 @@ export interface UpdateTaskRequest {
   description?: string | null;
 }
 
-/** `{ "target": "InProgress" }` — tên trường là `target`, không phải `status`. */
+/**
+ * `{ "targetColumnId": "…" }` — ADR-052 đổi từ `target: Status` sang id cột.
+ *
+ * 📌 Hai hệ quả so với trước:
+ * - Kéo thẻ về **đúng cột đang đứng** nay trả **200** (no-op), không còn 409.
+ * - Không còn "nhảy bước": mọi cột đều tới thẳng được.
+ *
+ * Guard duy nhất còn lại: cột đích thuộc nhóm `InProgress` mà task đang bị chặn → **409**.
+ */
 export interface ChangeTaskStatusRequest {
-  target: Status;
+  targetColumnId: string;
 }
 
 /** `null` = đưa task về Backlog. */

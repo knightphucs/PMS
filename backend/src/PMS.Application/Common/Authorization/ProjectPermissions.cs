@@ -23,7 +23,10 @@ public static class ProjectPermissions
         or ProjectAction.UpdateTask
         or ProjectAction.DeleteTask
         or ProjectAction.ManageAssignees
-        or ProjectAction.ManageSprint  => role is RoleInProject.ProjectManager,
+        or ProjectAction.ManageSprint
+        // Cấu hình cột board (ADR-052): chỉ PM. Một Member xóa nhầm cột là đẩy hàng chục
+        // task của người khác sang chỗ họ không ngờ tới.
+        or ProjectAction.ManageBoardColumns => role is RoleInProject.ProjectManager,
 
         // Tự nhận/tự rút: Member làm được để không phải chờ PM gán (mô hình Kanban),
         // Viewer thì không vì Viewer chỉ đọc.

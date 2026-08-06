@@ -1,0 +1,15 @@
+$kind: http-request
+name: Search employees
+url: "{{api_url}}/employees?search="
+method: GET
+queryParams:
+  - key: search
+    value: ""
+    disabled: false
+    description: ""
+    $type: string
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1785922677957

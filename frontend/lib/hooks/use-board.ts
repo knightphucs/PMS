@@ -5,13 +5,25 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { changeTaskStatus, getBoard } from '@/lib/api/endpoints/tasks';
 import { boardKeys, projectDataKeys } from '@/lib/hooks/keys';
 import { moveTaskInBoard, patchTaskInBoard } from '@/lib/tasks/board-cache';
-import type { Status } from '@/types/enums';
 import type { BoardResponse } from '@/types/task';
 
-export function useBoard(projectId: string, sprintId: string | null) {
+/**
+ * Board của project, lọc theo sprint.
+ *
+ * ⚠️ `sprintId = null` KHÔNG phải "không nạp" — nó là board **"Tất cả task"** của project.
+ * Muốn hoãn việc nạp (ví dụ danh sách sprint chỉ nạp task cho sprint đang mở) thì dùng
+ * `enabled`, đừng truyền `null`: hai thứ đó nghĩa hoàn toàn khác nhau và nhầm chúng sẽ nạp
+ * cả project trong khi ta chỉ muốn một sprint.
+ */
+export function useBoard(
+  projectId: string,
+  sprintId: string | null,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: boardKeys.detail(projectId, sprintId),
     queryFn: ({ signal }) => getBoard(projectId, sprintId, signal),
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -29,10 +41,10 @@ export function useChangeTaskStatus(projectId: string, sprintId: string | null) 
   const key = boardKeys.detail(projectId, sprintId);
 
   return useMutation({
-    mutationFn: ({ taskId, target }: { taskId: string; target: Status }) =>
-      changeTaskStatus(taskId, target),
+    mutationFn: ({ taskId, targetColumnId }: { taskId: string; targetColumnId: string }) =>
+      changeTaskStatus(taskId, targetColumnId),
 
-    onMutate: async ({ taskId, target }) => {
+    onMutate: async ({ taskId, targetColumnId }) => {
       // 🔴 BẮT BUỘC. Một lượt GET board phát đi TRƯỚC lúc kéo mà về SAU `setQueryData` sẽ
       // ghi đè bản lạc quan: thẻ nhảy sang cột mới rồi tự quay về chỗ cũ vài trăm ms sau,
       // không có lỗi nào hiện ra. Đây là loại bug chỉ tái hiện được khi mạng chậm.
@@ -40,7 +52,7 @@ export function useChangeTaskStatus(projectId: string, sprintId: string | null) 
 
       const previous = queryClient.getQueryData<BoardResponse>(key);
       queryClient.setQueryData<BoardResponse>(key, (old) =>
-        old ? moveTaskInBoard(old, taskId, target) : old,
+        old ? moveTaskInBoard(old, taskId, targetColumnId) : old,
       );
 
       return { previous };

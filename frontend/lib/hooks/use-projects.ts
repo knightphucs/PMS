@@ -3,10 +3,12 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
+  completeProject,
   createProject,
   deleteProject,
   getProject,
   listProjects,
+  reopenProject,
   updateProject,
 } from '@/lib/api/endpoints/projects';
 import type { PagedRequest } from '@/types/common';
@@ -117,4 +119,35 @@ export function useDeleteProject() {
       void queryClient.invalidateQueries({ queryKey: projectKeys.all });
     },
   });
+}
+
+/**
+ * Đổi `Project.Status` (ADR-048) — `complete` và `reopen` dùng chung một hình dạng.
+ *
+ * Invalidate `projectKeys.all` để phủ cả `list` (badge trạng thái ở bảng danh sách) lẫn
+ * `overview` (badge ở header trang chi tiết) bằng một lệnh.
+ *
+ * ⚠️ Đừng `setQueryData(overview, data)` rồi invalidate `all`: `overview` nằm DƯỚI `all`
+ * nên lệnh sau xóa sạch việc của lệnh trước, chỉ tổ chạy hai vòng render thừa.
+ *
+ * `onError` cũng invalidate, cùng lý do đã ghi ở `useUpdateProject`: ca 409 nghĩa là bản
+ * trong tay ta đã cũ, giữ lại chỉ khiến lần thử kế tiếp hỏng y hệt.
+ */
+function useProjectStatusMutation(id: string, mutationFn: (id: string) => Promise<unknown>) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => mutationFn(id),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: projectKeys.all });
+    },
+  });
+}
+
+export function useCompleteProject(id: string) {
+  return useProjectStatusMutation(id, completeProject);
+}
+
+export function useReopenProject(id: string) {
+  return useProjectStatusMutation(id, reopenProject);
 }
