@@ -5,16 +5,16 @@ method: POST
 auth:
   type: noauth
 description: |-
-  Không có body: refresh token đi bằng cookie httpOnly `pms_refresh_token` (ADR-027).
-  Postman tự quản lý cookie jar theo domain nên chỉ cần chạy Login/Register trước là
+  Không có body: refresh token đi bằng cookie httpOnly `pms_refresh_token` (ADR-027).  
+  Postman tự quản lý cookie jar theo domain nên chỉ cần chạy Login/Register trước là  
   cookie có sẵn — không phải copy token bằng tay nữa.
 
-  Cookie có `Path=/api/v1/auth`, mà Path của cookie PHÂN BIỆT HOA THƯỜNG (route ASP.NET
-  thì không). Gọi `{{api_url}}/Auth/refresh` chữ A hoa vẫn trúng route nhưng cookie sẽ
+  Cookie có `Path=/api/v1/auth`, mà Path của cookie PHÂN BIỆT HOA THƯỜNG (route ASP.NET  
+  thì không). Gọi `{{api_url}}/Auth/refresh` chữ A hoa vẫn trúng route nhưng cookie sẽ  
   KHÔNG được đính kèm và bạn nhận 401 — giữ nguyên chữ thường trong url.
 
-  ⚠️ Rotation + reuse detection: bấm Send hai lần liên tiếp thì lần hai dùng lại token đã
-  bị thu hồi, bị coi là token bị đánh cắp và TOÀN BỘ phiên bị thu hồi. Sau lần đó phải
+  ⚠️ Rotation + reuse detection: bấm Send hai lần liên tiếp thì lần hai dùng lại token đã  
+  bị thu hồi, bị coi là token bị đánh cắp và TOÀN BỘ phiên bị thu hồi. Sau lần đó phải  
   đăng nhập lại.
 scripts:
   - type: afterResponse

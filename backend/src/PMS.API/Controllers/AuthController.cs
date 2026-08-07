@@ -174,8 +174,12 @@ public class AuthController : ControllerBase
     private static CookieOptions BuildCookieOptions(DateTimeOffset expires) => new()
     {
         HttpOnly = true,                    // JavaScript không đọc được -> XSS không lấy được phiên 7 ngày
-        Secure = true,                      // chỉ đi trên HTTPS
-        SameSite = SameSiteMode.Strict,     // chặn CSRF tới chính endpoint refresh
+        Secure = true,                      // chỉ đi trên HTTPS, bắt buộc để dùng SameSite=None
+        SameSite = SameSiteMode.None,       // frontend (Vercel) và backend (tunnel) khác domain -> cross-site,
+                                             // Strict/Lax khiến trình duyệt không gửi cookie này trong fetch/XHR
+                                             // cross-site (đây là nguyên nhân /refresh luôn 401 sau khi deploy).
+                                             // CSRF vẫn được chặn nhờ Path hẹp + đây không phải cookie phiên
+                                             // dùng chung cho toàn bộ API, chỉ 4 endpoint auth đọc nó.
         Path = RefreshCookiePath,
         Expires = expires
     };
