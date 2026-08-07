@@ -6,7 +6,7 @@ body:
   type: json
   content: |
     {
-        "email": "cuong@pms.local",
+        "email": "phuc@pms.local",
         "password": "Password123!"
     }
 auth:
