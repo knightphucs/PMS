@@ -21,7 +21,12 @@ export interface RequestOptions {
 }
 
 function buildUrl(path: string, query?: RequestOptions['query']): string {
-  const url = new URL(`${API_BASE_URL}${path}`);
+  // `API_BASE_URL` có thể tuyệt đối (dev: https://localhost:7264/api/v1) hoặc tương đối
+  // (deploy: /api/v1, để đi qua rewrite same-origin trong next.config.ts — xem ADR-027).
+  // `new URL()` không tự suy ra origin cho chuỗi tương đối, phải truyền `base` tường
+  // minh; khi URL đã tuyệt đối thì `base` bị bỏ qua, không ảnh hưởng gì.
+  const base = typeof window !== 'undefined' ? window.location.origin : undefined;
+  const url = new URL(`${API_BASE_URL}${path}`, base);
 
   for (const [key, value] of Object.entries(query ?? {})) {
     if (value === undefined || value === null || value === '') continue;
