@@ -175,11 +175,13 @@ public class AuthController : ControllerBase
     {
         HttpOnly = true,                    // JavaScript không đọc được -> XSS không lấy được phiên 7 ngày
         Secure = true,                      // chỉ đi trên HTTPS, bắt buộc để dùng SameSite=None
-        SameSite = SameSiteMode.None,       // frontend (Vercel) và backend (tunnel) khác domain -> cross-site,
-                                             // Strict/Lax khiến trình duyệt không gửi cookie này trong fetch/XHR
-                                             // cross-site (đây là nguyên nhân /refresh luôn 401 sau khi deploy).
-                                             // CSRF vẫn được chặn nhờ Path hẹp + đây không phải cookie phiên
-                                             // dùng chung cho toàn bộ API, chỉ 4 endpoint auth đọc nó.
+        SameSite = SameSiteMode.Strict,      // chặn CSRF tới chính endpoint refresh
+                                              // 🔴 Chỉ đúng khi frontend proxy /api/* qua chính domain của nó
+                                              // (xem next.config.ts rewrite phía frontend) khiến trình duyệt thấy
+                                              // request same-origin. Nếu frontend gọi THẲNG ra domain backend
+                                              // (khác domain -> cross-site), Strict/Lax sẽ khiến trình duyệt
+                                              // không bao giờ gửi cookie này -> /refresh 401 liên tục sau reload.
+                                              // Trường hợp đó phải đổi sang SameSite=None (bắt buộc kèm Secure).
         Path = RefreshCookiePath,
         Expires = expires
     };
