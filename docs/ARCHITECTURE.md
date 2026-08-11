@@ -160,6 +160,66 @@
 
 ---
 
+## 0. Định hướng sản phẩm — vì sao lộ trình đi hướng này
+
+> 📌 **Đọc mục này trước khi lên kế hoạch cho bất kỳ phiên nào.** Thiếu ngữ cảnh ở đây thì
+> mọi hạng mục từ ADR-059 trở đi trông như "thêm tính năng cho giống Jira" — đúng cái đang
+> cố tránh. Soạn 2026-08-11, sau một đợt rà soát toàn hệ thống.
+>
+> **Ba tài liệu, ba mục đích:** file này = thiết kế + nhật ký quyết định ·
+> `frontend-next-session.md` §000 = việc kế tiếp + prompt mở phiên ·
+> **`RUNBOOK.md` = lệnh chạy/deploy/kiểm chứng**.
+
+### Người dùng đích, và điều đó đổi thứ gì
+
+Hệ thống này **được giao để dùng thật trong phòng quản lý hạ tầng công nghệ** — không phải
+một bài tập mô phỏng Jira. Đó là sự thật quan trọng nhất trong tài liệu này, vì nó mâu thuẫn
+với hình dạng mà dự án đã lớn lên:
+
+> **Sản phẩm tính tới ADR-056 là một mini-Jira trung thành cho đội phần mềm chạy Scrum.
+> Nhưng đội hạ tầng KHÔNG chạy sprint.** Họ chạy: sự cố, yêu cầu dịch vụ, change request cần
+> phê duyệt, cửa sổ bảo trì, việc lặp định kỳ (vá lỗi, kiểm backup, gia hạn chứng thư), trực
+> ca, và SLA.
+
+Vì vậy hướng khác biệt **không phải** "thêm thứ Notion-like cho khác Jira" — mà là **hợp với
+công việc thật của người dùng**. Đó cũng là câu chuyện tốt hơn hẳn cho báo cáo thực tập:
+*"không clone Jira, mà làm cái Jira không làm được cho đội tôi."*
+
+### Ba tầng của lộ trình
+
+| Tầng | Là gì | Trạng thái |
+|---|---|---|
+| **Nền tảng mở rộng** | Đội tự khai **trường** (ADR-059) và **loại công việc** (ADR-060) của họ; view lưu được (ADR-061) | 059 ✅ · 060 ✅ · 061 ⬜ |
+| **Lớp đặc thù hạ tầng** | Phê duyệt CAB · việc lặp/bảo trì · lịch · SLA · gắn tài sản · xuất kiểm toán | ⬜ Giai đoạn 3 |
+| **Sẵn sàng vận hành** | Email thật · kiểm toán xác thực · Docker · CI (ADR-058) | ✅ (còn AD/SSO ở §14) |
+
+🔴 **Thứ tự có lý do.** Tầng 1 phải xong trước tầng 2: có trường tuỳ biến và loại công việc
+rồi thì "Change Request có Hệ thống ảnh hưởng và Mức rủi ro" là **cấu hình**, không phải
+code. Làm ngược lại là hardcode từng loại việc — đúng cái khuôn cứng đang muốn thoát khỏi.
+
+### Ba nguyên tắc rút ra từ chính dự án này
+
+1. **Không ship một cờ không chặn được gì.** `IsRequired` bị hoãn ở ADR-059 và chỉ ra đời ở
+   ADR-060 khi có điểm cưỡng chế thật. Tiền lệ: `Project.Status` từng nằm trong DTO, là khoá
+   `sortBy`, mà **không có một caller nào** ngoài `DbSeeder` — một trường chết đội lốt tính
+   năng suốt nhiều phiên (ADR-048).
+2. **Chọn cách lưu trữ cho tính năng KẾ TIẾP, không phải tính năng này.** ADR-059 chọn cột
+   có kiểu thay vì một cột JSON vì bộ lọc của ADR-061 sẽ phải so ngày và số đúng kiểu.
+3. **"Build sạch, test xanh, tài liệu ghi ✅" có thể là ba lời khai sai cùng lúc.** Dự án đã
+   gặp đúng hình dạng lỗi này **tám lần**. Mới nhất: 12 test đỏ nằm trên `main` bốn ngày
+   trong khi bảng tiến độ ghi ✅ cho toàn bộ module (ADR-057).
+
+### Những gì CỐ Ý không làm, và vì sao
+
+| Hạng mục | Lý do hoãn |
+|---|---|
+| **SignalR** | Polling 60s đủ dùng cho quy mô một phòng ban. §6 đã quyết từ đầu: chỉ làm sau khi core ổn định |
+| **Elasticsearch / search toàn cục** | Cùng công sức nhưng giá trị thấp hơn hẳn lớp đặc thù hạ tầng. Nới `?search=` **không** thay thế được (chỉ lọc một trường mỗi endpoint) |
+| **AD/LDAP SSO** | Bắt buộc khi thật sự vào hạ tầng ngân hàng, nhưng hiện chạy trên Vercel + Cloudflare Tunnel. Phân tích ở §14 đã là điểm cộng cho báo cáo |
+| **Component/E2E test frontend** | Ưu tiên kiểm tay có ghi chép; dựng Playwright đắt hơn giá trị nó mang lại ở giai đoạn này |
+
+---
+
 ## 1. Tổng quan dự án
 
 **Mô tả:** Hệ thống quản lý dự án và task, cho phép nhóm và các thành viên phân công
@@ -258,6 +318,12 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | ~~—~~ | ~~**Đường ghi hồ sơ cá nhân**~~ | ✅ 2026-08-06 | **ADR-054** — `PUT /auth/profile` + `POST /auth/change-password`, phát lại token, `/profile` hết chỉ-đọc |
 | ~~11~~ | ~~**Nhóm báo cáo kiểu Jira**~~ | ✅ 2026-08-06 | **ADR-056** — backlog insight + velocity + timeline, cả ba xong. FE tách thành ba tab/route riêng thay vì dồn chung |
 | ~~12~~ | ~~**Áp kỹ thuật DB**~~ | ✅ 2026-08-06 | **ADR-055** — index · view · 2 stored procedure · trigger · CHECK constraint, migration `AddReportingDbObjects` |
+| ~~15~~ | ~~**Vá đỏ + chốt mô hình thành viên**~~ | ✅ 2026-08-11 | **ADR-057** — 12 test đỏ có sẵn trên `main`, gỡ luồng chờ-chấp-nhận, bù Designer cho migration viết tay, 7 test Story Points |
+| ~~16~~ | ~~**Sẵn sàng vận hành**~~ | ✅ 2026-08-11 | **ADR-058** — SMTP thật, `FrontendBaseUrl` ValidateOnStart, tách Migrate/Seed, kiểm toán xác thực, Docker + CI |
+| ~~17~~ | ~~**Trường tuỳ biến theo project**~~ | ✅ 2026-08-12 | **ADR-059** — nền tảng mở rộng, phần 1. 4 bảng, 7 endpoint, 18 test, frontend đầy đủ |
+| ~~18~~ | ~~**Loại công việc theo project**~~ | ✅ 2026-08-12 | **ADR-060** — nền tảng mở rộng, phần 2. `IsRequired` có điểm cưỡng chế thật. 5 endpoint, 17 test, frontend đầy đủ |
+| **19** | **View lưu được (`SavedView`)** | ⬜ **kế tiếp** | **ADR-061** — mảnh cuối Giai đoạn 2. Bộ lọc + group-by + tập cột, chia sẻ được; cần một màn danh sách task dạng bảng. Ba quyết định phải chốt trước — xem `frontend-next-session.md` §000 |
+| **20** | **Lớp đặc thù hạ tầng** | ⬜ Giai đoạn 3 | Phê duyệt CAB · việc lặp/bảo trì · view lịch · SLA · gắn tài sản · xuất kiểm toán. Xây trên ADR-059/060 nên **không hardcode** loại việc nào. Chi tiết + thứ tự ưu tiên ở `frontend-next-session.md` §000 |
 | 13 | **Real-time (SignalR)** | ⬜ | Theo §6, chỉ làm sau khi core CRUD **và** frontend đã ổn định. Cố ý KHÔNG làm ở phiên 2026-08-06 |
 | 14 | **Elasticsearch + Redis** | ⬜ | Định hướng xa. Elasticsearch là lời giải thật cho "Search toàn cục"; Redis cho cache + rate limit phân tán |
 
@@ -1453,6 +1519,8 @@ mỗi nhóm đủ lớn để chiếm trọn một phiên.
 |---|---|---|
 | **Báo cáo kiểu Jira** | Backlog insight · velocity · report · timeline | ✅ **Vòng đời Sprint đã xong 2026-08-05** (ADR-050), nên velocity **hết bị chặn** — mốc đo là `Sprint.CompletedAt`. ⚠️ Gom số liệu theo `columnId`/`category`, KHÔNG theo enum (ADR-052) |
 | **Kỹ thuật DB** | Trigger · stored procedure · view · index | ⚠️ Trigger đụng thẳng vào `ApplyAuditFields`/`ApplySoftDelete` của `PmsDbContext` và vào lệnh cấm bulk-update của ADR-024 — đọc cả hai trước khi viết trigger đầu tiên. View là chỗ hợp lý nhất để bắt đầu: các truy vấn tổng hợp ở `ProjectStatisticsRepository` là ứng viên sẵn |
+| **Lớp đặc thù hạ tầng** | Phê duyệt CAB · việc lặp + cửa sổ bảo trì · view lịch · SLA · gắn tài sản (CMDB nhẹ) · xuất nhật ký kiểm toán | 🔴 **Đây là hướng khác biệt chính của sản phẩm** — xem §0. Xây trên ADR-059/060: "Change Request có Hệ thống ảnh hưởng" là **cấu hình**, không phải code. Gắn tài sản nên **thử bằng trường MultiSelect trước** khi dựng bảng mới |
+| **AD / LDAP SSO** | Đăng nhập bằng tài khoản miền thay cho bảng mật khẩu BCrypt riêng | Bắt buộc khi thật sự vào hạ tầng nội bộ ngân hàng — một hệ thống nội bộ hiếm khi được phép giữ mật khẩu riêng. Hiện chạy Vercel + Cloudflare Tunnel nên chưa chặn gì. ⚠️ Đụng vào `AuthService` + `TokenService` + toàn bộ luồng refresh (ADR-027); **cần ADR riêng** |
 | **Elasticsearch + Redis** | Search toàn cục · cache + rate limit phân tán | Elasticsearch là **lời giải đúng** cho "Search toàn cục" (§1 mục B) — nới `?search=` không thay thế được vì nó chỉ lọc một trường mỗi endpoint. Redis: rate limit hiện là in-memory nên không đúng khi chạy nhiều instance |
 
 ### Nhóm C — nice-to-have, chỉ làm nếu còn dư thời gian

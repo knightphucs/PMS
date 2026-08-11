@@ -1,106 +1,144 @@
 # Chuẩn bị cho phiên Frontend kế tiếp
 
 > **Cập nhật 2026-08-12** — **đọc §000 trước**. Mọi mục bên dưới là hồ sơ của các phiên cũ.
-> Đọc cùng `ARCHITECTURE.md` §1 (bảng tiến độ) và **ADR-057 → ADR-059**.
+> Đọc cùng `ARCHITECTURE.md` **§0 (Định hướng sản phẩm)**, §1 (bảng tiến độ) và
+> **ADR-057 → ADR-060**. Lệnh vận hành: `docs/RUNBOOK.md`.
 
 ---
 
 ## 000. 🆕 Phiên kế tiếp — VIEW LƯU ĐƯỢC (ADR-061)
 
-> ✅ **ADR-060 (loại công việc) ĐÃ XONG 2026-08-12** — backend + frontend + 17 test.
-> Mục dưới đây giữ nguyên phần bối cảnh và bẫy; **việc kế tiếp nay là ADR-061**, xem cuối mục.
+### Trạng thái khi bàn giao — 2026-08-12
 
-### (hồ sơ) Phiên ADR-060
-
-### Trạng thái khi bàn giao
-
-`main` xanh: **570 test backend** (249 unit + 321 integration) + 72 test frontend, typecheck
-và lint sạch, `next build` qua. Ba phiên vừa rồi:
+`main` xanh: **587 test backend** (249 unit + 338 integration) + 72 test frontend.
+typecheck · lint · `next build` sạch. Nhánh làm việc gần nhất:
+`fix/adr-057-member-onboarding` (2 commit, **chưa merge** vào `dev`/`main`).
 
 | ADR | Nội dung |
 |---|---|
-| **057** | Vá 12 test đỏ có sẵn; chốt "thêm thành viên là phân công, không phải lời mời"; gỡ luồng chờ-chấp-nhận nội bộ |
-| **058** | `SmtpEmailSender`; `App:FrontendBaseUrl` ValidateOnStart; tách `Migrate`/`Seed` khỏi `IsDevelopment()`; 8 `ActivityAction` cho nhóm xác thực + `IActivityLogger.LogAs`; Docker + CI |
+| **057** | Vá **12 test đỏ có sẵn trên `main`**; chốt "thêm thành viên là PHÂN CÔNG, không phải lời mời"; gỡ luồng chờ-chấp-nhận nội bộ; bù `.Designer.cs` cho `AddStoryPointsToTasks`; 7 test cho Story Points |
+| **058** | `SmtpEmailSender`; `App:FrontendBaseUrl` ValidateOnStart; tách `Migrate`/`Seed` khỏi `IsDevelopment()`; 8 `ActivityAction` cho nhóm xác thực + `IActivityLogger.LogAs`; Dockerfile + compose + CI 3 job |
 | **059** | **Trường tuỳ biến theo project** — 4 bảng, 7 endpoint, 18 test, frontend đầy đủ |
+| **060** | **Loại công việc theo project** — `WorkItemType` + bảng nối, 5 endpoint, 17 test, frontend đầy đủ. `IsRequired` có điểm cưỡng chế thật |
 
-### Việc của phiên này: `WorkItemType` — loại công việc theo project
+> 📌 **Đọc `ARCHITECTURE.md` §0 "Định hướng sản phẩm" TRƯỚC KHI làm bất cứ gì.** Nó giải
+> thích vì sao lộ trình đi hướng này (người dùng đích là phòng quản lý hạ tầng, không chạy
+> Scrum) — thiếu ngữ cảnh đó thì mọi hạng mục dưới đây trông như "thêm tính năng cho giống
+> Jira", đúng cái đang cố tránh.
 
-Mục tiêu sản phẩm: phòng hạ tầng khai được `Sự cố` · `Yêu cầu` · `Change Request` · `Bảo trì`
-thay vì chỉ có một loại "Task" duy nhất, **và mỗi loại lộ ra một tập trường khác nhau**.
-Đây là điểm rẽ dứt khoát khỏi "mini-Jira": không hardcode một loại nào.
+---
 
-#### Prompt gợi ý để mở phiên mới
+### Việc của phiên này: `SavedView` — view lưu được (ADR-061)
+
+Hệ thống hiện **không lưu một bộ lọc nào**. Mọi thứ là state tạm: board có `?sprint=`,
+`/my-work` có toggle grouped/flat, hết. Đây là mảnh cuối của Giai đoạn 2 và là thứ "Notion"
+thật sự — đội tự dựng góc nhìn của họ thay vì nhận một bố cục cố định.
+
+#### Prompt để mở phiên mới
 
 ```
-Đọc docs/ARCHITECTURE.md §1 (bảng tiến độ) và phần "Chi tiết ADR-059" ở cuối file,
-cùng docs/frontend-next-session.md §000.
+Đọc docs/ARCHITECTURE.md §0 (Định hướng sản phẩm), §1 (bảng tiến độ + lộ trình),
+phần "Chi tiết ADR-059" và "Chi tiết ADR-060" ở cuối file, cùng
+docs/frontend-next-session.md §000.
 
-Làm ADR-060 — loại công việc (WorkItemType) theo từng project, xây trên nền trường
-tuỳ biến của ADR-059:
+Làm ADR-061 — view lưu được (SavedView), mảnh cuối của Giai đoạn 2:
 
-1. Entity `WorkItemType` (ProjectId, Name, Icon, Color, Order) + `TaskItem.WorkItemTypeId`.
-   Mỗi project mới seed sẵn một loại mặc định "Task" — bám khuôn
-   BoardColumn.CreateDefaults() đã có sẵn cho cột board.
-2. Bảng nối `WorkItemTypeFields` (WorkItemTypeId, FieldDefinitionId, IsRequired, Order):
-   mỗi loại khai nó dùng những trường nào của project. ĐÂY là chỗ `IsRequired` cuối cùng
-   có điểm cưỡng chế thật — ADR-059 đã cố ý không ship cờ đó vì chưa có chỗ nào chặn được.
-3. Cưỡng chế `IsRequired` ở đường ghi giá trị, và nói rõ trong ADR chuyện gì xảy ra với
-   task ĐANG CÓ khi ai đó bật required cho một trường (đừng làm mọi task cũ thành không
-   hợp lệ — đó là lý do ADR-059 hoãn nó).
-4. `GET/PATCH /tasks/{id}/field-values` lọc theo loại của task.
-5. Frontend: ô chọn loại ở form tạo/sửa task, chip loại trên thẻ Kanban và chi tiết task,
-   quản lý loại trong dialog cạnh "Trường tuỳ biến" ở trang Bảng.
+1. Entity `SavedView` (ProjectId, Name, OwnerId, IsShared, Filters json, GroupBy,
+   SortBy, VisibleColumns json, Order). Bám khuôn BoardColumn/FieldDefinition:
+   CRUD theo project, quyền ManageX cho thao tác ghi lên view CHIA SẺ, còn view
+   riêng thì chủ sở hữu tự quản.
+2. Một màn DANH SÁCH TASK dạng bảng — endpoint `listProjectTasks` đã tồn tại ở
+   frontend/lib/api/endpoints/tasks.ts và tới giờ mới có đúng một người dùng nhỏ
+   (ô chọn task khi tạo liên kết). Đây là nơi view được áp dụng.
+3. Bộ lọc phải chạm được TRƯỜNG TUỲ BIẾN (ADR-059) và LOẠI CÔNG VIỆC (ADR-060) —
+   đó là lý do ADR-059 chọn cột có kiểu thay vì một cột JSON: lọc/sắp xếp theo
+   ngày và số phải so đúng kiểu, không so chuỗi.
+4. Frontend: thanh view ở đầu màn danh sách (chọn view, lưu view mới, sửa, xoá),
+   bộ lọc + group-by + chọn cột hiển thị.
 
-Ràng buộc: viết ADR-060 TRƯỚC khi gõ code. Migration phải qua `dotnet ef` (có Designer).
-Test integration cho mọi nhánh quyền và mọi ràng buộc chéo project. Chạy full test +
+Ràng buộc: viết ADR-061 TRƯỚC khi gõ code. Migration qua `dotnet ef` (có Designer).
+Test integration cho mọi nhánh quyền + ranh giới chéo project. Chạy full test +
 drift check trước khi báo xong.
 ```
 
-#### 🪤 Bốn cái bẫy đã trả giá — đừng đi lại
+#### 🔴 Quyết định phải chốt TRƯỚC khi gõ code
 
-1. 🔴 **Cascade nhiều đường xuống một bảng nối → SQL Server từ chối tạo FK.** ADR-059 dính
-   đúng cái này: `FieldDefinitions` chạm `FieldValueOptions` qua hai đường. Triệu chứng rất
-   dễ đọc nhầm — **mọi test đỏ cùng lúc trong ~12ms**, tức hỏng ở tầng dựng host chứ không
-   phải logic. `WorkItemTypeFields` là bảng nối thứ hai của cụm này, **rủi ro y hệt**: vẽ sơ
-   đồ cascade ra giấy trước khi chạy migration.
+1. **Bộ lọc lưu dạng gì?** JSON blob dễ viết nhưng không kiểm chứng được, và một trường bị
+   xoá sẽ để lại filter trỏ vào hư không. Cân nhắc bảng `SavedViewFilter` quan hệ (ViewId,
+   FieldDefinitionId?, BuiltInField?, Operator, Value) — đắt hơn nhưng cascade dọn được khi
+   xoá trường, đúng bài học `FieldOption` của ADR-059.
+2. **View chia sẻ ai sửa được?** Chủ sở hữu, hay bất kỳ PM nào? Chọn sai sẽ hoặc khoá view
+   chung vào một người đã rời dự án, hoặc cho mọi PM ghi đè công của nhau.
+3. **View riêng của người đã bị gỡ khỏi project** — xoá theo, hay để lại? Có tiền lệ:
+   `RemoveMemberAsync` xoá cứng hàng `ProjectMember`.
 
-2. 🔴 **`AsNoTracking` + many-to-many = INSERT lại hàng đã có.** Gán một entity rời vào
-   navigation của entity đang tracked làm EF coi nó là hàng MỚI →
-   `Violation of PRIMARY KEY constraint`. ADR-059 phải thêm hẳn
-   `ListByProjectWithTrackingAsync` riêng cho đường GHI. Bảng nối mới sẽ gặp lại.
+---
 
-3. 🔴 **Trong một test có nhiều lần ghi, khẳng định mã trạng thái ở TỪNG lần.** Test
+### 🪤 Bảy cái bẫy đã trả giá — đừng đi lại
+
+1. 🔴 **Cascade nhiều đường xuống một bảng nối → SQL Server từ chối tạo FK.** ADR-059 dính:
+   `FieldDefinitions` chạm `FieldValueOptions` qua hai lối. Triệu chứng rất dễ đọc nhầm —
+   **mọi test đỏ cùng lúc trong ~12ms**, tức hỏng ở tầng dựng host chứ không phải logic.
+   Vẽ sơ đồ cascade ra giấy trước khi chạy migration (ADR-060 làm vậy và tránh được).
+2. 🔴 **`AsNoTracking` + many-to-many = INSERT lại hàng đã có** →
+   `Violation of PRIMARY KEY constraint`. Đường GHI phải dùng bản đọc CÓ tracking.
+3. 🔴 **Đặt khoá ngoại mà quên navigation** → NRE ở mọi lần tạo, vì mapper đọc
+   `task.X.Name` ngay sau khi tạo entity trong bộ nhớ (ADR-060). Xem `MoveTo` làm mẫu:
+   đặt CẢ `BoardColumnId` lẫn `BoardColumn`.
+4. 🔴 **Trong một test có nhiều lần ghi, khẳng định mã trạng thái ở TỪNG lần.** Test
    MultiSelect của ADR-059 chỉ kiểm lần PATCH thứ hai; lần đầu cũng 500 nhưng triệu chứng
-   hiện ra thành *"JSON không parse được"* ở lần thứ hai — sai chỗ, sai cả nguyên nhân.
-
-4. ⚠️ **`dotnet ef migrations remove` xoá trắng snapshot nếu migration liền trước thiếu
-   `.Designer.cs`.** Đã sửa ở ADR-057 (bù Designer cho `AddStoryPointsToTasks`), nhưng luật
-   vẫn còn: **mọi migration phải sinh bằng `dotnet ef`**, không viết tay.
-
-#### Nợ kiểm chứng vẫn treo — không phiên nào trả được
-
-- ✅ **Kéo–thả ĐÃ kiểm bằng tay và chạy đúng** — người dùng xác nhận 2026-08-12. Món nợ
-  treo qua 7 phiên nay đã trả.
-- ⬜ **Giao diện trường tuỳ biến chưa bấm thử trên trình duyệt.** Backend có 18 integration
-  test đi qua HTTP thật; phần frontend mới chỉ có typecheck + lint + `next build`. Cụ thể
-  chưa xác nhận bằng mắt: chip Select đổi màu đúng, ô Date gửi đúng ngày, và khối tự ẩn khi
-  project chưa khai trường nào.
-
-#### Việc còn lại của Giai đoạn 2, sau ADR-060
-
-- **ADR-061 — view lưu được** (`SavedView`: filter + group-by + tập cột, chia sẻ được). Hiện
-  hệ thống **không lưu một bộ lọc nào**. Cần một màn danh sách task dạng bảng — endpoint
-  `listProjectTasks` đã tồn tại trong `lib/api/endpoints/tasks.ts` và tới giờ mới có đúng
-  một người dùng nhỏ.
-- Sau đó là Giai đoạn 3 (phê duyệt CAB · việc lặp/bảo trì · lịch · SLA) — xem kế hoạch.
+   hiện ra thành *"JSON không parse được"* — sai chỗ, sai cả nguyên nhân.
+5. ⚠️ **Cột FK bắt buộc thêm vào bảng có sẵn cần backfill, và backfill phải nằm ĐÚNG CHỖ**:
+   sau `CreateTable`, **trước** `AddForeignKey` (ADR-060).
+6. ⚠️ **`dotnet ef migrations remove` xoá trắng snapshot nếu migration liền trước thiếu
+   `.Designer.cs`.** Đã vá ở ADR-057, nhưng luật còn nguyên: **mọi migration sinh bằng
+   `dotnet ef`**, không viết tay.
+7. ⚠️ **Thêm một khái niệm mới vào `TaskItem` là chạm vào ~6 test fixture.** ADR-060 phải
+   sửa `IntegrationTestBase.SeedTaskAsync`, `DbSeeder`, và ba fixture unit test. Dự trù
+   trước, đừng tưởng là lỗi.
 
 ---
 
-> Soạn ngày 2026-07-31, cuối phiên "Frontend — nền tảng".
-> **Cập nhật 2026-08-06** — **đọc §00 trước**, rồi §0, §0-chiều, §0-cũ và §0a; các mục bên
-> dưới lỗi thời phần lớn. Đọc cùng `ARCHITECTURE.md` §6 và ADR-027 → **ADR-056**.
+### Nợ kiểm chứng
+
+- ✅ **Kéo–thả ĐÃ kiểm bằng tay và chạy đúng** — người dùng xác nhận 2026-08-12. Món nợ treo
+  qua 7 phiên nay đã trả.
+- ⬜ **Giao diện ADR-059/060 chưa bấm thử trên trình duyệt.** Backend có 35 integration test
+  đi qua HTTP thật; phần frontend mới chỉ typecheck + lint + `next build`. Chưa xác nhận
+  bằng mắt: chip Select đổi màu đúng, ô Date gửi đúng ngày, khối trường tự ẩn, chip loại
+  trên thẻ Kanban, ô chọn loại tự ẩn khi project chỉ có một loại.
+- ⬜ **`docker compose up` đầy đủ chưa chạy được trên máy dev** (SQL Server không có ảnh
+  arm64; cần bật Rosetta trong Docker Desktop). Ảnh API thì đã kiểm đầu-cuối, và CI có job
+  build + khởi động thật.
 
 ---
+
+### Sau ADR-061 — Giai đoạn 3 (lớp đặc thù hạ tầng)
+
+Xây trên nền ADR-059/060 nên **không phải hardcode** thứ gì. Xếp theo giá trị:
+
+| # | Hạng mục | Vì sao, và móc vào đâu |
+|---|---|---|
+| 1 | **Phê duyệt (CAB)** | Change Request phải có người ký duyệt mới được chuyển cột. Cắm vào `TaskStatusTransitionService` — guard duy nhất còn lại sau khi ADR-052 gỡ ma trận. Hiện **không có cách nào** diễn đạt điều này |
+| 2 | **Việc lặp định kỳ + cửa sổ bảo trì** | Vá lỗi, kiểm backup, gia hạn chứng thư — nhịp sống của đội hạ tầng. `DueDateNotificationWorker` đã có sẵn `PeriodicTimer` mỗi giờ |
+| 3 | **View lịch** | Gần cách hạ tầng lập kế hoạch hơn sprint. `SprintTimelineChart` là mẫu tự dựng bằng `<div>` định vị `%`, dùng lại cách đó |
+| 4 | **Đồng hồ SLA** | `Priority` + `DueDate` đã có; thiếu tầng chính sách + cảnh báo sắp vi phạm |
+| 5 | **Gắn tài sản / hệ thống (CMDB nhẹ)** | "Task này ảnh hưởng server X". Có thể làm **hoàn toàn bằng trường tuỳ biến** kiểu MultiSelect — thử cách đó trước khi dựng bảng mới |
+| 6 | **Xuất nhật ký cho kiểm toán** | `ActivityLog` đã đủ dữ liệu (kể cả nhóm xác thực từ ADR-058), thiếu đường xuất CSV |
+
+Nếu hết thời gian: làm **1 + 2** (giá trị cao nhất, chi phí thấp nhất), ghi 3–6 vào §14.
+
+---
+
+### Cố ý KHÔNG làm
+
+- **SignalR** — polling 60s đủ dùng (`lib/hooks/use-notifications.ts:26`), giữ ngoài phạm vi
+  đúng như §6 đã quyết
+- **Elasticsearch / search toàn cục** — giá trị thấp hơn hẳn Giai đoạn 3 với cùng công sức
+- **AD/LDAP SSO** — chỉ bắt buộc khi thật sự vào hạ tầng ngân hàng; hiện là Vercel + tunnel.
+  Ghi vào §14 kèm phân tích, đó đã là điểm cộng cho báo cáo
+- **Component/E2E test frontend** — ưu tiên kiểm tay có ghi chép, rẻ hơn dựng Playwright
+
 
 ## 00. 🆕 Cập nhật 2026-08-06 — hồ sơ cá nhân · kỹ thuật DB · nhóm báo cáo
 
