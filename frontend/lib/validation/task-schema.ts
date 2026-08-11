@@ -17,6 +17,8 @@ export const taskSchema = z.object({
     .min(1, 'Vui lòng nhập tên task.')
     .max(200, 'Tên task tối đa 200 ký tự.'),
   priority: z.enum(['Highest', 'High', 'Medium', 'Low', 'Lowest']),
+  // Loại công việc (ADR-060). Chuỗi rỗng = giữ mặc định của project khi tạo mới.
+  workItemTypeId: z.string(),
   storyPoints: z
     .number()
     .int('Story Point phải là số nguyên.')

@@ -9,6 +9,7 @@ import { WarningBanner } from '@/components/common/warning-banner';
 import { Field } from '@/components/form/field';
 import { FormError } from '@/components/form/form-error';
 import { PriorityLabel } from '@/components/tasks/priority-icon';
+import { useWorkItemTypes } from '@/lib/hooks/use-work-item-types';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -44,7 +45,7 @@ import {
 import { PRIORITY_ORDER, type Priority } from '@/types/enums';
 
 /** ⚠️ Khớp ĐÚNG tên property của Create/UpdateTaskRequest. */
-const FIELDS = ['name', 'priority', 'storyPoints', 'dueDate', 'sprintId', 'description'] as const;
+const FIELDS = ['name', 'priority', 'workItemTypeId', 'storyPoints', 'dueDate', 'sprintId', 'description'] as const;
 
 /** `Select` không nhận chuỗi rỗng làm value — dùng token này cho "Backlog". */
 const BACKLOG = 'backlog';
@@ -112,11 +113,13 @@ export function TaskFormDialog({
   } = useForm<TaskValues>({
     resolver: zodResolver(taskSchema),
     defaultValues: {
-      name: '', priority: 'Medium', storyPoints: 0, dueDate: '', sprintId: '', description: '',
+      name: '', priority: 'Medium', workItemTypeId: '', storyPoints: 0, dueDate: '', sprintId: '', description: '',
     },
   });
 
   const priority = watch('priority');
+  const workItemTypeId = watch('workItemTypeId');
+  const workItemTypes = useWorkItemTypes(projectId);
   const sprintId = watch('sprintId');
 
   // Đổ dữ liệu vào form khi chi tiết về — VÀ khi nạp LẠI sau 409.
@@ -127,6 +130,9 @@ export function TaskFormDialog({
       reset({
         name: '',
         priority: 'Medium',
+        // Rỗng = để backend chọn loại mặc định của project. KHÔNG đoán loại đầu danh sách
+        // ở client: hai nơi cùng quyết định "mặc định là gì" thì chắc chắn có lúc lệch.
+        workItemTypeId: '',
         storyPoints: 0,
         dueDate: '',
         sprintId: defaultSprintId ?? '',
@@ -139,6 +145,7 @@ export function TaskFormDialog({
     reset({
       name: detail.data.name,
       priority: detail.data.priority,
+      workItemTypeId: detail.data.type.typeId,
       storyPoints: detail.data.storyPoints,
       dueDate: detail.data.dueDate ? toDateInputValue(detail.data.dueDate) : '',
       sprintId: detail.data.sprintId ?? '',
@@ -158,6 +165,8 @@ export function TaskFormDialog({
           await updateTask.mutateAsync({
             name: values.name,
             priority: values.priority,
+            // Rỗng -> undefined: backend hiểu là "giữ nguyên" (update) / "mặc định" (create).
+            workItemTypeId: values.workItemTypeId || undefined,
             storyPoints: values.storyPoints,
             dueDate: toNullableIso(values.dueDate),
             // 🔴 `PUT /tasks/{id}` GHI ĐÈ TOÀN PHẦN — mọi trường không gửi đều thành `null`.
@@ -177,6 +186,7 @@ export function TaskFormDialog({
             parentTaskId,
             dueDate: toNullableIso(values.dueDate),
             priority: values.priority,
+            workItemTypeId: values.workItemTypeId || undefined,
             storyPoints: values.storyPoints,
             description: toNullableText(values.description),
             // Subtask không nằm trên board (chỉ hiện trong chi tiết task cha) nên bỏ qua
@@ -266,7 +276,46 @@ export function TaskFormDialog({
               {...register('name')}
             />
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            {/* Loại công việc (ADR-060) đứng RIÊNG một hàng, không chen vào lưới hai cột
+                bên dưới: nó là ô duy nhất xuất hiện có điều kiện, nên nhét vào lưới sẽ đẩy
+                ba ô còn lại lệch một ô mỗi khi project có/không có nhiều loại — cùng một
+                form mà bố cục nhảy theo dữ liệu.
+
+                Ẩn hẳn khi project chỉ có MỘT loại: một ô chọn với đúng một lựa chọn không
+                cho người dùng quyết định gì. */}
+            {(workItemTypes.data?.length ?? 0) > 1 ? (
+              <div className="grid gap-2">
+                <Label htmlFor="task-type">Loại công việc</Label>
+                <Select
+                  value={workItemTypeId}
+                  onValueChange={(value) => setValue('workItemTypeId', value ?? '')}
+                >
+                  <SelectTrigger id="task-type" className="w-full">
+                    {/* 🔴 PHẢI có render prop. `SelectValue` trần của Base UI in ra chính
+                        GIÁ TRỊ của ô — ở đây là một Guid — chứ không phải nhãn của mục
+                        đang chọn. Ô ưu tiên và ô sprint đã dùng khuôn này từ đầu. */}
+                    <SelectValue placeholder="Chọn loại">
+                      {(current: string) =>
+                        (workItemTypes.data ?? []).find((t) => t.id === current)?.name ??
+                        'Chọn loại'
+                      }
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(workItemTypes.data ?? []).map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+
+            {/* `items-start`: các ô trong lưới cao không bằng nhau (ô có lỗi validation cao
+                hơn ô không có). Mặc định `stretch` sẽ kéo ô thấp cho bằng ô cao, làm chính
+                cái <input> bên trong giãn ra — đó là thứ nhìn thành "lệch". */}
+            <div className="grid items-start gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="task-priority">Độ ưu tiên</Label>
                 <Select
@@ -303,7 +352,6 @@ export function TaskFormDialog({
                 min="0"
                 max="1000"
                 step="1"
-                hint="0 = chưa ước lượng"
                 error={errors.storyPoints?.message}
                 {...register('storyPoints', { valueAsNumber: true })}
               />

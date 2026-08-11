@@ -24,6 +24,7 @@ public class AuthServiceTests
     private readonly ITokenService _tokenService = Substitute.For<ITokenService>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly IEmailSender _emailSender = Substitute.For<IEmailSender>();
+    private readonly IActivityLogger _activityLog = Substitute.For<IActivityLogger>();
 
     private readonly Guid _employeeId = Guid.NewGuid();
     private readonly AuthService _sut;
@@ -45,7 +46,7 @@ public class AuthServiceTests
 
         _sut = new AuthService(
             _uow, _passwordHasher, _tokenService, _currentUser, _emailSender,
-            new EmployeeMapper(), NullLogger<AuthService>.Instance);
+            new EmployeeMapper(), _activityLog, NullLogger<AuthService>.Instance);
     }
 
     private Employee NewEmployee(string name = "Tên Cũ") => new()

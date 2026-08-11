@@ -1,14 +1,20 @@
 using Microsoft.EntityFrameworkCore.Migrations;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using PMS.Infrastructure.Persistence;
 
 #nullable disable
 
 namespace PMS.Infrastructure.Persistence.Migrations;
 
-/// <summary>Thêm estimate Story Point và đưa tổng điểm Done vào nguồn dữ liệu velocity.</summary>
-[DbContext(typeof(PmsDbContext))]
-[Migration("20260807010000_AddStoryPointsToTasks")]
+/// <summary>
+/// Thêm estimate Story Point và đưa tổng điểm Done vào nguồn dữ liệu velocity.
+///
+/// <para>
+/// 📌 <c>[DbContext]</c> và <c>[Migration]</c> nằm ở file <c>.Designer.cs</c> đi kèm, KHÔNG
+/// ở đây — đó là quy ước của <c>dotnet ef</c> và khai ở cả hai chỗ là lỗi biên dịch
+/// <c>CS0579</c>. File này từng được viết TAY và thiếu hẳn Designer (2026-08-07); hệ quả là
+/// <c>dotnet ef migrations remove</c> xóa trắng <c>PmsDbContextModelSnapshot</c> vì nó dựng
+/// lại snapshot từ Designer của migration liền trước. Đã bổ sung 2026-08-11 (ADR-057).
+/// </para>
+/// </summary>
 public partial class AddStoryPointsToTasks : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)

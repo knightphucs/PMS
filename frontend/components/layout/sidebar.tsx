@@ -5,7 +5,6 @@ import {
   BellIcon,
   CheckSquareIcon,
   FolderKanbanIcon,
-  MailIcon,
   ShieldCheckIcon,
   type LucideIcon,
 } from 'lucide-react';
@@ -18,7 +17,6 @@ import {
   hasPermission,
   type SystemPermission,
 } from '@/lib/auth/system-permissions';
-import { useMyInvitations } from '@/lib/hooks/use-members';
 import { useMyProjectRole } from '@/lib/hooks/use-my-project-role';
 import { useProjectOverview } from '@/lib/hooks/use-projects';
 import { cn } from '@/lib/utils';
@@ -29,8 +27,6 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   href: string;
-  /** Khóa để tra số đếm ở `GlobalNav` — bản thân NAV_GROUPS là hằng, không giữ state. */
-  badge?: 'invitations';
   /** Chỉ hiện khi người dùng có quyền tầng 1 này (ADR-045). */
   permission?: SystemPermission;
 }
@@ -56,7 +52,6 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       // mà không bắt chọn dự án trước (ADR-053).
       { label: 'Việc của tôi', icon: CheckSquareIcon, href: '/my-work' },
       { label: 'Dự án', icon: FolderKanbanIcon, href: '/projects' },
-      { label: 'Lời mời', icon: MailIcon, href: '/invitations', badge: 'invitations' },
     ],
   },
   {
@@ -109,23 +104,13 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 function GlobalNav({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
   const user = useAuthStore((s) => s.user);
 
-  // Sidebar nằm trong `AppShell` nên KHÔNG bị unmount khi đổi trang — query này mount đúng
-  // một lần cho cả phiên, và `useMyInvitations` dùng chung khóa với trang /invitations nên
-  // mở trang đó không tốn thêm request nào.
-  const invitations = useMyInvitations();
-  const badgeCounts: Record<NonNullable<NavItem['badge']>, number> = {
-    invitations: invitations.data?.length ?? 0,
-  };
-
   return (
     <nav aria-label="Điều hướng chính" className="flex flex-col gap-6 p-3">
       {NAV_GROUPS.map((group) => (
         <div key={group.title} className="grid gap-1">
           <p className={GROUP_TITLE}>{group.title}</p>
 
-          {group.items.map(({ label, icon: Icon, href, badge, permission }) => {
-            const count = badge ? badgeCounts[badge] : 0;
-
+          {group.items.map(({ label, icon: Icon, href, permission }) => {
             // Ẩn hẳn thay vì vô hiệu hóa: một mục xám không bấm được chỉ khiến người dùng
             // tự hỏi mình đang thiếu gì, mà câu trả lời thì họ không tự tra được.
             if (permission && !hasPermission(user, permission)) return null;
@@ -142,11 +127,6 @@ function GlobalNav({ pathname, onNavigate }: { pathname: string; onNavigate?: ()
               >
                 <Icon className="size-4 shrink-0" />
                 <span className="min-w-0 flex-1 truncate">{label}</span>
-                {count > 0 ? (
-                  <span className="bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
-                    {count}
-                  </span>
-                ) : null}
               </Link>
             );
           })}

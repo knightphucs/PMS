@@ -32,7 +32,7 @@ public class CommentMentionTests : IntegrationTestBase
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         var member = await CreateUserAsync();
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
 
         var res = await pm.Client.PostAsJsonAsync($"/api/v1/tasks/{taskId}/comments", new
         {

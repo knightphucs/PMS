@@ -30,6 +30,21 @@ public enum ProjectAction
     /// </summary>
     ManageBoardColumns,
 
+    /// <summary>
+    /// Thêm/sửa/xoá/sắp xếp TRƯỜNG TUỲ BIẾN của project (ADR-059). Soi gương
+    /// <see cref="ManageBoardColumns"/>: đây là đổi LƯỢC ĐỒ mà cả đội nhìn thấy, khác hẳn
+    /// việc NHẬP giá trị vào một task (đi cùng <see cref="UpdateTask"/>). Gộp hai thứ vào
+    /// một quyền sẽ hoặc cấm Member nhập liệu, hoặc cho Member đổi lược đồ.
+    /// </summary>
+    ManageFieldDefinitions,
+
+    /// <summary>
+    /// Thêm/sửa/xoá/sắp xếp LOẠI CÔNG VIỆC và gán trường cho loại (ADR-060). Cùng mức với
+    /// <see cref="ManageFieldDefinitions"/> và <see cref="ManageBoardColumns"/>: đây là
+    /// lược đồ mà cả đội nhìn thấy, không phải dữ liệu của một task.
+    /// </summary>
+    ManageWorkItemTypes,
+
     /// <summary>Tự nhận / tự rút khỏi task — Member cũng làm được, Viewer thì không.</summary>
     SelfAssign,
 

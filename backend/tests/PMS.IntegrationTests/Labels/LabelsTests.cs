@@ -147,7 +147,7 @@ public class LabelsTests : IntegrationTestBase
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         var viewer = await CreateUserAsync();
-        await InviteAndAcceptAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
+        await AddMemberAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
 
         var label = await (await pm.Client.PostAsJsonAsync("/api/v1/labels",
             new CreateLabelRequest(UniqueName(), "#333333")))

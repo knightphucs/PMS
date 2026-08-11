@@ -6,12 +6,9 @@ public interface IProjectMemberService
         Guid projectId, CancellationToken ct = default);
     Task<ProjectMemberResponse> InviteAsync(
         Guid projectId, InviteMemberRequest request, CancellationToken ct = default);
-    Task<ProjectMemberResponse> AcceptInvitationAsync(Guid projectId, CancellationToken ct = default);
-    Task<ProjectMemberResponse> DeclineInvitationAsync(Guid projectId, CancellationToken ct = default);
     Task<ProjectMemberResponse> ChangeRoleAsync(
         Guid projectId, Guid employeeId, ChangeMemberRoleRequest request, CancellationToken ct = default);
     Task RemoveMemberAsync(Guid projectId, Guid employeeId, CancellationToken ct = default);
-    Task<IReadOnlyList<MyInvitationResponse>> GetMyInvitationsAsync(CancellationToken ct = default);
 
     /// <summary>Mời một email vào project qua link gửi bằng email — hoạt động cả khi email chưa có tài khoản.</summary>
     Task<ExternalInvitationResponse> InviteExternalAsync(

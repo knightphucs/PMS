@@ -14,6 +14,10 @@ public class ActivityLogger : IActivityLogger
         => (_uow, _currentUser) = (uow, currentUser);
 
     public void Log(string entityType, Guid entityId, ActivityAction action, string detail)
+        => LogAs(_currentUser.RequireEmployeeId(), entityType, entityId, action, detail);
+
+    public void LogAs(
+        Guid actorId, string entityType, Guid entityId, ActivityAction action, string detail)
         => _uow.ActivityLogs.Add(new ActivityLog
         {
             Id = Guid.NewGuid(),
@@ -21,6 +25,6 @@ public class ActivityLogger : IActivityLogger
             EntityId = entityId,
             Action = action,
             Detail = detail,
-            EmployeeId = _currentUser.RequireEmployeeId()
+            EmployeeId = actorId
         });
 }

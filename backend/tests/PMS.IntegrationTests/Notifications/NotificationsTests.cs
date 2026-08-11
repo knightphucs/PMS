@@ -25,26 +25,29 @@ public class NotificationsTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId, "Dựng API");
 
         // Member tự nhận task -> TaskAssignmentService báo cho PM
         (await member.Client.PostAsync($"/api/v1/tasks/{taskId}/assignees/me", null))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var inbox = await pm.Client.GetFromJsonAsync<PagedResult<NotificationResponse>>(
+        var pmInbox = await pm.Client.GetFromJsonAsync<PagedResult<NotificationResponse>>(
+            "/api/v1/notifications", TestJson.Options);
+        var memberInbox = await member.Client.GetFromJsonAsync<PagedResult<NotificationResponse>>(
             "/api/v1/notifications", TestJson.Options);
 
-        // PM nhận hai thông báo từ hai luồng khác nhau — chính đây là điều trước phiên này
-        // không ai kiểm chứng được: cả hai đều đã được ghi từ lâu mà không có đường nào đọc.
-        inbox!.Items.Count.ShouldBe(2);
-
-        var taskNoti = inbox.Items.Single(n => n.Type == NotificationType.TaskAssigned);
+        // Hai luồng nghiệp vụ khác nhau, hai người nhận khác nhau — chính đây là điều trước
+        // phiên 2026-07-30 không ai kiểm chứng được: cả hai đều đã được ghi từ lâu mà không
+        // có đường nào đọc. ADR-057 đổi NGƯỜI nhận của luồng thứ hai, không bỏ luồng nào.
+        var taskNoti = pmInbox!.Items.ShouldHaveSingleItem();
+        taskNoti.Type.ShouldBe(NotificationType.TaskAssigned);
         taskNoti.IsRead.ShouldBeFalse();
         taskNoti.RelatedEntityId.ShouldBe(taskId);
         taskNoti.RelatedEntityKind.ShouldBe(RelatedEntityKind.Task);      // ADR-025
 
-        var inviteNoti = inbox.Items.Single(n => n.Type == NotificationType.InvitationAccepted);
+        var inviteNoti = memberInbox!.Items.ShouldHaveSingleItem();
+        inviteNoti.Type.ShouldBe(NotificationType.InvitedToProject);
         inviteNoti.RelatedEntityId.ShouldBe(projectId);
         inviteNoti.RelatedEntityKind.ShouldBe(RelatedEntityKind.Project); // ADR-025
     }
@@ -57,10 +60,12 @@ public class NotificationsTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
+        var taskId = await CreateTaskAsync(pm.Client, projectId);
+        await member.Client.PostAsync($"/api/v1/tasks/{taskId}/assignees/me", null);
 
-        // Hai người đều có thông báo, nhưng KHÁC nhau: PM nhận "đã chấp nhận lời mời",
-        // member nhận "bạn được mời". Hộp của mỗi người phải rời nhau hoàn toàn.
+        // Hai người đều có thông báo, nhưng KHÁC nhau: PM nhận "task đã có người nhận",
+        // member nhận "bạn được thêm vào project". Hộp của mỗi người phải rời nhau hoàn toàn.
         var pmInbox = await pm.Client.GetFromJsonAsync<PagedResult<NotificationResponse>>(
             "/api/v1/notifications", TestJson.Options);
         var memberInbox = await member.Client.GetFromJsonAsync<PagedResult<NotificationResponse>>(
@@ -72,7 +77,7 @@ public class NotificationsTests : IntegrationTestBase
         var pmIds = pmInbox.Items.Select(n => n.Id).ToHashSet();
         memberInbox.Items.ShouldAllBe(n => !pmIds.Contains(n.Id));
 
-        pmInbox.Items.ShouldAllBe(n => n.Type == NotificationType.InvitationAccepted);
+        pmInbox.Items.ShouldAllBe(n => n.Type == NotificationType.TaskAssigned);
         memberInbox.Items.ShouldAllBe(n => n.Type == NotificationType.InvitedToProject);
 
         // Và tổng số của mỗi người khớp đúng số dòng của chính họ trong DB — không rò rỉ,
@@ -89,7 +94,9 @@ public class NotificationsTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
+        var taskId = await CreateTaskAsync(pm.Client, projectId);
+        await member.Client.PostAsync($"/api/v1/tasks/{taskId}/assignees/me", null);
 
         var pmInbox = await pm.Client.GetFromJsonAsync<PagedResult<NotificationResponse>>(
             "/api/v1/notifications", TestJson.Options);
@@ -133,19 +140,12 @@ public class NotificationsTests : IntegrationTestBase
     [Fact]
     public async Task Dem_chua_doc_giam_sau_khi_danh_dau_va_ve_0_sau_khi_danh_dau_tat_ca()
     {
-        var pm = await CreateUserAsync();
-        var member = await CreateUserAsync();
-        var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
-        var taskId = await CreateTaskAsync(pm.Client, projectId);
-        await member.Client.PostAsync($"/api/v1/tasks/{taskId}/assignees/me", null);
+        var (pm, firstNotiId) = await SeedInboxAsync(count: 2);
 
         var before = await GetUnreadCountAsync(pm);
-        before.ShouldBeGreaterThanOrEqualTo(2);   // accept lời mời + tự nhận task
+        before.ShouldBe(2);   // hai lần member tự nhận task
 
-        var inbox = await pm.Client.GetFromJsonAsync<PagedResult<NotificationResponse>>(
-            "/api/v1/notifications", TestJson.Options);
-        await pm.Client.PatchAsync($"/api/v1/notifications/{inbox!.Items.First().Id}/read", null);
+        await pm.Client.PatchAsync($"/api/v1/notifications/{firstNotiId}/read", null);
 
         (await GetUnreadCountAsync(pm)).ShouldBe(before - 1);
 
@@ -175,17 +175,12 @@ public class NotificationsTests : IntegrationTestBase
     [Fact]
     public async Task Danh_sach_tra_ve_moi_nhat_truoc()
     {
-        var pm = await CreateUserAsync();
-        var member = await CreateUserAsync();
-        var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
-        var taskId = await CreateTaskAsync(pm.Client, projectId);
-        await member.Client.PostAsync($"/api/v1/tasks/{taskId}/assignees/me", null);
+        var (pm, _) = await SeedInboxAsync(count: 2);
 
         var inbox = await pm.Client.GetFromJsonAsync<PagedResult<NotificationResponse>>(
             "/api/v1/notifications", TestJson.Options);
 
-        inbox!.Items.Count.ShouldBeGreaterThanOrEqualTo(2);
+        inbox!.Items.Count.ShouldBe(2);
         inbox.Items.ShouldBeInOrder(SortDirection.Descending, new CreatedAtComparer());
     }
 
@@ -214,17 +209,35 @@ public class NotificationsTests : IntegrationTestBase
 
     // ---------- helpers ----------
 
-    private async Task<(TestUser Pm, Guid NotificationId)> SeedInboxAsync()
+    /// <summary>
+    /// Mồi hộp thư của PM với <paramref name="count"/> thông báo.
+    ///
+    /// <para>
+    /// 🔴 Từ ADR-057, việc THÊM thành viên không còn sinh thông báo nào cho PM — họ chính
+    /// là người bấm nút, báo lại cho họ chuyện họ vừa làm là tiếng ồn. Nên hộp thư của PM
+    /// phải được mồi bằng hành động của NGƯỜI KHÁC: member tự nhận task, và task đó do PM
+    /// tạo nên PM là người được báo.
+    /// </para>
+    /// </summary>
+    private async Task<(TestUser Pm, Guid NotificationId)> SeedInboxAsync(int count = 1)
     {
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
+
+        for (var i = 0; i < count; i++)
+        {
+            var taskId = await CreateTaskAsync(pm.Client, projectId, $"Task {i}");
+            (await member.Client.PostAsync($"/api/v1/tasks/{taskId}/assignees/me", null))
+                .StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
 
         var inbox = await pm.Client.GetFromJsonAsync<PagedResult<NotificationResponse>>(
             "/api/v1/notifications", TestJson.Options);
 
-        return (pm, inbox!.Items.First().Id);
+        inbox!.Items.Count.ShouldBe(count);   // mồi hỏng thì đỏ ở đây, không đỏ ở phép kiểm thật
+        return (pm, inbox.Items.First().Id);
     }
 
     private static async Task<int> GetUnreadCountAsync(TestUser user)

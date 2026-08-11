@@ -66,8 +66,8 @@ public class ProjectStatusTests : IntegrationTestBase
 
         var member = await CreateUserAsync();
         var viewer = await CreateUserAsync();
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
-        await InviteAndAcceptAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
 
         foreach (var client in new[] { member.Client, viewer.Client })
             (await client.PostAsync($"/api/v1/projects/{projectId}/complete", null))
@@ -92,7 +92,7 @@ public class ProjectStatusTests : IntegrationTestBase
         var projectId = await CreateProjectAsync(pm.Client);
 
         var member = await CreateUserAsync();
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
 
         await PostAsync(pm.Client, projectId, "complete");
 

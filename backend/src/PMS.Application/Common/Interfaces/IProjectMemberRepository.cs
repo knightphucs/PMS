@@ -4,9 +4,6 @@ namespace PMS.Application.Common.Interfaces;
 
 public interface IProjectMemberRepository : IRepository<ProjectMember>
 {
-    Task<IReadOnlyList<ProjectMember>> GetPendingInvitationsAsync(
-        Guid employeeId, CancellationToken ct = default);
-
     /// <summary>
     /// Lọc <paramref name="candidateIds"/> xuống còn những người THẬT SỰ là thành viên đang
     /// hoạt động (<c>InvitationStatus == Accepted</c>) của project.

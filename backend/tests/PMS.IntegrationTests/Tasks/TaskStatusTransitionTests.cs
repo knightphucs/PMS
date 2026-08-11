@@ -22,7 +22,7 @@ public class TaskStatusTransitionTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
         await AssignAsync(pm.Client, taskId, member.EmployeeId);
 
@@ -41,7 +41,7 @@ public class TaskStatusTransitionTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
         await AssignAsync(pm.Client, taskId, member.EmployeeId);
 
@@ -58,8 +58,8 @@ public class TaskStatusTransitionTests : IntegrationTestBase
         var assignee = await CreateUserAsync();
         var buiKhac = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, assignee, projectId, RoleInProject.Member);
-        await InviteAndAcceptAsync(pm.Client, buiKhac, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, assignee, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, buiKhac, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
         await AssignAsync(pm.Client, taskId, assignee.EmployeeId);
 
@@ -79,7 +79,7 @@ public class TaskStatusTransitionTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var viewer = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
+        await AddMemberAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         var res = await viewer.Client.PatchAsJsonAsync($"/api/v1/tasks/{taskId}/status",
@@ -208,7 +208,7 @@ public class TaskStatusTransitionTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);       // pm là Reporter
         await AssignAsync(pm.Client, taskId, member.EmployeeId);
 

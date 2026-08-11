@@ -65,7 +65,7 @@ public class ProjectsCrudTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var viewer = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
+        await AddMemberAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
 
         var pmView = await pm.Client.GetFromJsonAsync<PagedResult<ProjectSummaryResponse>>(
             "/api/v1/Projects", TestJson.Options);

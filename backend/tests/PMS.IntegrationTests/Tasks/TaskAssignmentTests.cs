@@ -21,7 +21,7 @@ public class TaskAssignmentTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         var res = await pm.Client.PostAsJsonAsync($"/api/v1/tasks/{taskId}/assignees",
@@ -70,8 +70,8 @@ public class TaskAssignmentTests : IntegrationTestBase
         var a = await CreateUserAsync();
         var b = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, a, projectId, RoleInProject.Member);
-        await InviteAndAcceptAsync(pm.Client, b, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, a, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, b, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         var res = await a.Client.PostAsJsonAsync($"/api/v1/tasks/{taskId}/assignees",
@@ -87,8 +87,8 @@ public class TaskAssignmentTests : IntegrationTestBase
         var a = await CreateUserAsync();
         var b = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, a, projectId, RoleInProject.Member);
-        await InviteAndAcceptAsync(pm.Client, b, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, a, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, b, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         await pm.Client.PostAsJsonAsync($"/api/v1/tasks/{taskId}/assignees",
@@ -111,7 +111,7 @@ public class TaskAssignmentTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         await pm.Client.PostAsJsonAsync($"/api/v1/tasks/{taskId}/assignees",
@@ -130,7 +130,7 @@ public class TaskAssignmentTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         var pmNotisBefore = await CountNotificationsAsync(pm.EmployeeId);
@@ -148,7 +148,7 @@ public class TaskAssignmentTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
         await MoveToColumnAsync(pm.Client, taskId, 1);
 
@@ -166,7 +166,7 @@ public class TaskAssignmentTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var viewer = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
+        await AddMemberAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         var res = await viewer.Client.PostAsync($"/api/v1/tasks/{taskId}/assignees/me", null);
@@ -182,7 +182,7 @@ public class TaskAssignmentTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
         await member.Client.PostAsync($"/api/v1/tasks/{taskId}/assignees/me", null);
 
@@ -205,8 +205,8 @@ public class TaskAssignmentTests : IntegrationTestBase
         var a = await CreateUserAsync();
         var b = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, a, projectId, RoleInProject.Member);
-        await InviteAndAcceptAsync(pm.Client, b, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, a, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, b, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
         await pm.Client.PostAsJsonAsync($"/api/v1/tasks/{taskId}/assignees",
             new AssignTaskRequest(b.EmployeeId, RoleInTask.Owner));
@@ -222,7 +222,7 @@ public class TaskAssignmentTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         var res = await pm.Client.DeleteAsync($"/api/v1/tasks/{taskId}/assignees/{member.EmployeeId}");
@@ -236,7 +236,7 @@ public class TaskAssignmentTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         var logsAfterCreate = await CountActivityLogsAsync(taskId);

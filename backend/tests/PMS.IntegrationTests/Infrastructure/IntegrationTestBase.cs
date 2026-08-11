@@ -127,6 +127,15 @@ public abstract class IntegrationTestBase
             var column = await db.BoardColumns
                 .FirstAsync(c => c.ProjectId == projectId && c.Order == columnOrder);
 
+            // Loại công việc mặc định của project (ADR-060) — FK bắt buộc. Thiếu dòng này
+            // thì INSERT đổ với "conflicted with the FOREIGN KEY constraint
+            // FK_Tasks_WorkItemTypes_WorkItemTypeId", ở những test không liên quan gì tới loại.
+            task.WorkItemTypeId = await db.WorkItemTypes
+                .Where(t => t.ProjectId == projectId)
+                .OrderBy(t => t.Order).ThenBy(t => t.Id)
+                .Select(t => t.Id)
+                .FirstAsync();
+
             task.MoveTo(column);
             db.Tasks.Add(task);
             await db.SaveChangesAsync();
@@ -159,26 +168,26 @@ public abstract class IntegrationTestBase
             .FirstAsync());
 
     /// <summary>
-    /// Mời + chấp nhận qua API thật. Dùng cho mọi trường hợp cần thành viên Accepted —
-    /// đi đúng luồng nghiệp vụ nên test cũng gián tiếp bảo vệ luồng mời.
+    /// Thêm thành viên qua API thật. Dùng cho mọi trường hợp cần thành viên Accepted —
+    /// đi đúng luồng nghiệp vụ nên test cũng gián tiếp bảo vệ luồng thêm thành viên.
+    /// <para>
+    /// Từ ADR-057 chỉ còn MỘT bước: <c>POST /members</c> trả về thành viên đã
+    /// <c>Accepted</c> ngay. Không còn bước <c>me/accept</c> nào để gọi.
+    /// </para>
     /// </summary>
-    protected static async Task InviteAndAcceptAsync(
+    protected static async Task AddMemberAsync(
         HttpClient pmClient, TestUser invitee, Guid projectId, RoleInProject role)
     {
-        var invite = await pmClient.PostAsJsonAsync(
+        var added = await pmClient.PostAsJsonAsync(
             $"/api/v1/Projects/{projectId}/members",
             new InviteMemberRequest(invitee.Email, role));
-        invite.StatusCode.ShouldBe(HttpStatusCode.Created);
-
-        var accept = await invitee.Client.PostAsync(
-            $"/api/v1/Projects/{projectId}/members/me/accept", null);
-        accept.StatusCode.ShouldBe(HttpStatusCode.OK);
+        added.StatusCode.ShouldBe(HttpStatusCode.Created);
     }
 
     /// <summary>
     /// Chèn thành viên thẳng vào DB nhưng ĐI QUA domain method để invariant vẫn được tôn trọng.
     /// Chỉ dùng cho trạng thái mà API không dựng trực tiếp được (Declined), hoặc khi test
-    /// cần cô lập hẳn khỏi luồng mời. Trường hợp thông thường dùng InviteAndAcceptAsync.
+    /// cần cô lập hẳn khỏi luồng mời. Trường hợp thông thường dùng AddMemberAsync.
     /// </summary>
     protected Task SeedMemberAsync(
         Guid projectId, Guid employeeId, RoleInProject role, InvitationStatus status)
@@ -213,10 +222,12 @@ public abstract class IntegrationTestBase
     protected static async Task<Guid> CreateTaskAsync(
         HttpClient client, Guid projectId, string name = "Task",
         Guid? sprintId = null, Guid? parentTaskId = null,
-        Priority priority = Priority.Medium, DateTime? dueDate = null)
+        Priority priority = Priority.Medium, DateTime? dueDate = null,
+        int storyPoints = 0)
     {
         var res = await client.PostAsJsonAsync("/api/v1/tasks",
-            new CreateTaskRequest(name, projectId, sprintId, parentTaskId, dueDate, priority));
+            new CreateTaskRequest(name, projectId, sprintId, parentTaskId, dueDate, priority,
+                StoryPoints: storyPoints));
         res.StatusCode.ShouldBe(HttpStatusCode.Created);
         var body = await res.Content.ReadFromJsonAsync<TaskSummaryResponse>(TestJson.Options);
         return body!.Id;

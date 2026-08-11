@@ -17,6 +17,17 @@ public class TaskItem : BaseEntity, ISoftDeletable
     public BoardColumn BoardColumn { get; set; } = null!;
 
     /// <summary>
+    /// Loại công việc (ADR-060) — Sự cố / Yêu cầu / Change Request / Bảo trì…
+    /// <para>
+    /// Bắt buộc, cùng bất biến với <see cref="BoardColumnId"/>: mọi task thuộc đúng một
+    /// loại. Project mới được cấp sẵn loại mặc định "Task", nên không có trạng thái
+    /// "task chưa có loại".
+    /// </para>
+    /// </summary>
+    public Guid WorkItemTypeId { get; set; }
+    public WorkItemType WorkItemType { get; set; } = null!;
+
+    /// <summary>
     /// Nhóm ngữ nghĩa của cột hiện tại — <b>bản sao có chủ đích</b> của
     /// <c>BoardColumn.Category</c>.
     ///
@@ -85,6 +96,9 @@ public class TaskItem : BaseEntity, ISoftDeletable
     public ICollection<Label> Labels { get; set; } = new List<Label>();
     public ICollection<TaskLink> OutgoingLinks { get; set; } = new List<TaskLink>();
     public ICollection<TaskLink> IncomingLinks { get; set; } = new List<TaskLink>();
+
+    /// <summary>Giá trị các trường tuỳ biến của project (ADR-059).</summary>
+    public ICollection<FieldValue> FieldValues { get; set; } = new List<FieldValue>();
 
     // Id phải sinh phía application: PmsDbContext.ApplyIdNeverGenerated() đặt
     // ValueGeneratedNever() cho mọi BaseEntity.Id, nên để mặc định Guid.Empty thì

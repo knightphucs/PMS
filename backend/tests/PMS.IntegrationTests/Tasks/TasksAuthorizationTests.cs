@@ -54,7 +54,7 @@ public class TasksAuthorizationTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
 
         var res = await member.Client.PostAsJsonAsync("/api/v1/tasks",
             new CreateTaskRequest("Task lén", projectId, null, null, null, Priority.Medium));
@@ -68,7 +68,7 @@ public class TasksAuthorizationTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         (await member.Client.DeleteAsync($"/api/v1/tasks/{taskId}")).StatusCode
@@ -81,7 +81,7 @@ public class TasksAuthorizationTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var viewer = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
+        await AddMemberAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         var detail = await viewer.Client.GetFromJsonAsync<TaskDetailResponse>($"/api/v1/tasks/{taskId}", TestJson.Options);
@@ -98,7 +98,7 @@ public class TasksAuthorizationTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         var res = await member.Client.PutAsJsonAsync($"/api/v1/tasks/{taskId}/sprint",

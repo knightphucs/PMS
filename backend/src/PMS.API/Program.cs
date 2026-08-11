@@ -246,15 +246,34 @@ var app = builder.Build();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // Configure the HTTP request pipeline.
+//
+// 🔴 Swagger CHỈ ở Development. Bản deploy demo (Cloudflare Tunnel) vì vậy PHẢI chạy
+// ASPNETCORE_ENVIRONMENT=Production — chạy Development trên một URL công khai đồng nghĩa
+// phơi Swagger, trang lỗi chi tiết, VÀ SerilogEmailSender (ghi token đặt lại mật khẩu thô
+// ra log). Xem ADR-058.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+}
 
+// Migrate và Seed TÁCH RỜI nhau, và tách khỏi "có phải Development không".
+//
+// Trước 2026-08-11 cả hai bị gộp trong nhánh IsDevelopment ở trên. Hệ quả là chuyển sang
+// Production để giấu Swagger cũng đồng thời TẮT việc áp migration — nên cách duy nhất để
+// bản deploy có schema đúng là chạy nó ở Development, tức đúng thứ ta đang cố tránh. Hai
+// quyết định không liên quan gì nhau bị buộc vào một câu lệnh if.
+//
+// Seed thì vẫn chỉ Development: đó là dữ liệu demo (tài khoản có mật khẩu biết trước),
+// không bao giờ được chạm vào một môi trường có người dùng thật.
+if (app.Configuration.GetValue("Database:MigrateOnStartup", app.Environment.IsDevelopment()))
+{
     using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<PmsDbContext>();
     await context.Database.MigrateAsync();
-    await DbSeeder.SeedAsync(context);
+
+    if (app.Environment.IsDevelopment())
+        await DbSeeder.SeedAsync(context);
 }
 app.UseSerilogRequestLogging();
 app.MapHealthChecks("/health", new HealthCheckOptions
