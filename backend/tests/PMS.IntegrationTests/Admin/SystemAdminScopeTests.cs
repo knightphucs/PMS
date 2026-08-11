@@ -90,7 +90,7 @@ public class SystemAdminScopeTests : IntegrationTestBase
         var admin = await CreateSystemAdminAsync();
         var projectId = await CreateProjectAsync(pm.Client);
 
-        await InviteAndAcceptAsync(pm.Client, admin, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, admin, projectId, RoleInProject.Member);
 
         (await admin.Client.GetAsync($"/api/v1/projects/{projectId}")).StatusCode
             .ShouldBe(HttpStatusCode.OK);

@@ -5,6 +5,9 @@
 
 # dotenv files
 .env
+# Cấu hình chạy Production ở máy local (chứa mật khẩu SMTP + Jwt secret thật).
+.env.prod
+.env*.local
 
 # User-specific files
 *.rsuser

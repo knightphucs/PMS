@@ -105,7 +105,7 @@ public class TaskDetailApisTests : IntegrationTestBase
         var viewer = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
-        await InviteAndAcceptAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
+        await AddMemberAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
 
         var label = await CreateLabelAsync(pm.Client);
 
@@ -151,7 +151,7 @@ public class TaskDetailApisTests : IntegrationTestBase
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
 
         await WatchAsync(pm.Client, taskId);
 
@@ -184,7 +184,7 @@ public class TaskDetailApisTests : IntegrationTestBase
         var viewer = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
-        await InviteAndAcceptAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
+        await AddMemberAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
 
         (await WatchAsync(viewer.Client, taskId)).IsWatching.ShouldBeTrue();
     }

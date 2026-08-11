@@ -86,6 +86,9 @@ public class TaskItem : BaseEntity, ISoftDeletable
     public ICollection<TaskLink> OutgoingLinks { get; set; } = new List<TaskLink>();
     public ICollection<TaskLink> IncomingLinks { get; set; } = new List<TaskLink>();
 
+    /// <summary>Giá trị các trường tuỳ biến của project (ADR-059).</summary>
+    public ICollection<FieldValue> FieldValues { get; set; } = new List<FieldValue>();
+
     // Id phải sinh phía application: PmsDbContext.ApplyIdNeverGenerated() đặt
     // ValueGeneratedNever() cho mọi BaseEntity.Id, nên để mặc định Guid.Empty thì
     // bản ghi thứ hai sẽ vi phạm khóa chính. Nhất quán với ProjectMember.Invite().

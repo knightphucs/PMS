@@ -207,7 +207,7 @@ public class AttachmentsTests : IntegrationTestBase
         var viewer = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
-        await InviteAndAcceptAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
+        await AddMemberAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
 
         var uploaded = await UploadToTaskAsync(pm.Client, taskId, "tai-lieu.pdf", "application/pdf", PdfHeader);
 
@@ -227,8 +227,8 @@ public class AttachmentsTests : IntegrationTestBase
         var other = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
-        await InviteAndAcceptAsync(pm.Client, other, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, other, projectId, RoleInProject.Member);
 
         var uploaded = await UploadToTaskAsync(member.Client, taskId, "cua-member.png", "image/png", PngHeader);
 

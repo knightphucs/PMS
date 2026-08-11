@@ -1,0 +1,186 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+# Push liên tiếp lên cùng một nhánh: huỷ lượt chạy cũ. Integration test dựng hẳn một
+# SQL Server nên mỗi lượt không rẻ, và kết quả của commit đã bị thay thế thì không ai đọc.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: "Backend: build + test"
+    runs-on: ubuntu-latest
+
+    # SQL Server thật, không phải InMemory. PmsWebApplicationFactory dùng UseSqlServer và
+    # bộ test phụ thuộc vào những thứ chỉ SQL Server có: rowversion, trigger, view,
+    # stored procedure (ADR-055). Chạy trên provider khác sẽ xanh vì lý do sai.
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: Pms@Local2026
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P Pms@Local2026 -C -Q 'SELECT 1' || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+          --health-start-period 30s
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore backend/PMS.sln
+
+      # Directory.Build.props bật TreatWarningsAsErrors, nên bước này cũng là cổng chặn
+      # cảnh báo — không cần thêm một job lint riêng cho C#.
+      - name: Build
+        run: dotnet build backend/PMS.sln -c Release --no-restore
+
+      - name: Unit tests
+        run: dotnet test backend/tests/PMS.UnitTests -c Release --no-build --logger "console;verbosity=normal"
+
+      - name: Integration tests
+        env:
+          PMS_TEST_DB: "Server=localhost,1433;Database=PmsTestDb;User Id=sa;Password=Pms@Local2026;TrustServerCertificate=True;Encrypt=False"
+        run: dotnet test backend/tests/PMS.IntegrationTests -c Release --no-build --logger "console;verbosity=normal"
+
+      # Snapshot lệch so với model là lỗi im lặng: build sạch, test xanh, rồi migration
+      # kế tiếp mà ai đó tạo ra sẽ mang theo những thay đổi chưa từng được chủ ý.
+      # Migration rỗng = khớp. Đúng phép kiểm đã bắt được cặp lỗi Designer/snapshot ở ADR-057.
+      - name: Cài dotnet-ef
+        run: dotnet tool install --global dotnet-ef --version 8.*
+
+      - name: Kiểm lệch model snapshot
+        env:
+          # AddInfrastructure NÉM ngay lúc đăng ký service nếu thiếu chuỗi kết nối, mà
+          # `dotnet ef` phải dựng được host mới đọc được DbContext. Không cần DB chạy
+          # thật — chỉ cần chuỗi tồn tại để qua được bước đăng ký.
+          ConnectionStrings__DefaultConnection: "Server=localhost,1433;Database=PmsCiDrift;User Id=sa;Password=Pms@Local2026;TrustServerCertificate=True;Encrypt=False"
+        run: |
+          dotnet ef migrations add __CiDriftCheck \
+            --project backend/src/PMS.Infrastructure \
+            --startup-project backend/src/PMS.API \
+            --output-dir Persistence/Migrations
+          FILE=$(ls backend/src/PMS.Infrastructure/Persistence/Migrations/*__CiDriftCheck.cs | grep -v Designer)
+          if grep -qE 'migrationBuilder\.' "$FILE"; then
+            echo "::error::Model snapshot LỆCH so với entity/configuration. Migration sinh ra không rỗng:"
+            cat "$FILE"
+            exit 1
+          fi
+          echo "Snapshot khớp model."
+
+  frontend:
+    name: "Frontend: typecheck + lint + test"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm run lint
+
+      - run: npm test
+
+      # `next build` bắt được lớp lỗi mà tsc bỏ qua: route/layout sai chữ ký, import
+      # server-only vào client component, và các generated type dưới .next/types.
+      - name: Build
+        env:
+          # lib/api/config.ts NÉM ngay lúc import nếu thiếu biến này — cố ý (thà vỡ lúc
+          # build còn hơn gọi về undefined/api lúc chạy). Giá trị chỉ để build qua được.
+          NEXT_PUBLIC_API_BASE_URL: https://example.invalid/api/v1
+        run: npm run build
+
+  docker:
+    name: "Docker: ảnh API build được và CHẠY được"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Build có cache: lần chạy đầu ~2 phút, các lần sau ~20 giây nhờ tầng restore
+      # được tái sử dụng (Dockerfile cố ý copy .csproj trước rồi mới copy mã nguồn).
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build ảnh
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: false
+          load: true
+          tags: pms-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # 🔴 Build được KHÔNG có nghĩa là chạy được. Một Dockerfile hỏng ENTRYPOINT, thiếu
+      # DLL sau publish, hoặc sai quyền vì USER app vẫn build sạch tuyệt đối rồi chết ngay
+      # giây đầu tiên lúc `docker run`. Đây đúng lớp lỗi mà dự án đã gặp bảy lần: thứ
+      # trông như đã có nhưng không ai gọi tới. Vậy nên phải KHỞI ĐỘNG thật.
+      #
+      # Không dựng SQL Server ở job này: mục tiêu là kiểm ẢNH, không kiểm nghiệp vụ (job
+      # backend đã lo phần đó với DB thật). App vẫn phải lên và phục vụ được /health —
+      # /health sẽ trả 503 vì DB không tới được, và 503 CHÍNH LÀ bằng chứng cần: nó nghĩa
+      # là pipeline đã chạy tới health check, tức app sống. Container chết thì không có
+      # mã HTTP nào cả.
+      - name: Ảnh phải khởi động và phục vụ được /health
+        run: |
+          docker run -d --name pms-ci -p 8080:8080 \
+            -e "ConnectionStrings__DefaultConnection=Server=127.0.0.1,1433;Database=NoDb;User Id=sa;Password=Unused@12345;TrustServerCertificate=True" \
+            -e "Jwt__Secret=ci-smoke-secret-at-least-32-bytes-long-xx" \
+            -e "App__FrontendBaseUrl=https://example.invalid" \
+            -e "Database__MigrateOnStartup=false" \
+            pms-api:ci
+
+          for i in $(seq 1 30); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 http://localhost:8080/health || echo 000)
+            if [ "$CODE" = "200" ] || [ "$CODE" = "503" ]; then
+              echo "Ảnh khởi động OK (/health -> HTTP $CODE)."
+              exit 0
+            fi
+            if ! docker ps --filter name=pms-ci --filter status=running -q | grep -q .; then
+              echo "::error::Container CHẾT sau khi khởi động. Log:"
+              docker logs pms-ci
+              exit 1
+            fi
+            sleep 2
+          done
+
+          echo "::error::Hết 60s mà /health không phản hồi. Log:"
+          docker logs pms-ci
+          exit 1
+
+      # Chạy non-root là chủ ý (container này GHI đĩa qua LocalFileStorage), nên nó phải
+      # được khẳng định chứ không chỉ nằm trong comment của Dockerfile.
+      - name: Không được chạy bằng root
+        run: |
+          UID_IN=$(docker exec pms-ci id -u)
+          echo "uid trong container: $UID_IN"
+          [ "$UID_IN" != "0" ] || { echo "::error::Container đang chạy bằng root."; exit 1; }
+
+      - name: Dọn
+        if: always()
+        run: docker rm -f pms-ci 2>/dev/null || true

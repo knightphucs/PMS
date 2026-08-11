@@ -22,6 +22,21 @@ namespace PMS.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("FieldOptionFieldValue", b =>
+                {
+                    b.Property<Guid>("SelectedOptionsId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ValuesId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("SelectedOptionsId", "ValuesId");
+
+                    b.HasIndex("ValuesId");
+
+                    b.ToTable("FieldValueOptions", (string)null);
+                });
+
             modelBuilder.Entity("LabelTaskItem", b =>
                 {
                     b.Property<Guid>("LabelsId")
@@ -249,6 +264,124 @@ namespace PMS.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Employees", (string)null);
+                });
+
+            modelBuilder.Entity("PMS.Domain.Entities.FieldDefinition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId", "Label")
+                        .IsUnique();
+
+                    b.HasIndex("ProjectId", "Order");
+
+                    b.ToTable("FieldDefinitions", (string)null);
+                });
+
+            modelBuilder.Entity("PMS.Domain.Entities.FieldOption", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("nvarchar(7)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("FieldDefinitionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FieldDefinitionId", "Label")
+                        .IsUnique();
+
+                    b.HasIndex("FieldDefinitionId", "Order");
+
+                    b.ToTable("FieldOptions", (string)null);
+                });
+
+            modelBuilder.Entity("PMS.Domain.Entities.FieldValue", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("FieldDefinitionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool?>("ValueBoolean")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ValueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("ValueNumber")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("ValueText")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FieldDefinitionId");
+
+                    b.HasIndex("TaskId", "FieldDefinitionId")
+                        .IsUnique();
+
+                    b.ToTable("FieldValues", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_FieldValues_MotGiaTriDuyNhat", "(CASE WHEN ValueText    IS NOT NULL THEN 1 ELSE 0 END + CASE WHEN ValueNumber  IS NOT NULL THEN 1 ELSE 0 END + CASE WHEN ValueDate    IS NOT NULL THEN 1 ELSE 0 END + CASE WHEN ValueBoolean IS NOT NULL THEN 1 ELSE 0 END) <= 1");
+                        });
                 });
 
             modelBuilder.Entity("PMS.Domain.Entities.Label", b =>
@@ -897,6 +1030,21 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.ToTable("Watchers", (string)null);
                 });
 
+            modelBuilder.Entity("FieldOptionFieldValue", b =>
+                {
+                    b.HasOne("PMS.Domain.Entities.FieldOption", null)
+                        .WithMany()
+                        .HasForeignKey("SelectedOptionsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PMS.Domain.Entities.FieldValue", null)
+                        .WithMany()
+                        .HasForeignKey("ValuesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("LabelTaskItem", b =>
                 {
                     b.HasOne("PMS.Domain.Entities.Label", null)
@@ -974,6 +1122,47 @@ namespace PMS.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Author");
+
+                    b.Navigation("Task");
+                });
+
+            modelBuilder.Entity("PMS.Domain.Entities.FieldDefinition", b =>
+                {
+                    b.HasOne("PMS.Domain.Entities.Project", "Project")
+                        .WithMany("FieldDefinitions")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.ClientNoAction)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("PMS.Domain.Entities.FieldOption", b =>
+                {
+                    b.HasOne("PMS.Domain.Entities.FieldDefinition", "FieldDefinition")
+                        .WithMany("Options")
+                        .HasForeignKey("FieldDefinitionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FieldDefinition");
+                });
+
+            modelBuilder.Entity("PMS.Domain.Entities.FieldValue", b =>
+                {
+                    b.HasOne("PMS.Domain.Entities.FieldDefinition", "FieldDefinition")
+                        .WithMany("Values")
+                        .HasForeignKey("FieldDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PMS.Domain.Entities.TaskItem", "Task")
+                        .WithMany("FieldValues")
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.ClientNoAction)
+                        .IsRequired();
+
+                    b.Navigation("FieldDefinition");
 
                     b.Navigation("Task");
                 });
@@ -1196,6 +1385,13 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Navigation("Watching");
                 });
 
+            modelBuilder.Entity("PMS.Domain.Entities.FieldDefinition", b =>
+                {
+                    b.Navigation("Options");
+
+                    b.Navigation("Values");
+                });
+
             modelBuilder.Entity("PMS.Domain.Entities.Permission", b =>
                 {
                     b.Navigation("RolePermissions");
@@ -1204,6 +1400,8 @@ namespace PMS.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("PMS.Domain.Entities.Project", b =>
                 {
                     b.Navigation("BoardColumns");
+
+                    b.Navigation("FieldDefinitions");
 
                     b.Navigation("Members");
 
@@ -1222,6 +1420,8 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Navigation("Assignments");
 
                     b.Navigation("Comments");
+
+                    b.Navigation("FieldValues");
 
                     b.Navigation("IncomingLinks");
 

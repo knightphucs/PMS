@@ -7,6 +7,7 @@ import { Suspense } from 'react';
 import { BoardSkeleton } from '@/components/board/board-skeleton';
 import { BoardView } from '@/components/board/board-view';
 import { ManageColumnsDialog } from '@/components/board/manage-columns-dialog';
+import { ManageFieldsDialog } from '@/components/fields/manage-fields-dialog';
 import { SprintSwitcher } from '@/components/board/sprint-switcher';
 import { PageHeader } from '@/components/common/page-header';
 import { QueryError } from '@/components/common/query-error';
@@ -86,6 +87,7 @@ function BoardContent() {
             {/* Quản lý cột: PM-only, cùng ngưỡng quyền với tạo task
                 (`ProjectAction.ManageBoardColumns`, ADR-052). */}
             {taskActions.canManage ? <ManageColumnsDialog projectId={id} /> : null}
+            {taskActions.canManage ? <ManageFieldsDialog projectId={id} /> : null}
 
             {/* Nút chung này luôn tạo vào cột TRÁI NHẤT (không truyền columnId). Từ
                 2026-08-06 mỗi cột còn có nút "+" riêng trong header

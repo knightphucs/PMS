@@ -50,6 +50,9 @@ public class Project : BaseEntity, ISoftDeletable
     /// </summary>
     public ICollection<BoardColumn> BoardColumns { get; set; } = [];
 
+    /// <summary>Trường tuỳ biến do đội tự khai cho project này (ADR-059).</summary>
+    public ICollection<FieldDefinition> FieldDefinitions { get; set; } = [];
+
     public bool IsCompleted() => Status == Status.Done;
 
     /// <summary>

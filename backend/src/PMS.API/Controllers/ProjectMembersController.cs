@@ -61,24 +61,4 @@ public class ProjectMembersController : ControllerBase
         await _service.RemoveMemberAsync(id, employeeId, ct);
         return NoContent();
     }
-
-    [HttpPost("{id:guid}/members/me/accept")]
-    [ProducesResponseType(typeof(ProjectMemberResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<ProjectMemberResponse>> AcceptInvitation(
-        Guid id, CancellationToken ct)
-        => Ok(await _service.AcceptInvitationAsync(id, ct));
-
-    [HttpPost("{id:guid}/members/me/decline")]
-    [ProducesResponseType(typeof(ProjectMemberResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<ProjectMemberResponse>> DeclineInvitation(
-        Guid id, CancellationToken ct)
-        => Ok(await _service.DeclineInvitationAsync(id, ct));
-
-    [HttpGet("invitations")]
-    [ProducesResponseType(typeof(PagedResult<ProjectMemberResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<MyInvitationResponse>>> GetMyInvitations(
-        CancellationToken ct)
-        => Ok(await _service.GetMyInvitationsAsync(ct));
 }

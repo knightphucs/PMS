@@ -3,6 +3,7 @@
 import { QueryError } from '@/components/common/query-error';
 import { WarningBanner } from '@/components/common/warning-banner';
 import { TaskAttachments } from '@/components/tasks/task-attachments';
+import { TaskCustomFields } from '@/components/tasks/task-custom-fields';
 import { TaskDescription } from '@/components/tasks/task-description';
 import { TaskDetailHeader } from '@/components/tasks/task-detail-header';
 import { TaskDetailSkeleton } from '@/components/tasks/task-detail-skeleton';
@@ -100,6 +101,8 @@ export function TaskDetailContent({
             isBusy={isBusy}
             onSave={(description) => save({ description })}
           />
+
+          <TaskCustomFields projectId={projectId} taskId={taskId} canEdit={canEdit} />
 
           <TaskSubtasks
             projectId={projectId}

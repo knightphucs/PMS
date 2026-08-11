@@ -37,7 +37,7 @@ public class SubtaskTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var parentId = await CreateTaskAsync(pm.Client, projectId, "Task cha");
         var subId = await CreateTaskAsync(pm.Client, projectId, "Subtask", parentTaskId: parentId);
 

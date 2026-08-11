@@ -3,22 +3,21 @@ import type {
   ExternalInvitationResponse,
   InviteExternalRequest,
   InviteMemberRequest,
-  MyInvitationResponse,
   ProjectMemberResponse,
 } from '@/types/project';
 
 import { apiFetch } from '../http';
 
 /**
- * 🔴 Swagger của controller này NÓI DỐI ở bốn chỗ. Các kiểu dưới đây lấy theo **chữ ký
+ * 🔴 Swagger của controller này NÓI DỐI ở hai chỗ. Các kiểu dưới đây lấy theo **chữ ký
  * method C#**, không theo attribute `[ProducesResponseType]`. Đừng "sửa" lại theo Swagger:
  *
  *   1. `GET /{id}/members`      attribute nói `PagedResult<>`, thực tế là **mảng trần**
- *   2. `GET /projects/invitations` attribute nói `PagedResult<ProjectMemberResponse>`,
- *                                thực tế là `MyInvitationResponse[]`
- *   3. `PUT .../role`           attribute nói `ProjectDetailResponse`, thực tế là
+ *   2. `PUT .../role`           attribute nói `ProjectDetailResponse`, thực tế là
  *                                `ProjectMemberResponse`
- *   4. `accept` / `decline`     attribute nói 201, thực tế trả **200**
+ *
+ * (Hai chỗ nói dối còn lại — `GET /projects/invitations` và `accept`/`decline` — biến mất
+ * cùng ba endpoint bị gỡ ở ADR-057.)
  *
  * Type theo attribute thì biên dịch vẫn qua và chỉ vỡ lúc chạy với `undefined`.
  */
@@ -87,19 +86,3 @@ export function removeMember(projectId: string, employeeId: string) {
   return apiFetch<void>(`/projects/${projectId}/members/${employeeId}`, { method: 'DELETE' });
 }
 
-/** Lời mời đang chờ TÔI phản hồi. Mảng trần. */
-export function listMyInvitations(signal?: AbortSignal) {
-  return apiFetch<MyInvitationResponse[]>('/projects/invitations', { signal });
-}
-
-export function acceptInvitation(projectId: string) {
-  return apiFetch<ProjectMemberResponse>(`/projects/${projectId}/members/me/accept`, {
-    method: 'POST',
-  });
-}
-
-export function declineInvitation(projectId: string) {
-  return apiFetch<ProjectMemberResponse>(`/projects/${projectId}/members/me/decline`, {
-    method: 'POST',
-  });
-}

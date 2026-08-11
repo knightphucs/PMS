@@ -223,6 +223,9 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | **Đường ghi hồ sơ cá nhân (ADR-054)** | ✅ | Mới 2026-08-06. `PUT /auth/profile` + `POST /auth/change-password`, cả hai phát lại token qua `IssueSession`. Đổi mật khẩu thu hồi phiên KHÁC, giữ phiên hiện tại. Frontend: sửa tên tại chỗ + dialog đổi mật khẩu ở `/profile` |
 | **Kỹ thuật DB: index/view/2 SP/trigger/constraint (ADR-055)** | ✅ | Mới 2026-08-06. Migration `AddReportingDbObjects`. Kèm sửa lỗi có sẵn dạng mới: thêm trigger vào `Tasks` làm MỌI ghi qua EF 500 cho tới khi khai `HasTrigger` |
 | **Nhóm báo cáo: backlog insight + velocity + timeline (ADR-056)** | ✅ | Mới 2026-08-06. `GET /projects/{id}/reports/{backlog-insight,velocity,timeline}`. Ba tab/route riêng trên FE (không còn dồn vào một tab "Báo cáo") |
+| **Thêm thành viên MỘT bước (ADR-057)** | ✅ | Mới 2026-08-11. Gỡ hẳn luồng chờ-chấp-nhận trong-app: 3 endpoint (`me/accept`, `me/decline`, `GET /projects/invitations`), trang `/invitations`, badge sidebar. **Vá 12 test đỏ có sẵn trên `main`** từ commit WIP `7e4600d` |
+| **Email thật + kiểm toán xác thực + Docker/CI (ADR-058)** | ✅ | Mới 2026-08-11. `SmtpEmailSender` (3 nhánh chọn), `App:FrontendBaseUrl` ValidateOnStart, tách `Migrate`/`Seed` khỏi `IsDevelopment()`, 8 `ActivityAction` cho nhóm xác thực + `IActivityLogger.LogAs`, `Dockerfile` + `docker-compose.yml` + `.github/workflows/ci.yml` |
+| **Trường tuỳ biến theo project (ADR-059)** | ⚠️ backend xong, FE chưa | Mới 2026-08-12. 4 bảng + 7 endpoint + 18 test. Hậu bản của ADR-052 — đội tự khai trường thay vì nhận một khuôn cố định. **Frontend chưa dựng** |
 | Real-time (SignalR) | ⬜ | Có chủ đích — chỉ làm sau khi core CRUD ổn định (xem §6) |
 
 ### Lộ trình các phiên tiếp theo
@@ -3552,3 +3555,467 @@ nặng hơn cả giới hạn "không bắn được sự kiện chuột tổng 
   chưa bấm thử thật.
 - ⬜ **Kéo–thả bằng chuột/cảm ứng/bàn phím vẫn CHƯA kiểm chứng bằng thao tác thật** — không
   đổi so với trạng thái trước phiên này. Đừng đọc "Mục 2 đã xong" thành "đã kéo thử trên UI".
+
+---
+
+### Chi tiết ADR-057 (phiên 2026-08-11 — vá đỏ)
+
+#### ADR-057 (2026-08-11) — Thêm thành viên là PHÂN CÔNG, không phải lời mời cần đồng ý
+
+**Bối cảnh: quyết định này đã được ra rồi, chỉ là chưa ai viết xuống.** Commit `7e4600d`
+(2026-08-07, tự khai *"wip … chưa hoàn tất"*) đổi `Project.AddMember()` thành `Invite()` +
+`Accept()` ngay trong một lệnh. Không có ADR, và **12 test đỏ nằm trên `main` suốt bốn
+ngày** trong khi tài liệu vẫn ghi ✅ cho toàn bộ module.
+
+Nửa vời là trạng thái tệ nhất trong ba lựa chọn, vì nó để lại một hệ thống có **hai mô hình
+gia nhập mâu thuẫn nhau** cùng chạy:
+
+| Thứ còn lại sau commit WIP | Tình trạng thật |
+|---|---|
+| Trang `/invitations` + badge sidebar | **Vĩnh viễn rỗng** — không còn gì sinh ra `Pending` |
+| `POST /members/me/accept` | No-op trả 200, không ai gọi |
+| `POST /members/me/decline` | Còn chạy được, nhưng không có nút nào trên UI |
+| `GET /projects/invitations` | Luôn trả mảng rỗng |
+
+**Quyết định: giữ thêm-ngay, gỡ hẳn luồng chờ-chấp-nhận trong-app.**
+
+Lý do sản phẩm: đây là công cụ nội bộ của một phòng ban. PM thêm đồng nghiệp vào dự án là
+**phân công công việc**, không phải một lời mời kết bạn cần đối phương gật đầu. Bước "chấp
+nhận" chỉ thêm một vòng chờ giữa lúc PM cần người đó bắt tay vào việc và lúc họ thật sự vào
+được — mà không chặn được gì: PM vốn đã có toàn quyền thêm, và người được thêm vốn đã có thể
+tự rời bằng `DELETE /members/{me}`.
+
+⚠️ **Không nhầm với luồng mời NGƯỜI NGOÀI qua email** (`ProjectInvitation` + token, 2026-08-07).
+Luồng đó **giữ nguyên** và vẫn cần token: ở đó người nhận **chưa chắc có tài khoản**, nên
+phải có một bước xác thực "đúng là bạn". Hai luồng khác nhau ở chỗ *người được thêm đã tồn
+tại trong hệ thống hay chưa*, không ở chỗ *có cần đồng ý hay không*.
+
+##### Những gì bị gỡ
+
+Backend: 3 endpoint · `AcceptInvitationAsync`/`DeclineInvitationAsync`/`GetMyInvitationsAsync`
+· `RespondToInvitationAsync` · `MyInvitationResponse` + mapper · `GetPendingInvitationsAsync`
+ở repository · 3 request Postman.
+Frontend: `app/(app)/invitations/` · `components/invitations/` · mục "Lời mời" + **toàn bộ
+cơ chế badge** trong sidebar (nó chỉ có đúng một người dùng) · `useMyInvitations` /
+`useRespondToInvitation` · `invitationKeys`.
+
+##### 🔴 Cái GIỮ LẠI, và vì sao
+
+`InvitationStatus` (cả ba giá trị), `Project.Invite()`, `Accept()`, `Decline()`, `Reinvite()`
+**không bị xóa**:
+
+- `Invite()` + `Accept()` vẫn là ruột của `AddMember()` — chúng có caller thật.
+- `Pending` vẫn là **lớp phòng thủ của tầng phân quyền**: `AuthorizeAsync` lọc
+  `InvitationStatus == Accepted`, và `ProjectsAuthorizationTests` seed thẳng một hàng
+  `Pending` vào DB để chứng minh hàng đó **không** mở được project. Bỏ giá trị đó đi là bỏ
+  luôn phép kiểm ấy.
+- `Declined` vẫn tồn tại **trong dữ liệu DB có sẵn từ trước ADR-057**. `Project.Invite()`
+  phải tiếp tục reset đúng hàng cũ thay vì chèn hàng thứ hai — sai chỗ này thì unique index
+  `(ProjectId, EmployeeId)` **vỡ**, chứ không phải im lặng sai.
+
+📌 Nợ ghi rõ: `Decline()` và `Reinvite()` nay **chỉ còn test gọi tới**. Đó đúng là hình dạng
+"code không có người dùng thật" mà §15 đã đặt tên sáu lần, nên nó được ghi ra đây thay vì để
+lặng lẽ. Dọn nốt (kèm migration bỏ cột) là việc của một phiên riêng, không gộp vào một phiên
+vá đỏ.
+
+##### Hệ quả không ai đoán trước: PM mất sạch thông báo
+
+8 trong 12 test đỏ **không** nằm ở module thành viên mà ở `NotificationsTests`, và tất cả
+đổ vì cùng một câu: `inbox.Items.First()` trên một hộp thư **rỗng**.
+
+Nguyên nhân: trước đây PM nhận `InvitationAccepted` khi người kia bấm chấp nhận. Bỏ bước đó
+đi thì **thao tác thêm thành viên không sinh thông báo nào cho PM nữa** — và điều đó *đúng*:
+PM chính là người vừa bấm nút, báo lại cho họ chuyện họ vừa làm là tiếng ồn. Nhưng nó có
+nghĩa là mọi test lấy hộp thư PM bằng cách "thêm một thành viên rồi đọc inbox" đều mất nguồn
+dữ liệu.
+
+Sửa bằng cách mồi hộp thư của PM bằng hành động của **người khác** (member tự nhận một task
+do PM tạo → `TaskAssigned`), gói trong `SeedInboxAsync(count)`. Helper này còn tự khẳng định
+`inbox.Items.Count == count` — mồi hỏng thì đỏ ngay tại chỗ mồi, không đỏ ở phép kiểm thật.
+
+> 📌 **Bài học lặp lại lần thứ bảy, lần này ở dạng mới:** một thay đổi hai dòng trong
+> `Project.AddMember()` làm đỏ 12 test ở **hai module không liên quan gì tới nhau trên sơ đồ
+> phụ thuộc**. Cái nối chúng lại không phải mã nguồn mà là một **giả định chung của test
+> fixture**: "cứ thêm thành viên là PM có thông báo". Giả định đó chưa từng được viết ra ở
+> đâu cả — nó chỉ nằm rải trong sáu helper. Đó là lý do `SeedInboxAsync` nay nói thẳng nó
+> mồi bao nhiêu và bằng cách nào.
+
+##### Ba test được viết lại thay vì xóa
+
+Xóa một test vì endpoint nó gọi đã biến mất là bỏ luôn cái **invariant** nó bảo vệ. Ba test
+sau giữ nguyên mục đích, chỉ đổi điểm quan sát:
+
+| Test | Trước | Sau |
+|---|---|---|
+| KB22 | decline qua API rồi mời lại → 1 hàng | seed `Declined` thẳng DB rồi thêm lại → 1 hàng, `Accepted` |
+| KB23 | "người khác không chấp nhận hộ được" (endpoint đã hết) | **biên giới thật mới**: thêm email chưa có tài khoản → 404, không tạo hàng nào |
+| KB27 | project đã xóa thì lời mời biến khỏi hộp thư | project đã xóa thì thành viên mất luôn đường vào (cùng một query filter `!Project.IsDeleted`) |
+
+KB23 đáng chú ý: sau ADR-057, **"ai được phép thêm vào project" là chốt chặn duy nhất còn
+lại** — không còn bước chấp nhận nào phía sau để bắt lỗi. Vậy mà nhánh "email chưa có tài
+khoản → 404" trước đó **không có một integration test nào** chạm tới. Việc gỡ một tính năng
+làm lộ ra chỗ thiếu của tính năng ở lại.
+
+##### Kết quả
+
+`main` xanh trở lại: **539 test** (249 unit + 290 integration), 0 đỏ. Frontend: typecheck
+sạch, lint sạch, 72 test xanh.
+
+##### 📌 Phụ lục ADR-057 — hai khoản nợ khác cùng được trả trong phiên vá đỏ
+
+**(a) Migration `AddStoryPointsToTasks` thiếu `.Designer.cs` — và nó KHÔNG vô hại.**
+
+16/17 migration có Designer; riêng cái này viết tay nên không có. Hệ quả không lộ ra cho tới
+khi ai đó chạy công cụ EF thật:
+
+```bash
+dotnet ef migrations add __DriftCheck   # -> Up() RỖNG, tức snapshot KHÔNG lệch ✅
+dotnet ef migrations remove             # -> XÓA TRẮNG PmsDbContextModelSnapshot (1217 dòng biến mất) 🔴
+```
+
+`migrations remove` dựng lại snapshot **từ Designer của migration liền trước**. Không có
+Designer thì nó dựng lại từ hư không và ghi đè một `BuildModel` rỗng. Bất kỳ ai chạy đúng cặp
+lệnh chuẩn này đều làm hỏng snapshot mà không có cảnh báo nào.
+
+Đã sửa bằng cách sinh Designer từ chính snapshot (hợp lệ vì đây là migration **cuối**, nên
+model tại thời điểm đó == model hiện tại — điều mà bước drift check ở trên vừa chứng minh),
+đồng thời **chuyển `[DbContext]`/`[Migration]` từ file migration sang file Designer** theo
+đúng quy ước `dotnet ef` — khai ở cả hai chỗ là lỗi biên dịch `CS0579`. Kiểm chứng lại bằng
+đúng cặp lệnh trên: nay `remove` giữ nguyên snapshot.
+
+> 🔴 **Cố ý KHÔNG tạo lại migration bằng `dotnet ef migrations add`.** Làm vậy sinh timestamp
+> mới, trong khi `__EFMigrationsHistory` của DB dev và DB đang chạy đã ghi id
+> `20260807010000_AddStoryPointsToTasks`. Một id mới nghĩa là EF sẽ cố áp lại một migration
+> đã áp — thêm cột `StoryPoints` lần hai. Giữ id, bù Designer là đường duy nhất không đụng
+> vào dữ liệu có sẵn.
+
+**(b) Story Point: mã nguồn ĐÚNG, nhưng không một test nào chạm tới.**
+
+Rà lại toàn bộ đường đi (entity → DTO → validator → mapper → service → view → báo cáo → 3
+màn frontend) thì tính năng **đã hoàn chỉnh**, trái với những gì commit "wip" gợi ý. Thứ
+thiếu thật sự là kiểm chứng: `grep StoryPoints backend/tests` trả về **0 kết quả**.
+
+Đã thêm `TaskStoryPointsTests` (7 test). Đáng chú ý nhất là hai test đọc
+`vw_SprintVelocity`, vì `DoneStoryPoints` **không do C# tính** mà do
+`CASE WHEN t.Category = 2` bên trong view (ADR-055) — sai hằng số ở đó thì không compiler
+nào kêu, không test nào khác đi ngang, và velocity chỉ hiện một con số sai một cách hợp lý.
+
+**Đã mutation test, không chỉ chạy cho xanh:** đổi `Category = 2` thành `Category = 1` trong
+view → đúng một test đỏ (`View_velocity_chi_cong_diem_cua_task_thuoc_nhom_Done`), 6 test kia
+vẫn xanh. Điều đó chứng minh phép kiểm thật sự đi qua SQL chứ không chỉ qua đường C#.
+
+> 📌 Bài học nhắc lại: *"đúng mà không ai kiểm"* và *"sai"* trông giống hệt nhau từ bên
+> ngoài. Đây là lần thứ tám dự án gặp lớp lỗi §15 đã đặt tên từ 2026-07-30, và là lần đầu
+> tiên nó **không** kèm theo một bug thật — nhưng khoản nợ vẫn phải trả, vì lần trước
+> (`StatisticsService`) thì có.
+
+##### ⬜ Bốn ngày code chưa có ADR — vẫn còn nợ tài liệu
+
+Phiên này chỉ viết ADR-057 cho phần nó thật sự chạm vào. Bốn hạng mục sau đã vào `main`
+2026-08-06/07 và **vẫn chưa có ADR**, ghi ra đây để phiên sau không phải dò lại `git log`:
+
+| Hạng mục | Nằm ở đâu | Câu hỏi thiết kế cần một ADR trả lời |
+|---|---|---|
+| **Ghim task** | `PATCH /tasks/{id}/pin`, migration `AddTaskIsPinned` | Ghim là thuộc tính **của task** (mọi người thấy như nhau) chứ không phải của người xem — quyền ghim đang là `UpdateTask`. Đó là lựa chọn, không phải mặc định hiển nhiên |
+| **Nút "+" theo từng cột** | `CreateTaskRequest.BoardColumnId` | `null` = cột trái nhất (hành vi cũ ADR-052). Cần ghi rõ vì nó là tham số thứ hai quyết định trạng thái khởi tạo của task |
+| **Member tạo được subtask** | `ProjectAction.CreateSubtask` | Nới quyền so với `CreateTask` (PM-only). Lý do và ranh giới cần viết xuống |
+| **Mời người ngoài qua email** | `ProjectInvitation`, token hash, TTL **7 ngày**, `/invitations/{token}` | Hạng mục LỚN nhất trong nhóm: token băm chứ không lưu thô, mời lại thì vô hiệu token cũ, người nhận phải đăng ký đúng email. **Không có một dòng ADR nào** |
+
+⚠️ Và nhắc lại từ §1: luồng (4) **không hoạt động trên bản deploy hiện tại** —
+`useFakeEmailSender` bật theo `IsDevelopment()` nên email chỉ được ghi ra log, còn
+`App:FrontendBaseUrl` của `appsettings.Development.json` là `https://localhost:4176` nên link
+trong thư trỏ về máy lập trình viên. Đây là hạng mục đầu của Giai đoạn 1.
+
+---
+
+### Chi tiết ADR-058 (phiên 2026-08-11 — bản deploy phải nói thật)
+
+#### ADR-058 (2026-08-11) — Email thật, kiểm toán xác thực, và một bản deploy dựng lại được
+
+Ba lỗ hổng của bản demo công khai (Cloudflare Tunnel + Vercel), cộng một khoản nợ kiểm toán
+đã treo từ 2026-08-04. Điểm chung: **không cái nào lộ ra dưới dạng một lỗi**. Tất cả đều
+"chạy bình thường" và im lặng làm sai.
+
+##### (a) Ba nhánh gửi email, xét theo thứ tự — và vì sao Development đứng TRƯỚC
+
+`NullEmailSender` từng là mặc định production, nghĩa là quên-mật-khẩu và mời-qua-email
+**không gửi gì cả** ngoài Dev. Thêm `SmtpEmailSender` (`System.Net.Mail`, không thêm package):
+
+| Điều kiện | Implementation |
+|---|---|
+| 1. Development/Testing | `SerilogEmailSender` — ghi ra log, không ra ngoài |
+| 2. `Smtp:Host` có giá trị | `SmtpEmailSender` — gửi thật |
+| 3. còn lại | `NullEmailSender` — im lặng nuốt |
+
+🔴 **Nhánh 1 phải đứng trước nhánh 2.** Máy dev rất dễ thừa hưởng biến `Smtp__*` của
+production (một file `.env` copy nhầm là đủ), và một lượt chạy test bắn email thật tới người
+dùng thật là loại tai nạn không hoàn tác được. Xếp ngược lại thì "an toàn" phụ thuộc vào việc
+không ai cấu hình sai — tức là không phải an toàn.
+
+🔴 **`SmtpEmailSender` KHÔNG BAO GIỜ ném ra ngoài.** Ràng buộc kế thừa từ ADR-041:
+`ForgotPassword` phải trả 204 cho mọi kết quả. Một exception ở đây thành 500, và
+"500 với email có thật / 204 với email bịa" chính là kênh dò tài khoản mà ADR-041 sinh ra để
+bịt. `NullEmailSender` đã chọn im lặng vì đúng lý do này; bản SMTP không được phá vỡ tính
+chất đó chỉ vì nó thất bại được theo nhiều cách hơn. Cùng lý do, `Timeout` mặc định 100 giây
+của `SmtpClient` bị hạ xuống 10: độ trễ cũng là một kênh rò rỉ.
+
+Hệ quả phải chấp nhận, ghi rõ: **gửi hỏng thì người dùng vẫn thấy "đã gửi"**. Bù bằng log
+mức `Error` — chỗ người vận hành nhìn, không phải màn hình người dùng.
+
+##### (b) `App:FrontendBaseUrl` rỗng nay là lỗi KHỞI ĐỘNG
+
+Trường này chỉ được đọc ở đúng một chỗ — link trong email mời — nên giá trị rỗng **không làm
+gì hỏng** cho tới khi có người bấm "mời qua email". Thứ hỏng khi đó là *một lá thư đã gửi đi
+rồi*, mang link tương đối `/invitations/{token}` không mở được. Không hoàn tác được.
+
+Nay `ValidateOnStart` bắt buộc URL tuyệt đối http(s). Thà không khởi động nổi.
+
+> Đây chính là lỗi đang có trên bản deploy: `appsettings.Development.json` đặt
+> `https://localhost:4176`, và bản tunnel chạy ở Development, nên mọi thư mời đều mang link
+> trỏ về máy lập trình viên.
+
+##### (c) Migrate và Seed bị buộc vào `IsDevelopment()` — hai quyết định, một câu `if`
+
+Trước đây `UseSwagger` + `Migrate` + `DbSeeder` nằm chung một nhánh `if (IsDevelopment())`.
+Hệ quả: chuyển sang Production để **giấu Swagger** cũng đồng thời **tắt việc áp migration**,
+nên cách duy nhất để bản deploy có schema đúng là chạy nó ở Development — tức đúng thứ đang
+cố tránh. Ba thứ không liên quan gì nhau bị buộc vào một điều kiện.
+
+Nay tách: Swagger giữ nguyên Development-only; `Migrate` theo cờ `Database:MigrateOnStartup`
+(mặc định = `IsDevelopment()`, nên hành vi cũ không đổi); `DbSeeder` **vẫn chỉ Development**
+— đó là dữ liệu demo với mật khẩu biết trước, không bao giờ được chạm vào môi trường có
+người dùng thật.
+
+> 📌 **Bản deploy demo vì vậy PHẢI chạy `ASPNETCORE_ENVIRONMENT=Production`** kèm
+> `Database__MigrateOnStartup=true`. Chạy Development trên URL công khai đồng nghĩa phơi
+> Swagger, trang lỗi chi tiết, **và** `SerilogEmailSender` — thứ ghi token đặt lại mật khẩu
+> dạng thô ra `logs/pms-*.log`.
+
+##### (d) Nhật ký kiểm toán cho nhóm xác thực — và bài toán "chưa có ai để quy trách nhiệm"
+
+`AuthService` trước đó không ghi một dòng `ActivityLog` nào. Với một hệ thống nội bộ ngân
+hàng, đăng nhập / đăng xuất / đổi & đặt lại mật khẩu là những dòng kiểm toán nội bộ hỏi tới
+**đầu tiên**, và chúng chỉ nằm trong file log dạng văn bản — không truy vấn được, xoay vòng
+theo ngày.
+
+Trở ngại kỹ thuật thật: `ActivityLogger.Log` đọc `ICurrentUserService.RequireEmployeeId()`,
+nhưng **đăng ký, đăng nhập và đặt lại mật khẩu chạy trên request ẩn danh** — gọi `Log` ở đó
+ném `UnauthorizedException` ngay giữa một luồng đang thành công. Thêm `LogAs(actorId, …)`:
+ở những chỗ đó danh tính đã được xác lập bằng **nghiệp vụ** (vừa kiểm mật khẩu xong, vừa tạo
+xong tài khoản) chứ không bằng claim. `Log` nay chỉ là `LogAs(currentUser, …)`.
+
+Tám action mới, `EntityType = "Employee"` — nên chúng **tự động** hiện ở `/admin/audit-logs`
+mà không phải nới `SystemScopedEntityTypes` (ADR-042 vẫn nguyên vẹn).
+
+🔴 **Hai chi tiết dễ làm sai:**
+
+1. **`SaveChanges` phải gọi TRƯỚC khi ném** ở nhánh đăng nhập thất bại. Nhánh đó kết thúc
+   bằng exception, nên chỉ `Add` vào ChangeTracker thì dòng kiểm toán chết theo request — và
+   lần thất bại là lần kiểm toán *cần nhất*. **Đã mutation test**: bỏ dòng `SaveChanges` đó
+   làm đúng một test đỏ.
+2. **Đăng nhập bằng email KHÔNG tồn tại cố ý không ghi dòng nào.** Không có `Employee` thì
+   không có `EmployeeId`, mà đó là khóa ngoại bắt buộc. Bịa một "employee vô danh" để lấp
+   chỗ trống sẽ làm hỏng chính bảng đang dùng để quy trách nhiệm. Trường hợp đó ở lại Serilog.
+   Phủ một phần *có ghi rõ ranh giới* tốt hơn một bảng kiểm toán mà không ai tin được nữa.
+
+##### (e) Docker + CI
+
+`backend/Dockerfile` multi-stage (SDK chỉ ở tầng build, ảnh cuối là runtime ASP.NET, chạy
+user `app` uid 1654 — quan trọng vì container này GHI đĩa qua `LocalFileStorage`),
+`docker-compose.yml` (API + SQL Server, healthcheck cho DB vì `EnableRetryOnFailure(3)` ngắn
+hơn hẳn 20–40 giây SQL Server cần để nhận kết nối đầu), `.env.example`.
+
+🔴 **Compose cố ý KHÔNG có mật khẩu mặc định** — `${MSSQL_SA_PASSWORD:?...}` làm compose dừng
+ngay nếu thiếu. Một file chạy được luôn bằng `sa/Password123` là thứ sẽ được copy nguyên si
+lên máy thật; cấu hình mặc định luôn sống lâu hơn ý định của người viết ra nó.
+
+CI (`.github/workflows/ci.yml`): backend build + unit + integration trên **SQL Server thật**
+(bộ test phụ thuộc `rowversion`/trigger/view/stored procedure — provider khác sẽ xanh vì lý
+do sai), frontend typecheck + lint + test + `next build`. Cộng một bước **kiểm lệch model
+snapshot** — chính phép kiểm đã bắt được cặp lỗi Designer/snapshot ở ADR-057.
+
+##### 📌 Kiểm chứng — và một chỗ KHÔNG kiểm được
+
+Đã kiểm thật, không suy luận:
+
+- `docker build` → ảnh dựng xong; chạy container trỏ vào SQL Server trên host →
+  `/health` trả `{"status":"Healthy"}`, migration áp lên một DB rỗng, **đăng ký + đăng nhập
+  + gọi API có token đều 200** (chứng minh schema thật sự được tạo).
+- `/swagger` trong container Production: **không được phục vụ**. Trả **401** chứ không phải
+  404 — vì `SetFallbackPolicy(RequireAuthenticatedUser)` áp cả cho request không khớp
+  endpoint nào. Không rò rỉ gì thêm, nhưng đừng trông chờ 404.
+- `id` trong container → `uid=1654(app)`, không phải root.
+- Kiểm lệch snapshot bằng đúng cặp lệnh CI sẽ chạy, với **chỉ** biến `ConnectionStrings__*`
+  (không user-secrets) → migration rỗng, và `migrations remove` **không** phá snapshot nữa.
+
+⬜ **`docker compose up` đầy đủ CHƯA chạy được trên máy này.** Microsoft không phát hành ảnh
+arm64 cho SQL Server; trên Apple Silicon nó rơi xuống QEMU và SQL Server **segfault** (exit
+139 — một mã lỗi không hề gợi ra nguyên nhân là kiến trúc CPU). Đã khai `platform:
+linux/amd64` cho tường minh, nhưng chạy được thì vẫn cần bật Rosetta trong Docker Desktop
+(*Settings → General*). Runner CI là amd64 thật nên không dính. **Phần chưa kiểm chỉ là dịch
+vụ `db` của compose** — ảnh API thì đã kiểm đầy đủ ở trên.
+
+##### Việc còn lại của Giai đoạn 1 — thao tác vận hành, không phải code
+
+1. Đặt trên instance tunnel: `ASPNETCORE_ENVIRONMENT=Production`,
+   `Database__MigrateOnStartup=true`, `App__FrontendBaseUrl=https://pms-six-gamma.vercel.app`,
+   `Cors__AllowedOrigins__0=<cùng giá trị>`, `Jwt__Secret`, `ConnectionStrings__DefaultConnection`.
+2. Cấp SMTP thật (`Smtp__Host/User/Password`) rồi **kiểm bằng một email thật**: đặt lại mật
+   khẩu → nhận được thư → link mở đúng tên miền Vercel → đổi mật khẩu thành công.
+
+---
+
+### Chi tiết ADR-059 (phiên 2026-08-12 — nền tảng mở rộng, phần 1)
+
+#### ADR-059 (2026-08-12) — Trường tuỳ biến theo project: hậu bản của ADR-052
+
+**Đây là hạng mục trả lời trực tiếp câu hỏi "làm sao không bị khuôn như Jira".** ADR-052 đã
+cho cột board thôi là enum và trở thành dữ liệu của từng project; ADR-059 làm điều tương tự
+với **trường dữ liệu**. Phòng hạ tầng tự khai "Hệ thống ảnh hưởng", "Cửa sổ bảo trì", "Mức
+rủi ro" mà không ai phải sửa một dòng code.
+
+Bốn bảng: `FieldDefinitions` · `FieldOptions` · `FieldValues` · bảng nối `FieldValueOptions`.
+
+##### Sáu quyết định, và cái giá của phương án bị loại
+
+**(a) `FieldType` là danh mục ĐÓNG** (Text · Number · Date · Checkbox · Url · SingleSelect ·
+MultiSelect). Cùng lý lẽ ADR-045/052: người dùng đặt *tên* và *ý nghĩa*, nhưng *hình dạng dữ
+liệu* thì không — mã nguồn phải biết đọc/ghi/validate/hiển thị từng kiểu.
+
+**(b) Cột có KIỂU, không phải một cột JSON.** Gói tất cả vào `NVARCHAR(MAX)` viết nhanh hơn
+nhiều và hỏng ở đúng chỗ quan trọng: bộ lọc/sắp xếp của "view lưu được" (hạng mục kế tiếp)
+sẽ so sánh ngày và số dưới dạng **chuỗi** — `"9" > "10"` — và không index nào dùng được.
+*Chọn kiểu ở tầng lưu trữ là chọn cho tính năng kế tiếp, không phải cho tính năng này.*
+
+⚠️ `ValueNumber` khai `HasPrecision(18, 4)`. Mặc định của EF cho `decimal` trên SQL Server là
+`(18,2)` và nó **làm tròn im lặng** — với một trường người dùng tự khai (giờ công, tỷ lệ) đó
+là hỏng dữ liệu, không phải làm tròn.
+
+**(c) Lựa chọn Select nằm ở BẢNG RIÊNG**, không phải chuỗi `"a,b,c"`. Chuỗi vỡ ngay ở thao
+tác đầu tiên người dùng sẽ làm — đổi tên một lựa chọn — vì khi đó phải đi sửa chuỗi ở *mọi*
+task đang mang giá trị đó, một thao tác không nguyên tử. Đề bài cũng yêu cầu tường minh
+"cơ sở dữ liệu quan hệ để mapping các đối tượng một cách logic" (§1).
+
+**(d) KHÔNG có `Key`/slug.** Định danh là `Id`; `Label` đổi thoải mái. Slug kéo theo ràng
+buộc unique, luật sinh slug, và câu hỏi "đổi tên thì slug có đổi không" — mà mọi câu trả lời
+đều làm hỏng thứ đang trỏ tới nó.
+
+**(e) KHÔNG có `IsRequired` trong đợt này** — dù nó rất hữu ích cho Change Request. Lý do:
+chưa có điểm cưỡng chế thật. Bắt buộc từ lúc tạo task thì thêm một trường required sẽ làm
+**mọi task đang có** trở thành không hợp lệ. Một cờ "bắt buộc" mà không chặn được gì chính
+là *trường chết đội lốt tính năng* — đúng thứ `Project.Status` đã là suốt nhiều phiên
+(ADR-048). Để dành cho hạng mục **loại công việc**, nơi nó có chỗ cưỡng chế thật.
+
+**(f) Hai mức quyền, không phải một.** Sửa **lược đồ** cần `ManageFieldDefinitions` (PM);
+nhập **giá trị** đi cùng `UpdateTask`. Gộp lại sẽ hoặc cấm Member nhập liệu, hoặc cho Member
+đổi lược đồ. Nhưng **đọc** lược đồ chỉ cần `View` — nếu không thì khối trường tuỳ biến trên
+task của Member/Viewer trống rỗng mà không có lý do nào giải thích được.
+
+##### 🔴 Hai cái bẫy đã NỔ THẬT trong phiên này
+
+**1. `Cascade` hai đường xuống bảng nối → SQL Server từ chối tạo FK.**
+
+Thiết kế ban đầu cho `FieldValues → FieldDefinitions` là `Cascade` (nghiệp vụ đúng: xoá
+trường thì giá trị biến mất theo). Hệ quả không thấy trước:
+
+```
+FieldDefinitions ─cascade→ FieldOptions ─cascade→ FieldValueOptions
+FieldDefinitions ─cascade→ FieldValues  ─cascade→ FieldValueOptions
+```
+
+SQL Server ném thẳng lúc `CreateTable`: *"may cause cycles or multiple cascade paths"*.
+Migration sinh SQL sạch, build sạch, và **cả 18 test đỏ cùng lúc trong 12 mili-giây** — dấu
+hiệu đặc trưng của hỏng ở tầng dựng host chứ không phải ở logic.
+
+Sửa: hạ FK đó xuống `Restrict` và cho `CustomFieldService.DeleteAsync` xoá giá trị **tường
+minh** trước (`DeleteValuesOfFieldAsync`, một lệnh `ExecuteDelete`). Đắt hơn một dòng cấu
+hình, đổi lại thứ tự xoá là thứ **đọc được trong code** chứ không phải thứ phải tin vào
+engine — và số hàng bị xoá ghi được vào `ActivityLog`.
+
+**2. `AsNoTracking` + many-to-many = INSERT lại hàng đã có.**
+
+`ListByProjectAsync` đọc `AsNoTracking`, nên `FieldOption` nó trả về là entity **rời**. Gán
+một entity rời vào navigation của entity đang được theo dõi —
+`value.SelectedOptions.Add(option)` — thì EF coi nó là hàng MỚI:
+
+```
+Violation of PRIMARY KEY constraint 'PK_FieldOptions'.
+Cannot insert duplicate key … (4b24de25-…)
+```
+
+Tức **500 ở mọi lần ghi giá trị Select**. Sửa bằng `ListByProjectWithTrackingAsync` dùng
+riêng cho đường GHI.
+
+> 📌 **Cái đáng ghi hơn cả hai lỗi:** test ban đầu chỉ khẳng định phản hồi của lần PATCH
+> **thứ hai**. Lần thứ nhất cũng 500, nhưng vì không ai kiểm nên triệu chứng hiện ra dưới
+> dạng *"JSON không parse được"* ở lần thứ hai — **sai chỗ và sai cả nguyên nhân**. Đã thêm
+> khẳng định cho lần ghi đầu. Bài học dùng lại được: trong một test có nhiều lần ghi, khẳng
+> định mã trạng thái ở **từng** lần, không chỉ lần cuối.
+
+##### Ghi PATCH chứ không PUT
+
+`PATCH /tasks/{id}/field-values` chỉ đụng tới trường có mặt trong thân request. UI lưu từng
+ô khi người dùng rời ô (giống mô tả task), nên một request mang trọn bộ giá trị sẽ biến mỗi
+lần gõ thành một cơ hội ghi đè công của người khác. Gửi tất cả giá trị `null` cho một trường
+= **xoá** giá trị đó, và hàng bị xoá hẳn thay vì giữ một hàng toàn null (hàng rỗng làm mọi
+phép đếm "bao nhiêu task đã điền trường này" trả lời sai).
+
+`GET` trả về **MỌI** trường của project kèm giá trị (null nếu chưa điền), không chỉ các
+trường đã có giá trị — frontend dựng thẳng form từ phản hồi. Bắt frontend tự gộp "danh sách
+trường" với "danh sách giá trị" là đẩy một phép join sang chỗ dễ làm sai hơn (ADR-034).
+
+##### Xoá trường KHÔNG hỏi "chuyển giá trị đi đâu"
+
+Khác hẳn dialog xoá cột board. Một task **bắt buộc** đứng ở một cột nào đó nên xoá cột phải
+có cột đích; còn "task không có giá trị cho trường này" là trạng thái hoàn toàn hợp lệ —
+chính là trạng thái của mọi task trước khi trường đó được tạo ra. `ValueCount` trong DTO
+nuôi cảnh báo "trường này đang có N giá trị" trước khi xoá.
+
+##### Hai chốt chặn an ninh dữ liệu
+
+- **Lựa chọn phải thuộc đúng trường đó** (`ResolveOptionIds`). Bảng nối không biết gì về
+  quan hệ "option thuộc trường nào", nên không kiểm thì một option của trường khác — kể cả
+  **của project khác** — vẫn ghi xuống được, và giao diện hiện một chip không có trong danh
+  sách của chính trường đang xem.
+- **Trường phải thuộc project của task** — nếu không thì giá trị lạc sang project khác,
+  không màn nào hiển thị, dữ liệu "mất tích" mà vẫn nằm trong DB. Trả **404** chứ không nuốt
+  lặng: nuốt lặng làm người dùng thấy "đã lưu" trên một giá trị không tồn tại ở đâu cả.
+
+##### Kết quả
+
+`POST/GET/PUT/DELETE /projects/{id}/fields` + `PUT …/fields/order` +
+`GET/PATCH /tasks/{id}/field-values` — 7 endpoint, **18 integration test**, 0 đỏ.
+Tổng bộ test backend: **570** (249 unit + 321 integration).
+
+##### Frontend (cùng ngày) — hai bề mặt, hai mức quyền
+
+| Bề mặt | Ở đâu | Quyền |
+|---|---|---|
+| `ManageFieldsDialog` — thêm/sửa/xoá/đổi thứ tự trường | Nút "Trường tuỳ biến" ở trang **Bảng**, cạnh "Quản lý cột" | PM (`canManage`) |
+| `TaskCustomFields` — khối nhập giá trị | Chi tiết task, ngay dưới **Mô tả** | Ai sửa được task |
+
+🔴 **Ba chỗ UI phải nói thật thay vì để người dùng tự phát hiện:**
+
+1. **Form sửa KHÔNG có ô chọn kiểu.** Bày ra một ô chọn rồi báo lỗi khi lưu là hứa một việc
+   backend từ chối làm. Hiện dòng chữ chỉ-đọc *"không đổi được sau khi tạo"* — cố ý không
+   dùng ô chọn bị vô hiệu hoá, vì một ô xám vẫn gợi ý rằng đâu đó có cách bật nó lên.
+2. **Cảnh báo đổi tên lựa chọn.** Backend khớp option theo `Label`, nên đổi màu/thứ tự thì
+   giá trị giữ nguyên còn **đổi tên thì mất**. Câu này nằm ngay trong form sửa, không nằm
+   trong tài liệu.
+3. **Khối trường tuỳ biến TỰ ẨN khi project chưa khai trường nào.** Một khối trống mang tiêu
+   đề trên mọi task của mọi project chưa dùng tính năng này là nhiễu thuần tuý.
+
+**Một lỗi tự bắt được khi dựng:** `OptionPicker` ban đầu lấy danh sách lựa chọn từ
+`FieldValueResponse.selectedOptions` — nhưng mảng đó chỉ chứa những cái **đang được chọn**,
+nên người dùng sẽ không bao giờ thấy lựa chọn chưa chọn, tức không có cách nào chọn thêm.
+Danh sách đầy đủ phải đến từ **lược đồ** (`useFieldDefinitions`, dùng chung cache
+`staleTime: 5 phút` với dialog quản lý nên không tốn request thừa).
+
+**Ghi từng trường khi rời ô (blur)**, không phải submit cả form — giống `TaskDescription`.
+Và `useSetFieldValues` ghi thẳng phản hồi vào cache (`setQueryData`) thay vì invalidate:
+server đã trả trạng thái đầy đủ sau khi ghi, nên một request nữa chỉ để đọc lại đúng thứ vừa
+nhận là thừa, và khoảng trống giữa hai request là lúc ô nhập nhấp nháy về giá trị cũ.
+
+⚠️ **Chuỗi rỗng ở ô Number gửi `null`, KHÔNG phải `0`.** `Number('')` là `0`, và gửi `0` đi
+sẽ biến *"chưa điền"* thành *"bằng không"* — hai thứ khác hẳn nhau khi trường tên là "Giờ
+downtime".

@@ -68,7 +68,7 @@ public class CommentsTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         var res = await member.Client.PostAsJsonAsync($"/api/v1/tasks/{taskId}/comments",
@@ -83,7 +83,7 @@ public class CommentsTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var viewer = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
+        await AddMemberAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
         await CreateCommentAsync(pm.Client, taskId, "PM nói gì đó");
 
@@ -131,7 +131,7 @@ public class CommentsTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
         var comment = await CreateCommentAsync(pm.Client, taskId, "Lời của PM");
 
@@ -147,7 +147,7 @@ public class CommentsTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
         var comment = await CreateCommentAsync(member.Client, taskId, "Lời của Member");
 
@@ -165,7 +165,7 @@ public class CommentsTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
         var comment = await CreateCommentAsync(pm.Client, taskId, "Lời của PM");
 
@@ -207,7 +207,7 @@ public class CommentsTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId, "Dựng API");
 
         // PM là Reporter của task -> nằm trong InterestedEmployeeIds; member là người viết
