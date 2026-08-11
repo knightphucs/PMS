@@ -17,6 +17,17 @@ public class TaskItem : BaseEntity, ISoftDeletable
     public BoardColumn BoardColumn { get; set; } = null!;
 
     /// <summary>
+    /// Loại công việc (ADR-060) — Sự cố / Yêu cầu / Change Request / Bảo trì…
+    /// <para>
+    /// Bắt buộc, cùng bất biến với <see cref="BoardColumnId"/>: mọi task thuộc đúng một
+    /// loại. Project mới được cấp sẵn loại mặc định "Task", nên không có trạng thái
+    /// "task chưa có loại".
+    /// </para>
+    /// </summary>
+    public Guid WorkItemTypeId { get; set; }
+    public WorkItemType WorkItemType { get; set; } = null!;
+
+    /// <summary>
     /// Nhóm ngữ nghĩa của cột hiện tại — <b>bản sao có chủ đích</b> của
     /// <c>BoardColumn.Category</c>.
     ///

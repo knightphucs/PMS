@@ -38,7 +38,21 @@ export interface TaskCardAssignee {
   employeeName: string;
 }
 
+/**
+ * Loại công việc gắn kèm trên thẻ/chi tiết task (ADR-060) — đủ để vẽ chip mà không phải gọi
+ * thêm `GET /projects/{id}/work-item-types`. Cùng lý lẽ `TaskStatusRef`.
+ */
+export interface TaskTypeRef {
+  typeId: string;
+  name: string;
+  /** Tên icon lucide-react. Tên lạ rơi về icon mặc định. */
+  icon: string;
+  color: string;
+}
+
 export interface TaskSummaryResponse {
+  /** Loại công việc (ADR-060). */
+  type: TaskTypeRef;
   id: string;
   /** Số thứ tự trong project. Dùng khi cần sắp xếp/tra cứu bằng số. */
   number: number;
@@ -89,6 +103,8 @@ export interface TaskAssigneeResponse {
 }
 
 export interface TaskDetailResponse {
+  /** Loại công việc (ADR-060). */
+  type: TaskTypeRef;
   id: string;
   number: number;
   /** Mã hiển thị `PMS-12` — xem ghi chú ở `TaskSummaryResponse.code`. */
@@ -175,6 +191,11 @@ export interface ReorderBoardColumnsRequest {
 }
 
 export interface CreateTaskRequest {
+  /**
+   * Loại công việc (ADR-060). Bỏ trống khi TẠO = loại mặc định của project;
+   * bỏ trống khi SỬA = giữ nguyên loại hiện tại (KHÔNG phải reset về mặc định).
+   */
+  workItemTypeId?: string;
   name: string;
   projectId: string;
   /** `null` = đưa thẳng vào Backlog. */
@@ -199,6 +220,11 @@ export interface CreateTaskRequest {
  * `PATCH /tasks/{id}/status` và `PUT /tasks/{id}/sprint` thì KHÔNG.
  */
 export interface UpdateTaskRequest {
+  /**
+   * Loại công việc (ADR-060). Bỏ trống khi TẠO = loại mặc định của project;
+   * bỏ trống khi SỬA = giữ nguyên loại hiện tại (KHÔNG phải reset về mặc định).
+   */
+  workItemTypeId?: string;
   name: string;
   dueDate: string | null;
   priority: Priority;

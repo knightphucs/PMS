@@ -79,6 +79,29 @@ public class CustomFieldService : ICustomFieldService
 
         await _uow.FieldDefinitions.AddAsync(field, ct);
 
+        // 🔴 Trường mới tự gắn vào MỌI loại công việc của project, KHÔNG bắt buộc (ADR-060).
+        //
+        // Trước ADR-060 một trường áp cho mọi task trong project; giữ đó làm mặc định thì
+        // hành vi của ADR-059 không đổi với project chưa dùng tới loại, và "loại" trở thành
+        // một phép THU HẸP có chủ đích chứ không phải một bước bắt buộc mới.
+        //
+        // Không làm vậy thì tạo trường xong nó vô hình ở mọi task cho tới khi người dùng
+        // đoán ra là còn phải đi gắn vào từng loại — một cái bẫy im lặng ngay ở luồng chính.
+        var types = await _uow.WorkItemTypes.ListByProjectAsync(projectId, ct);
+        for (var i = 0; i < types.Count; i++)
+        {
+            var type = await _uow.WorkItemTypes.GetWithFieldsAsync(types[i].Id, ct);
+            if (type is null) continue;
+
+            type.Fields.Add(new WorkItemTypeField
+            {
+                WorkItemTypeId = type.Id,
+                FieldDefinitionId = field.Id,
+                IsRequired = false,
+                Order = type.Fields.Count == 0 ? 0 : type.Fields.Max(f => f.Order) + 1,
+            });
+        }
+
         _activityLog.Log(nameof(Project), projectId, ActivityAction.Updated,
             $"Thêm trường tuỳ biến '{field.Label}' ({field.Type})");
 
@@ -190,6 +213,11 @@ public class CustomFieldService : ICustomFieldService
         var existing = (await _uow.FieldDefinitions.ListValuesForTaskAsync(taskId, ct))
             .ToDictionary(v => v.FieldDefinitionId);
 
+        var required = (await _uow.WorkItemTypes.ListFieldsOfTaskTypeAsync(taskId, ct))
+            .Where(f => f.IsRequired)
+            .Select(f => f.FieldDefinitionId)
+            .ToHashSet();
+
         foreach (var item in request.Values)
         {
             if (!definitions.TryGetValue(item.FieldDefinitionId, out var definition))
@@ -213,6 +241,19 @@ public class CustomFieldService : ICustomFieldService
 
             if (wantsEmpty)
             {
+                // 🔴 Cưỡng chế IsRequired (ADR-060) — CHỈ ở đây, tại đúng khoảnh khắc người
+                // dùng cố xoá giá trị của một trường bắt buộc.
+                //
+                // KHÔNG kiểm ngược lên task đã có: bật cờ bắt buộc cho một trường sẽ biến
+                // hàng trăm task cũ thành không hợp lệ, và khi đó người dùng không sửa được
+                // BẤT KỲ trường nào khác cho tới khi điền xong thứ họ không biết là đang
+                // thiếu. Chặn hành động xoá thì hẹp đúng mức có nghĩa; chặn cả bản ghi thì
+                // biến một cấu hình thành một bức tường.
+                if (required.Contains(definition.Id))
+                    throw new BusinessRuleException(
+                        $"Trường '{definition.Label}' là bắt buộc với loại công việc này — " +
+                        "không thể để trống.");
+
                 // Xoá hẳn hàng thay vì giữ một hàng toàn null: hàng rỗng làm mọi phép đếm
                 // ("bao nhiêu task đã điền trường này") trả lời sai.
                 if (value is not null) _uow.FieldValues.Remove(value);
@@ -380,17 +421,31 @@ public class CustomFieldService : ICustomFieldService
         var values = (await _uow.FieldDefinitions.ListValuesForTaskAsync(taskId, ct))
             .ToDictionary(v => v.FieldDefinitionId);
 
-        return definitions.Select(d =>
-        {
-            values.TryGetValue(d.Id, out var v);
-            return new FieldValueResponse(
-                d.Id, d.Label, d.Type,
-                v?.ValueText, v?.ValueNumber, v?.ValueDate, v?.ValueBoolean,
-                v is null
-                    ? []
-                    : d.Options.Where(o => v.SelectedOptions.Any(s => s.Id == o.Id))
-                               .Select(ToOptionResponse).ToList());
-        }).ToList();
+        // ADR-060: chỉ trả các trường mà LOẠI của task này khai dùng…
+        var ofType = (await _uow.WorkItemTypes.ListFieldsOfTaskTypeAsync(taskId, ct))
+            .ToDictionary(f => f.FieldDefinitionId);
+
+        // …CỘNG những trường task đang có giá trị nhưng loại không (còn) khai.
+        //
+        // 🔴 Không có vế thứ hai này thì gỡ một trường khỏi loại sẽ làm giá trị đã nhập
+        // BIẾN MẤT khỏi giao diện trong khi vẫn nằm trong DB — đúng lớp "dữ liệu mất tích"
+        // mà ADR-059 đã chặn ở chiều project. Người dùng phải nhìn thấy để còn xoá đi.
+        return definitions
+            .Where(d => ofType.ContainsKey(d.Id) || values.ContainsKey(d.Id))
+            .OrderBy(d => ofType.TryGetValue(d.Id, out var f) ? f.Order : int.MaxValue)
+            .ThenBy(d => d.Order)
+            .Select(d =>
+            {
+                values.TryGetValue(d.Id, out var v);
+                return new FieldValueResponse(
+                    d.Id, d.Label, d.Type,
+                    ofType.TryGetValue(d.Id, out var link) && link.IsRequired,
+                    v?.ValueText, v?.ValueNumber, v?.ValueDate, v?.ValueBoolean,
+                    v is null
+                        ? []
+                        : d.Options.Where(o => v.SelectedOptions.Any(s => s.Id == o.Id))
+                                   .Select(ToOptionResponse).ToList());
+            }).ToList();
     }
 
     private static FieldOptionResponse ToOptionResponse(FieldOption o)

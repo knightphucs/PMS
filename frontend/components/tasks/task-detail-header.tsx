@@ -1,6 +1,7 @@
 'use client';
 
 import { ArrowUpRightIcon, CornerLeftUpIcon, PencilIcon, XIcon } from 'lucide-react';
+import { WorkItemTypeChip } from '@/components/tasks/work-item-type-chip';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -57,6 +58,10 @@ export function TaskDetailHeader({
         <span className="bg-muted text-foreground rounded px-1.5 py-0.5 font-semibold tabular-nums">
           {task.code}
         </span>
+
+        {/* Ở chi tiết thì hiện CẢ tên loại: chỗ rộng, và đây là nơi người dùng cần biết
+            task này thuộc loại nào để hiểu vì sao tập trường tuỳ biến lại như vậy. */}
+        <WorkItemTypeChip type={task.type} />
 
         {task.parentTaskId ? (
           <Link

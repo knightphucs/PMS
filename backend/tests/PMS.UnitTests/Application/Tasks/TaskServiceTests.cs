@@ -23,6 +23,7 @@ public class TaskServiceTests
     private readonly IProjectRepository _projectRepo = Substitute.For<IProjectRepository>();
     private readonly IProjectTaskCounterRepository _counterRepo = Substitute.For<IProjectTaskCounterRepository>();
     private readonly IBoardColumnRepository _columnRepo = Substitute.For<IBoardColumnRepository>();
+    private readonly IWorkItemTypeRepository _typeRepo = Substitute.For<IWorkItemTypeRepository>();
 
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _projectId = Guid.NewGuid();
@@ -47,6 +48,13 @@ public class TaskServiceTests
                    .Returns(_columns[0]);
         _columnRepo.ListByProjectAsync(_projectId, Arg.Any<CancellationToken>())
                    .Returns(_columns);
+
+        // Loại công việc mặc định (ADR-060) — soi gương đúng cách cột board được mồi ở trên.
+        // Thiếu dòng này thì CreateAsync ném NotFound ngay, vì task mới bắt buộc có một loại.
+        _uow.WorkItemTypes.Returns(_typeRepo);
+        _workItemType.ProjectId = _projectId;
+        _typeRepo.GetDefaultForProjectAsync(_projectId, Arg.Any<CancellationToken>())
+                 .Returns(_workItemType);
 
         // Mặc định cấp số 1. Test nào quan tâm tới việc đánh số thì override.
         _counterRepo.NextNumberAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(1);
@@ -437,6 +445,11 @@ public class TaskServiceTests
         // thà nổ to còn hơn trả về dữ liệu sai im lặng — nên helper phải tôn trọng nó thay
         // vì né bằng cách nới lỏng mapper.
         task.MoveTo(_columns[0]);
+
+        // Y hệt với LOẠI công việc (ADR-060): `ToTypeRef` đọc `task.WorkItemType.Name`.
+        // Không nới mapper thành null-safe — nới ra là đánh đổi một NRE ồn ào lấy một chip
+        // loại trống rỗng trên giao diện, thứ không ai truy ra được nguyên nhân.
+        SetType(task);
         return task;
     }
 
@@ -464,6 +477,21 @@ public class TaskServiceTests
         new() { Id = Guid.NewGuid(), Name = "Hoàn thành", Order = 3, Category = StatusCategory.Done },
     ];
 
+    /// <summary>
+    /// Loại công việc mặc định giả của project test — soi gương `WorkItemType.CreateDefault`.
+    /// </summary>
+    private readonly WorkItemType _workItemType = new()
+    {
+        Id = Guid.NewGuid(), Name = "Task", Icon = "CircleDot", Color = "#6B7280", Order = 0,
+    };
+
+    private void SetType(TaskItem task)
+    {
+        _workItemType.ProjectId = task.ProjectId;
+        task.WorkItemTypeId = _workItemType.Id;
+        task.WorkItemType = _workItemType;
+    }
+
     private TaskItem TaskAt(int columnOrder)
     {
         var task = NewTask();
@@ -475,6 +503,7 @@ public class TaskServiceTests
     {
         var subtask = new TaskItem { Id = Guid.NewGuid(), Name = "Subtask", ProjectId = _projectId };
         Advance(subtask, _columns[columnOrder], _projectId);
+        SetType(subtask);
         return subtask;
     }
 

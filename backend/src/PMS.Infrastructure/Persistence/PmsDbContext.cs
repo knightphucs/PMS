@@ -18,6 +18,8 @@ public class PmsDbContext : DbContext
     public DbSet<FieldDefinition> FieldDefinitions => Set<FieldDefinition>();
     public DbSet<FieldOption> FieldOptions => Set<FieldOption>();
     public DbSet<FieldValue> FieldValues => Set<FieldValue>();
+    public DbSet<WorkItemType> WorkItemTypes => Set<WorkItemType>();
+    public DbSet<WorkItemTypeField> WorkItemTypeFields => Set<WorkItemTypeField>();
     public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
     public DbSet<TaskAssignment> TaskAssignments => Set<TaskAssignment>();
     public DbSet<Watcher> Watchers => Set<Watcher>();

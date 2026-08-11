@@ -38,6 +38,9 @@ public record FieldValueResponse(
     Guid FieldDefinitionId,
     string Label,
     FieldType Type,
+    // Bắt buộc với LOẠI của task này (ADR-060). Không phải thuộc tính của trường —
+    // cùng một trường có thể bắt buộc ở "Change Request" và tuỳ chọn ở "Task".
+    bool IsRequired,
     string? ValueText,
     decimal? ValueNumber,
     DateTime? ValueDate,

@@ -226,6 +226,7 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | **Thêm thành viên MỘT bước (ADR-057)** | ✅ | Mới 2026-08-11. Gỡ hẳn luồng chờ-chấp-nhận trong-app: 3 endpoint (`me/accept`, `me/decline`, `GET /projects/invitations`), trang `/invitations`, badge sidebar. **Vá 12 test đỏ có sẵn trên `main`** từ commit WIP `7e4600d` |
 | **Email thật + kiểm toán xác thực + Docker/CI (ADR-058)** | ✅ | Mới 2026-08-11. `SmtpEmailSender` (3 nhánh chọn), `App:FrontendBaseUrl` ValidateOnStart, tách `Migrate`/`Seed` khỏi `IsDevelopment()`, 8 `ActivityAction` cho nhóm xác thực + `IActivityLogger.LogAs`, `Dockerfile` + `docker-compose.yml` + `.github/workflows/ci.yml` |
 | **Trường tuỳ biến theo project (ADR-059)** | ⚠️ backend xong, FE chưa | Mới 2026-08-12. 4 bảng + 7 endpoint + 18 test. Hậu bản của ADR-052 — đội tự khai trường thay vì nhận một khuôn cố định. **Frontend chưa dựng** |
+| **Loại công việc theo project (ADR-060)** | ✅ | Mới 2026-08-12. `WorkItemType` + bảng nối `WorkItemTypeFields` (khoá ghép) + 5 endpoint + 17 test + frontend (chip trên thẻ/chi tiết, ô chọn ở form task, dialog quản lý). **`IsRequired` cuối cùng có điểm cưỡng chế thật** |
 | Real-time (SignalR) | ⬜ | Có chủ đích — chỉ làm sau khi core CRUD ổn định (xem §6) |
 
 ### Lộ trình các phiên tiếp theo
@@ -4019,3 +4020,82 @@ nhận là thừa, và khoảng trống giữa hai request là lúc ô nhập nh
 ⚠️ **Chuỗi rỗng ở ô Number gửi `null`, KHÔNG phải `0`.** `Number('')` là `0`, và gửi `0` đi
 sẽ biến *"chưa điền"* thành *"bằng không"* — hai thứ khác hẳn nhau khi trường tên là "Giờ
 downtime".
+
+---
+
+### Chi tiết ADR-060 (phiên 2026-08-12 — nền tảng mở rộng, phần 2)
+
+#### ADR-060 (2026-08-12) — Loại công việc: nơi `IsRequired` cuối cùng có chỗ đứng
+
+`WorkItemType` (ProjectId · Name · Icon · Color · Order) + bảng nối `WorkItemTypeFields`
+(khoá GHÉP, không surrogate — cùng khuôn `Watcher`/ADR-036) + `TaskItem.WorkItemTypeId` bắt
+buộc. Phòng hạ tầng khai `Sự cố` · `Yêu cầu` · `Change Request` · `Bảo trì`, và **mỗi loại
+lộ ra một tập trường khác nhau**.
+
+##### `IsRequired` — vì sao nó ở đây chứ không ở ADR-059
+
+ADR-059 **cố ý không ship** cờ này trên `FieldDefinition`. Ở đó nó là cờ toàn cục cho cả
+project: bật lên là hàng trăm task cũ thành không hợp lệ, và người dùng không sửa được **bất
+kỳ trường nào khác** cho tới khi điền xong thứ họ không biết là đang thiếu.
+
+Gắn vào từng **loại** thì phạm vi hẹp lại đúng mức có nghĩa: *"Change Request bắt buộc có Hệ
+thống ảnh hưởng"*, chứ không phải *"mọi task trong project đều phải có"*.
+
+🔴 **Cưỡng chế ở đúng MỘT chỗ: lúc người dùng cố XOÁ TRẮNG giá trị.** Không kiểm ngược lên
+task đã có. Chặn hành động xoá thì hẹp đúng mức; chặn cả bản ghi thì biến một cấu hình thành
+một bức tường. **Đã mutation test** — bỏ phép kiểm làm đúng một test đỏ.
+
+##### Ba quyết định còn lại
+
+**(a) Trường mới tự gắn vào MỌI loại, không bắt buộc.** Trước ADR-060 một trường áp cho mọi
+task trong project; giữ đó làm mặc định thì hành vi ADR-059 không đổi, và "loại" trở thành
+một phép **thu hẹp có chủ đích** chứ không phải một bước bắt buộc mới. Không có luật này thì
+tạo trường xong nó vô hình ở mọi task cho tới khi người dùng đoán ra là còn phải đi gắn —
+một cái bẫy im lặng ngay ở luồng chính. Migration cũng gắn mọi trường đang có vào loại mặc
+định vì đúng lý do đó.
+
+**(b) `GET /tasks/{id}/field-values` trả HỢP của hai tập:** trường mà loại khai dùng, **cộng**
+trường task đang có giá trị dù loại không (còn) khai. Thiếu vế thứ hai thì gỡ một trường khỏi
+loại làm giá trị đã nhập biến mất khỏi giao diện trong khi vẫn nằm trong DB — đúng lớp "dữ
+liệu mất tích" mà ADR-059 đã chặn ở chiều project. Người dùng phải nhìn thấy để còn xoá đi.
+
+**(c) `PUT /tasks/{id}` với `workItemTypeId = null` = GIỮ NGUYÊN**, không phải "về mặc định".
+Client cũ không gửi trường này; biến sự vắng mặt thành lệnh reset sẽ âm thầm đổi loại của mọi
+task được sửa bởi một bản frontend chưa cập nhật.
+
+##### 🪤 Ba cái bẫy của phiên này
+
+1. 🔴 **`CreateAsync` đặt khoá ngoại mà quên navigation — một lỗi PRODUCTION, không phải lỗi
+   test.** `ToSummary` chạy ngay cuối `CreateAsync` và đọc `task.WorkItemType.Name`; entity
+   vừa dựng trong bộ nhớ thì EF chưa nạp navigation hộ, nên chỉ đặt `WorkItemTypeId` là một
+   NRE ở **mọi lần tạo task**. Unit test bắt được vì nó chạy đúng đường thật.
+   `MoveTo` của cột board đã làm đúng từ đầu (đặt cả `BoardColumnId` lẫn `BoardColumn`) —
+   nhìn vào tiền lệ đó sớm hơn thì tránh được.
+
+2. **Cột FK bắt buộc thêm vào bảng có sẵn cần backfill, và backfill phải nằm ĐÚNG CHỖ**:
+   sau `CreateTable(WorkItemTypes)`, **trước** `AddForeignKey`. EF điền
+   `'00000000-…'` cho mọi hàng cũ — không phải một loại có thật — nên đặt sai thứ tự là
+   migration đổ ở đúng dòng cuối cùng, trên một database đã đi được nửa đường.
+
+3. **Cascade của bảng nối thứ hai — lần này phân tích TRƯỚC khi chạy.** ADR-059 đã trả giá
+   cho "multiple cascade paths" (18 test đỏ trong 12ms). `WorkItemTypeFields` cũng có hai FK
+   Cascade, nhưng an toàn vì `WorkItemTypes` và `FieldDefinitions` đều treo dưới `Projects`
+   bằng `ClientNoAction` — không tồn tại gốc chung nào cascade xuống theo hai lối. Vẽ sơ đồ
+   ra trước tốn 5 phút, rẻ hơn hẳn một lần đọc nhầm triệu chứng.
+
+##### Frontend
+
+Chip loại trên **thẻ Kanban** (chỉ icon — thẻ hẹp, tên lặp trên hàng chục thẻ là nhiễu; tên
+vẫn ở tooltip + `sr-only`) và trên **chi tiết task** (có nhãn — đây là nơi người dùng cần
+biết loại để hiểu vì sao tập trường lại như vậy). Ô chọn loại ở form task **tự ẩn khi project
+chỉ có một loại**: một ô chọn với đúng một lựa chọn không cho ai quyết định gì.
+
+Icon tra theo TÊN từ bảng `lucide-react`; tên lạ rơi về `CircleDot` thay vì ném — một icon
+sai là hỏng nhẹ nhìn thấy được, một màn hình trắng thì không.
+
+##### Kết quả
+
+5 endpoint, **17 integration test**, 0 đỏ. Tổng: **587 test backend** (249 unit + 338
+integration) + 72 frontend.
+
+✅ **Nợ kéo–thả đã TRẢ** — người dùng xác nhận kiểm tay thành công 2026-08-12, sau 7 phiên treo.

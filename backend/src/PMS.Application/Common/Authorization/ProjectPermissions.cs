@@ -29,7 +29,9 @@ public static class ProjectPermissions
         or ProjectAction.ManageBoardColumns
         // Lược đồ trường tuỳ biến (ADR-059): cùng lý lẽ với cột board — xoá một
         // trường là xoá giá trị của nó trên MỌI task trong project.
-        or ProjectAction.ManageFieldDefinitions => role is RoleInProject.ProjectManager,
+        or ProjectAction.ManageFieldDefinitions
+        // Loại công việc (ADR-060): xoá một loại đẩy mọi task mang nó sang loại khác.
+        or ProjectAction.ManageWorkItemTypes => role is RoleInProject.ProjectManager,
 
         ProjectAction.CreateSubtask => role is RoleInProject.ProjectManager
                                             or RoleInProject.Member,

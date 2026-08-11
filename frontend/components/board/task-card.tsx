@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { AvatarStack } from '@/components/common/avatar-stack';
 import { TaskCardSubtasks } from '@/components/board/task-card-subtasks';
 import { PriorityIcon } from '@/components/tasks/priority-icon';
+import { WorkItemTypeChip } from '@/components/tasks/work-item-type-chip';
 import { formatShortDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { TaskStatusRef, TaskSummaryResponse } from '@/types/task';
@@ -93,8 +94,13 @@ export function TaskCard({
         <div className="min-w-0 flex-1">
           {/* Mã task do backend ghép sẵn (ADR-034) — dấu hiệu nhận dạng số một của một
               công cụ theo dõi việc, và là thứ người ta đọc cho nhau nghe qua điện thoại. */}
-          <span className="text-muted-foreground block text-[11px] font-medium tabular-nums">
-            {task.code}
+          <span className="flex min-w-0 items-center gap-1.5">
+            {/* Chip loại (ADR-060). Trên thẻ chỉ hiện ICON — thẻ Kanban hẹp, và tên loại
+                lặp lại trên hàng chục thẻ là nhiễu; tên vẫn có ở tooltip + sr-only. */}
+            <WorkItemTypeChip type={task.type} showLabel={false} />
+            <span className="text-muted-foreground truncate text-[11px] font-medium tabular-nums">
+              {task.code}
+            </span>
           </span>
 
           <h3 className="line-clamp-2 text-[13px] leading-snug font-medium">

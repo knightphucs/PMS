@@ -235,7 +235,25 @@ public class TaskAssignmentServiceTests
             Id = Guid.NewGuid(), Name = "Task test",
             ProjectId = _project.Id, ReporterId = _pmId
         };
+        SetType(task);
         _taskRepo.GetWithAssignmentsAsync(task.Id, Arg.Any<CancellationToken>()).Returns(task);
         return task;
+    }
+
+    /// <summary>
+    /// Loại công việc mặc định giả (ADR-060) — `TaskMapper.ToTypeRef` đọc
+    /// `task.WorkItemType.Name`, nên task không loại sẽ NRE ở lần map đầu tiên. Cùng lý lẽ
+    /// với cột board: mapper giữ nguyên nghiêm, fixture phải cấp đủ.
+    /// </summary>
+    private readonly WorkItemType _workItemType = new()
+    {
+        Id = Guid.NewGuid(), Name = "Task", Icon = "CircleDot", Color = "#6B7280", Order = 0,
+    };
+
+    private void SetType(TaskItem task)
+    {
+        _workItemType.ProjectId = task.ProjectId;
+        task.WorkItemTypeId = _workItemType.Id;
+        task.WorkItemType = _workItemType;
     }
 }

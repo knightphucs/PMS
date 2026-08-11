@@ -205,6 +205,10 @@ public static class DbSeeder
         foreach (var column in BoardColumn.CreateDefaults(project.Id))
             project.BoardColumns.Add(column);
 
+        // Cùng lý do: `Create` cấp loại mặc định hộ, đường này thì không. Thiếu bước này
+        // thì mọi task seed không có `WorkItemTypeId` hợp lệ và FK đổ ngay (ADR-060).
+        project.WorkItemTypes.Add(WorkItemType.CreateDefault(project.Id));
+
         return project;
     }
 
@@ -242,7 +246,9 @@ public static class DbSeeder
         {
             Id = Guid.NewGuid(), Name = name, Priority = priority,
             ProjectId = project.Id, SprintId = sprint?.Id, ReporterId = reporter.Id,
-            DueDate = DateTime.UtcNow.AddDays(dueOffset)
+            DueDate = DateTime.UtcNow.AddDays(dueOffset),
+            // Loại mặc định của project (ADR-060) — FK bắt buộc, không có "task chưa có loại".
+            WorkItemTypeId = project.WorkItemTypes.Single().Id
         };
         task.AssignNumber(last + 1);
         return task;

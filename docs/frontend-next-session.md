@@ -5,7 +5,12 @@
 
 ---
 
-## 000. 🆕 Phiên kế tiếp — LOẠI CÔNG VIỆC (ADR-060)
+## 000. 🆕 Phiên kế tiếp — VIEW LƯU ĐƯỢC (ADR-061)
+
+> ✅ **ADR-060 (loại công việc) ĐÃ XONG 2026-08-12** — backend + frontend + 17 test.
+> Mục dưới đây giữ nguyên phần bối cảnh và bẫy; **việc kế tiếp nay là ADR-061**, xem cuối mục.
+
+### (hồ sơ) Phiên ADR-060
 
 ### Trạng thái khi bàn giao
 
@@ -74,8 +79,8 @@ drift check trước khi báo xong.
 
 #### Nợ kiểm chứng vẫn treo — không phiên nào trả được
 
-- ⬜ **Kéo–thả bằng chuột/cảm ứng/bàn phím chưa từng kiểm bằng thao tác thật** (treo qua 7
-  phiên). Mọi phiên gần đây đều không có công cụ trình duyệt.
+- ✅ **Kéo–thả ĐÃ kiểm bằng tay và chạy đúng** — người dùng xác nhận 2026-08-12. Món nợ
+  treo qua 7 phiên nay đã trả.
 - ⬜ **Giao diện trường tuỳ biến chưa bấm thử trên trình duyệt.** Backend có 18 integration
   test đi qua HTTP thật; phần frontend mới chỉ có typecheck + lint + `next build`. Cụ thể
   chưa xác nhận bằng mắt: chip Select đổi màu đúng, ô Date gửi đúng ngày, và khối tự ẩn khi

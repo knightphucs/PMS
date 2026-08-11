@@ -127,6 +127,15 @@ public abstract class IntegrationTestBase
             var column = await db.BoardColumns
                 .FirstAsync(c => c.ProjectId == projectId && c.Order == columnOrder);
 
+            // Loại công việc mặc định của project (ADR-060) — FK bắt buộc. Thiếu dòng này
+            // thì INSERT đổ với "conflicted with the FOREIGN KEY constraint
+            // FK_Tasks_WorkItemTypes_WorkItemTypeId", ở những test không liên quan gì tới loại.
+            task.WorkItemTypeId = await db.WorkItemTypes
+                .Where(t => t.ProjectId == projectId)
+                .OrderBy(t => t.Order).ThenBy(t => t.Id)
+                .Select(t => t.Id)
+                .FirstAsync();
+
             task.MoveTo(column);
             db.Tasks.Add(task);
             await db.SaveChangesAsync();

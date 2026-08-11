@@ -62,6 +62,26 @@ public class TaskService : ITaskService
                 ?? throw new NotFoundException(nameof(BoardColumn), request.ProjectId);
         }
 
+        // Loại công việc (ADR-060) — cùng khuôn với cột: chỉ định thì phải cùng project,
+        // không chỉ định thì lấy loại mặc định (Order nhỏ nhất). Project luôn có ít nhất một
+        // loại (cấp lúc tạo project, và không xoá được loại cuối), nên `null` ở đây nghĩa là
+        // dữ liệu đã hỏng chứ không phải trạng thái hợp lệ cần xử lý mềm.
+        WorkItemType workItemType;
+        if (request.WorkItemTypeId is { } typeId)
+        {
+            workItemType = await _uow.WorkItemTypes.GetByIdAsync(typeId, ct)
+                ?? throw new NotFoundException(nameof(WorkItemType), typeId);
+
+            // 404 chứ không 403: không xác nhận id có tồn tại ở project khác hay không.
+            if (workItemType.ProjectId != request.ProjectId)
+                throw new NotFoundException(nameof(WorkItemType), typeId);
+        }
+        else
+        {
+            workItemType = await _uow.WorkItemTypes.GetDefaultForProjectAsync(request.ProjectId, ct)
+                ?? throw new NotFoundException(nameof(WorkItemType), request.ProjectId);
+        }
+
         var task = new TaskItem
         {
             Id = Guid.NewGuid(),
@@ -71,7 +91,13 @@ public class TaskService : ITaskService
             ReporterId = _currentUser.RequireEmployeeId(),
             DueDate = request.DueDate,
             Priority = request.Priority,
-            StoryPoints = request.StoryPoints
+            StoryPoints = request.StoryPoints,
+            WorkItemTypeId = workItemType.Id,
+            // 🔴 Gán CẢ navigation, không chỉ khoá ngoại. `ToSummary` chạy ngay cuối
+            // CreateAsync và đọc `task.WorkItemType.Name` — entity vừa dựng trong bộ nhớ
+            // thì EF chưa nạp navigation hộ, nên chỉ đặt Id là một NRE ở mọi lần tạo task.
+            // Đúng khuôn `MoveTo` đã làm cho cột board (đặt cả BoardColumnId lẫn BoardColumn).
+            WorkItemType = workItemType
         };
 
         task.MoveTo(targetColumn);
@@ -211,6 +237,20 @@ public class TaskService : ITaskService
         task.DueDate = request.DueDate;
         task.Priority = request.Priority;
         task.StoryPoints = request.StoryPoints;
+
+        // Đổi loại (ADR-060). `null` = GIỮ NGUYÊN, không phải "về mặc định" — client cũ
+        // không gửi trường này, và biến sự vắng mặt thành một lệnh reset sẽ âm thầm đổi
+        // loại của mọi task được sửa bởi một bản frontend chưa cập nhật.
+        if (request.WorkItemTypeId is { } typeId && typeId != task.WorkItemTypeId)
+        {
+            var type = await _uow.WorkItemTypes.GetByIdAsync(typeId, ct)
+                ?? throw new NotFoundException(nameof(WorkItemType), typeId);
+
+            if (type.ProjectId != task.ProjectId)
+                throw new NotFoundException(nameof(WorkItemType), typeId);
+
+            task.WorkItemTypeId = typeId;
+        }
 
         _activityLog.Log(nameof(TaskItem), id, ActivityAction.Updated,
             $"Cập nhật task '{task.Name}'");

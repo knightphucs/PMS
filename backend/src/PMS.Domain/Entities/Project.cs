@@ -53,6 +53,9 @@ public class Project : BaseEntity, ISoftDeletable
     /// <summary>Trường tuỳ biến do đội tự khai cho project này (ADR-059).</summary>
     public ICollection<FieldDefinition> FieldDefinitions { get; set; } = [];
 
+    /// <summary>Loại công việc của project này (ADR-060).</summary>
+    public ICollection<WorkItemType> WorkItemTypes { get; set; } = [];
+
     public bool IsCompleted() => Status == Status.Done;
 
     /// <summary>
@@ -178,6 +181,11 @@ public class Project : BaseEntity, ISoftDeletable
         // nào — và lỗi đó sẽ chỉ lộ ra ở lần tạo task đầu tiên chứ không phải lúc tạo project.
         foreach (var column in BoardColumn.CreateDefaults(project.Id))
             project.BoardColumns.Add(column);
+
+        // Cùng lý do như cột: task mới cần một `WorkItemTypeId` hợp lệ, nên project không
+        // có loại nào là project không tạo được task nào — và lỗi đó chỉ lộ ra ở lần tạo
+        // task đầu tiên chứ không phải lúc tạo project (ADR-060).
+        project.WorkItemTypes.Add(WorkItemType.CreateDefault(project.Id));
 
         return project;
     }

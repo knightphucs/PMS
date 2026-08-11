@@ -15,7 +15,10 @@ const statuses: Record<string, TaskStatusRef> = {
 const task = (id: string, status: TaskStatusRef, over = false, pinned = false): TaskSummaryResponse => {
   const number = nextNumber++;
   return {
-    id, number, code: `PMS-${number}`, name: `Task ${id}`, status, priority: 'Medium', storyPoints: 0,
+    id, number, code: `PMS-${number}`, name: `Task ${id}`, status,
+    // Loại công việc (ADR-060) — bắt buộc trên DTO, mọi task luôn thuộc đúng một loại.
+    type: { typeId: 'wt1', name: 'Task', icon: 'CircleDot', color: '#6B7280' },
+    priority: 'Medium', storyPoints: 0,
     dueDate: '2026-01-01T00:00:00Z', isOverdue: over, sprintId: null, parentTaskId: null,
     subtaskProgress: 40, subtaskCount: 1, isPinned: pinned, assignees: [], labels: [],
   };

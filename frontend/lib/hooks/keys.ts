@@ -30,6 +30,11 @@ export const fieldDefinitionKeys = {
   all: (projectId: string) => [...projectDataKeys.all(projectId), 'fields'] as const,
 };
 
+/** Loại công việc của project (ADR-060). */
+export const workItemTypeKeys = {
+  all: (projectId: string) => [...projectDataKeys.all(projectId), 'work-item-types'] as const,
+};
+
 export const boardKeys = {
   all: (projectId: string) => [...projectDataKeys.all(projectId), 'board'] as const,
   /** `sprintId === null` = board "tất cả task", khóa bằng chuỗi 'all' cho ổn định. */
