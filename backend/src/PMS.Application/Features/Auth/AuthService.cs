@@ -24,17 +24,31 @@ public class AuthService : IAuthService
     private readonly ICurrentUserService _currentUser;
     private readonly IEmailSender _emailSender;
     private readonly EmployeeMapper _mapper;
+    private readonly IActivityLogger _activityLog;
     private readonly ILogger<AuthService> _logger;
 
     public AuthService(
         IUnitOfWork uow, IPasswordHasher passwordHasher, ITokenService tokenService,
         ICurrentUserService currentUser, IEmailSender emailSender,
-        EmployeeMapper mapper, ILogger<AuthService> logger)
+        EmployeeMapper mapper, IActivityLogger activityLog, ILogger<AuthService> logger)
     {
         _uow = uow; _passwordHasher = passwordHasher; _tokenService = tokenService;
         _currentUser = currentUser; _emailSender = emailSender;
-        _mapper = mapper; _logger = logger;
+        _mapper = mapper; _activityLog = activityLog; _logger = logger;
     }
+
+    /// <summary>
+    /// Ghi một dòng kiểm toán cho sự kiện xác thực của <paramref name="employee"/>.
+    ///
+    /// <para>
+    /// Luôn <c>LogAs</c> chứ không <c>Log</c>: phần lớn nhóm này chạy trên request ẩn danh
+    /// (xem ADR-058). Kèm IP vì với nhóm sự kiện này "ở đâu" đáng giá ngang "ai" — một lần
+    /// đăng nhập thành công từ IP lạ là tín hiệu mà chỉ có cột này nói ra được.
+    /// </para>
+    /// </summary>
+    private void Audit(Employee employee, ActivityAction action, string detail)
+        => _activityLog.LogAs(employee.Id, nameof(Employee), employee.Id, action,
+            $"{detail} (IP: {_currentUser.IpAddress ?? "không rõ"})");
 
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request, CancellationToken ct = default)
     {
@@ -54,6 +68,8 @@ public class AuthService : IAuthService
         // Id sinh phía app (Guid.NewGuid) nên tạo được RefreshToken tham chiếu employee
         // ngay lập tức -> chỉ cần 1 lần SaveChanges, tự động nguyên tử, không cần transaction.
         var (response, _) = await BuildTokensAsync(employee, ct);
+
+        Audit(employee, ActivityAction.Registered, $"Đăng ký tài khoản {employee.Email}");
         await _uow.SaveChangesAsync(ct);
 
         _logger.LogInformation("Đăng ký tài khoản mới: {EmployeeId}", employee.Id);
@@ -74,6 +90,13 @@ public class AuthService : IAuthService
         {
             _logger.LogWarning("Đăng nhập thất bại cho {Email} từ {Ip}",
                 employee.Email, _currentUser.IpAddress);
+
+            // 🔴 SaveChanges TRƯỚC khi ném. Nhánh này kết thúc bằng exception, nên nếu chỉ
+            // Add vào ChangeTracker thì dòng kiểm toán chết theo request — và lần thất bại
+            // duy nhất mà kiểm toán thật sự cần lại là lần không bao giờ được ghi.
+            Audit(employee, ActivityAction.LoginFailed, "Đăng nhập thất bại: sai mật khẩu");
+            await _uow.SaveChangesAsync(ct);
+
             throw new UnauthorizedException("Email hoặc mật khẩu không đúng.");
         }
 
@@ -81,11 +104,18 @@ public class AuthService : IAuthService
         {
             _logger.LogWarning("Tài khoản bị khóa {EmployeeId} thử đăng nhập từ {Ip}",
                 employee.Id, _currentUser.IpAddress);
+
+            Audit(employee, ActivityAction.LoginFailed,
+                "Đăng nhập thất bại: tài khoản đang bị khóa");
+            await _uow.SaveChangesAsync(ct);
+
             throw new ForbiddenException(
                 "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên hệ thống.");
         }
 
         var (response, _) = await BuildTokensAsync(employee, ct);
+
+        Audit(employee, ActivityAction.LoggedIn, "Đăng nhập thành công");
         await _uow.SaveChangesAsync(ct);
         return response;
     }
@@ -142,6 +172,13 @@ public class AuthService : IAuthService
         if (stored is null) return;                    // idempotent, không lộ token nào tồn tại
 
         stored.Revoke();
+
+        // Tác nhân lấy từ CHÍNH token vừa tra được, không từ claim: logout hợp lệ cả khi
+        // access token đã hết hạn, nên _currentUser có thể rỗng ở đây.
+        _activityLog.LogAs(stored.EmployeeId, nameof(Employee), stored.EmployeeId,
+            ActivityAction.LoggedOut,
+            $"Đăng xuất (IP: {_currentUser.IpAddress ?? "không rõ"})");
+
         await _uow.SaveChangesAsync(ct);
     }
 
@@ -180,6 +217,9 @@ public class AuthService : IAuthService
             ExpiresAt = DateTime.UtcNow.Add(ResetTokenLifetime),
             CreatedByIp = _currentUser.IpAddress
         }, ct);
+
+        Audit(employee, ActivityAction.PasswordResetRequested,
+            "Yêu cầu đặt lại mật khẩu qua email");
 
         await _uow.SaveChangesAsync(ct);
 
@@ -224,6 +264,9 @@ public class AuthService : IAuthService
         // dọa mà người dùng đang cố xử lý. Dùng lại RevokeAllAsync thay vì chép lại vòng lặp.
         await RevokeAllAsync(employee.Id, ct);
 
+        Audit(employee, ActivityAction.PasswordResetCompleted,
+            "Đặt lại mật khẩu qua email thành công, đã thu hồi mọi phiên");
+
         // Tài khoản bị khóa VẪN đặt lại được mật khẩu: từ chối ở đây là để lộ trạng thái
         // khóa cho người chỉ cầm địa chỉ email. Việc chặn nằm ở LoginAsync (403).
         await _uow.SaveChangesAsync(ct);
@@ -242,10 +285,14 @@ public class AuthService : IAuthService
         var employee = await _uow.Employees.GetByIdAsync(employeeId, ct)
             ?? throw new NotFoundException(nameof(Employee), employeeId);
 
+        var oldName = employee.Name;
         employee.Rename(request.Name);   // DomainException -> 400 nếu tên rỗng
 
         // Không RevokeAllAsync: đổi tên không phải sự kiện bảo mật, khác hẳn đổi mật khẩu.
         var (response, _) = await BuildTokensAsync(employee, ct);
+
+        Audit(employee, ActivityAction.ProfileUpdated,
+            $"Đổi tên hiển thị: '{oldName}' -> '{employee.Name}'");
         await _uow.SaveChangesAsync(ct);
 
         _logger.LogInformation("Đổi tên hồ sơ: {EmployeeId} -> {Name}", employeeId, employee.Name);
@@ -271,6 +318,9 @@ public class AuthService : IAuthService
         await RevokeAllAsync(employee.Id, ct);
 
         var (response, _) = await BuildTokensAsync(employee, ct);
+
+        Audit(employee, ActivityAction.PasswordChanged,
+            "Tự đổi mật khẩu, đã thu hồi các phiên khác");
         await _uow.SaveChangesAsync(ct);
 
         _logger.LogInformation(

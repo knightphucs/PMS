@@ -61,6 +61,14 @@ public class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
                // bấm đổi cấu hình board.
                .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(t => t.WorkItemType)
+               .WithMany(wt => wt.Tasks)
+               .HasForeignKey(t => t.WorkItemTypeId)
+               // Restrict, cùng lý do cột board (ADR-060): xoá một loại phải đi qua service
+               // để chọn loại đích cho task. Cascade ở đây sẽ xoá sạch task theo loại — mất
+               // dữ liệu vì một cú bấm đổi cấu hình.
+               .OnDelete(DeleteBehavior.Restrict);
+
         // 🔴 AUTO-INCLUDE, và đây là lựa chọn có cân nhắc chứ không phải tiện tay.
         //
         // `TaskMapper.ToStatusRef` đọc `task.BoardColumn.Name/Color/Category`, tức là MỌI
@@ -78,6 +86,11 @@ public class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
         // BoardColumns là bảng rất nhỏ (vài hàng mỗi project) và join theo khóa chính.
         // Query nào thật sự cần né thì gọi `.IgnoreAutoIncludes()`.
         builder.Navigation(t => t.BoardColumn).AutoInclude();
+
+        // Cùng lý do, cho cùng một lớp lỗi: `TaskMapper.ToTypeRef` đọc
+        // `task.WorkItemType.Name`, nên thiếu Include ở BẤT KỲ query task nào là một NRE
+        // chờ sẵn — và nó sẽ nổ ở màn hình chứ không ở test (ADR-060).
+        builder.Navigation(t => t.WorkItemType).AutoInclude();
 
         builder.HasMany(t => t.Subtasks)
                .WithOne(t => t.ParentTask)

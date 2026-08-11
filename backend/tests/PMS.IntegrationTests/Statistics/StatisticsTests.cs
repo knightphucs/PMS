@@ -86,8 +86,8 @@ public class StatisticsTests : IntegrationTestBase
 
         var member = await CreateUserAsync();
         var viewer = await CreateUserAsync();
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
-        await InviteAndAcceptAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
 
         foreach (var client in new[] { pm.Client, member.Client, viewer.Client })
             (await client.GetAsync($"/api/v1/projects/{projectId}/statistics"))

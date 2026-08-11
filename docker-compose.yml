@@ -1,0 +1,75 @@
+# Dựng cả API + SQL Server bằng một lệnh:
+#     cp .env.example .env      # rồi điền giá trị thật
+#     docker compose up -d
+#     curl http://localhost:8080/health   -> {"status":"Healthy",...}
+#
+# 🔴 KHÔNG có giá trị mặc định cho mật khẩu và Jwt__Secret. Một compose file chạy được
+# ngay bằng `sa/Password123` là thứ sẽ được copy nguyên si lên máy thật — cấu hình mặc
+# định luôn sống lâu hơn ý định của người viết ra nó. Thiếu biến thì compose dừng ngay
+# với tên biến còn thiếu, và đó là hành vi mong muốn.
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    # Microsoft KHÔNG phát hành ảnh arm64 cho SQL Server. Khai tường minh để trên Apple
+    # Silicon nó chạy qua tầng emulation thay vì bị chọn nhầm rồi chết bằng SIGSEGV (exit
+    # 139) — một mã lỗi không hề gợi ra nguyên nhân là kiến trúc CPU.
+    #
+    # ⚠️ Trên máy Mac ARM phải bật Rosetta trong Docker Desktop:
+    #     Settings > General > "Use Rosetta for x86_64/amd64 emulation on Apple Silicon"
+    # Không bật thì container db vẫn exit 139. Runner CI (ubuntu-latest) là amd64 thật nên
+    # dòng này không ảnh hưởng gì ở đó.
+    platform: linux/amd64
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?cần đặt trong .env}
+    # CỐ Ý không publish 1433 ra host. API nói chuyện với db qua mạng nội bộ của compose
+    # (Server=db,1433) nên mapping ra ngoài chỉ phục vụ việc soi DB bằng tay — đổi lại nó
+    # đụng cổng với SQL Server đang chạy sẵn trên máy dev, và mở một cổng DB ra ngoài trên
+    # máy thật. Cần soi thì bật tạm bằng:
+    #     docker compose exec db /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C
+    volumes:
+      - pms-db:/var/opt/mssql
+    healthcheck:
+      # API có EnableRetryOnFailure(3) nhưng SQL Server mất ~20-40s mới nhận kết nối
+      # đầu tiên — lâu hơn hẳn số lần thử đó. Không có healthcheck thì `up` lần đầu
+      # trên máy sạch gần như chắc chắn để API chết trước khi DB kịp sẵn sàng.
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  api:
+    build:
+      context: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: >-
+        Server=db,1433;Database=PmsDb;User Id=sa;Password=${MSSQL_SA_PASSWORD};
+        TrustServerCertificate=True;Encrypt=False
+      Jwt__Secret: ${JWT_SECRET:?cần đặt trong .env, tối thiểu 32 byte}
+      # Bắt buộc: AppOptions ValidateOnStart. Link trong email mời dựng từ đây, nên
+      # sai giá trị = gửi đi những lá thư có link hỏng, không hoàn tác được.
+      App__FrontendBaseUrl: ${FRONTEND_BASE_URL:?cần đặt trong .env}
+      Cors__AllowedOrigins__0: ${FRONTEND_BASE_URL}
+      # Production mặc định KHÔNG tự áp migration (xem Program.cs). Ở đây bật lên vì
+      # compose này dựng cả DB rỗng — không có bước nào khác tạo schema.
+      Database__MigrateOnStartup: "true"
+      # Bỏ trống = NullEmailSender (im lặng nuốt email). Điền vào .env để gửi thật.
+      Smtp__Host: ${SMTP_HOST:-}
+      Smtp__Port: ${SMTP_PORT:-587}
+      Smtp__User: ${SMTP_USER:-}
+      Smtp__Password: ${SMTP_PASSWORD:-}
+      Smtp__FromAddress: ${SMTP_FROM:-}
+    volumes:
+      - pms-attachments:/app/App_Data
+
+volumes:
+  pms-db:
+  pms-attachments:

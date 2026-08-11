@@ -3,16 +3,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
-  acceptInvitation,
   changeMemberRole,
-  declineInvitation,
   inviteExternalMember,
   inviteMember,
   listMembers,
-  listMyInvitations,
   removeMember,
 } from '@/lib/api/endpoints/members';
-import { invitationKeys, memberKeys } from '@/lib/hooks/keys';
+import { memberKeys } from '@/lib/hooks/keys';
 import { projectKeys } from '@/lib/hooks/use-projects';
 import type {
   ChangeMemberRoleRequest,
@@ -83,27 +80,6 @@ export function useRemoveMember(projectId: string) {
     onSuccess: () => {
       invalidateMembership(queryClient, projectId);
       // Tự rời thì project biến mất khỏi danh sách của mình.
-      void queryClient.invalidateQueries({ queryKey: projectKeys.all });
-    },
-  });
-}
-
-export function useMyInvitations() {
-  return useQuery({
-    queryKey: invitationKeys.all,
-    queryFn: ({ signal }) => listMyInvitations(signal),
-  });
-}
-
-export function useRespondToInvitation() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ projectId, accept }: { projectId: string; accept: boolean }) =>
-      accept ? acceptInvitation(projectId) : declineInvitation(projectId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: invitationKeys.all });
-      // Chấp nhận lời mời làm project xuất hiện trong danh sách của mình.
       void queryClient.invalidateQueries({ queryKey: projectKeys.all });
     },
   });

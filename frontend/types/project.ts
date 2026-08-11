@@ -66,15 +66,6 @@ export interface ChangeMemberRoleRequest {
   role: RoleInProject;
 }
 
-/** Kiểu phần tử của `GET /projects/invitations` — lời mời đang chờ TÔI phản hồi. */
-export interface MyInvitationResponse {
-  projectId: string;
-  projectName: string;
-  /** Vai trò được mời vào, chưa có hiệu lực cho tới khi chấp nhận. */
-  role: RoleInProject;
-  invitedAt: string;
-}
-
 /**
  * Mời một email qua LINK gửi bằng email — khác {@link InviteMemberRequest}, hoạt động cả
  * khi email chưa có tài khoản trong hệ thống. Xem `POST /projects/{id}/members/invitations`.

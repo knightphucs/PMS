@@ -18,7 +18,9 @@ public record CreateTaskRequest(
     /// <c>null</c>. Phải cùng project với <see cref="ProjectId"/>, không thì 404.
     /// </summary>
     Guid? BoardColumnId = null,
-    int StoryPoints = 0);
+    int StoryPoints = 0,
+    // Loại công việc (ADR-060). null = loại mặc định của project.
+    Guid? WorkItemTypeId = null);
 
 public record UpdateTaskRequest(
     string Name,
@@ -26,7 +28,9 @@ public record UpdateTaskRequest(
     Priority Priority,
     byte[] RowVersion,
     string? Description = null,
-    int StoryPoints = 0);
+    int StoryPoints = 0,
+    // Đổi loại công việc (ADR-060). null = giữ nguyên loại hiện tại.
+    Guid? WorkItemTypeId = null);
 
 public record MoveTaskToSprintRequest(Guid? SprintId);
 
@@ -60,6 +64,12 @@ public record TaskCardAssignee(Guid EmployeeId, string EmployeeName);
 /// </summary>
 public record TaskStatusRef(Guid ColumnId, string Name, string Color, StatusCategory Category);
 
+/// <summary>
+/// Loại công việc gắn kèm trên thẻ/chi tiết task (ADR-060) — đủ để vẽ chip mà không phải
+/// gọi thêm <c>GET /projects/{id}/work-item-types</c>. Cùng lý lẽ <see cref="TaskStatusRef"/>.
+/// </summary>
+public record TaskTypeRef(Guid TypeId, string Name, string Icon, string Color);
+
 public record TaskSummaryResponse(
     Guid Id,
     /// <summary>Số thứ tự trong project. Cần khi muốn sắp xếp hoặc tra cứu bằng số.</summary>
@@ -72,6 +82,7 @@ public record TaskSummaryResponse(
     string Code,
     string Name,
     TaskStatusRef Status,
+    TaskTypeRef Type,
     Priority Priority,
     int StoryPoints,
     DateTime? DueDate,
@@ -157,6 +168,7 @@ public record TaskDetailResponse(
     string Name,
     string? Description,
     TaskStatusRef Status,
+    TaskTypeRef Type,
     Priority Priority,
     int StoryPoints,
     DateTime? DueDate,

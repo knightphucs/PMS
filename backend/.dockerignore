@@ -1,0 +1,10 @@
+# Không đưa vào build context: vừa làm chậm, vừa dễ nhét thứ không nên có vào ảnh.
+**/bin/
+**/obj/
+**/logs/
+**/App_Data/
+**/.vs/
+**/.vscode/
+**/*.user
+**/appsettings.*.local.json
+postman/

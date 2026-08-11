@@ -19,7 +19,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { errorMessage } from '@/lib/api/problem';
 import { useMembers } from '@/lib/hooks/use-members';
-import { useAssignTask, useUnassignTask } from '@/lib/hooks/use-tasks';
+import { useAssignTask, useSelfAssignTask, useUnassignTask } from '@/lib/hooks/use-tasks';
 import { canManageTasks, canSelfAssign } from '@/lib/tasks/permissions';
 import { cn } from '@/lib/utils';
 import { ROLE_IN_PROJECT_LABEL, type RoleInProject } from '@/types/enums';
@@ -62,6 +62,7 @@ export function AssigneeDialog({
   const open = task !== null;
   const members = useMembers(projectId);
   const assign = useAssignTask(projectId);
+  const selfAssign = useSelfAssignTask(projectId);
   const unassign = useUnassignTask(projectId);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -80,8 +81,23 @@ export function AssigneeDialog({
 
     try {
       if (dangGan) {
+        // Gỡ dùng chung MỘT endpoint cho cả hai trường hợp: backend tự phân biệt
+        // self-unassign (SelfAssign) với gỡ người khác (ManageAssignees).
         await unassign.mutateAsync({ taskId: task.id, employeeId });
         toast.success(`Đã gỡ ${employeeName} khỏi task.`);
+      } else if (employeeId === myEmployeeId) {
+        // 🔴 TỰ NHẬN phải đi `POST /tasks/{id}/assignees/me`, KHÔNG phải
+        // `POST /tasks/{id}/assignees`.
+        //
+        // Hai endpoint gác bằng hai quyền khác nhau: `/me` cần `SelfAssign` (PM **và**
+        // Member), còn endpoint gán-người-khác cần `ManageAssignees` (chỉ PM). Trước đây
+        // dialog này gọi endpoint thứ hai cho MỌI dòng, nên Member bấm vào dòng của chính
+        // mình vẫn nhận **403** — đúng triệu chứng "chỉ admin mới tự nhận việc được".
+        //
+        // Dialog đã bật/tắt nút theo `canSelfAssign` từ đầu, nên bề ngoài trông như đã
+        // hỗ trợ Member; thứ sai nằm ở đường gọi, không ở phép kiểm quyền.
+        await selfAssign.mutateAsync(task.id);
+        toast.success('Bạn đã nhận task này.');
       } else {
         await assign.mutateAsync({ taskId: task.id, employeeId, role: 'Owner' });
         toast.success(`Đã giao task cho ${employeeName}.`);

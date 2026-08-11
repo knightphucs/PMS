@@ -138,7 +138,7 @@ public class BacklogAndBoardTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         var gan = await pm.Client.PostAsJsonAsync($"/api/v1/tasks/{taskId}/assignees",
@@ -186,7 +186,7 @@ public class BacklogAndBoardTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var viewer = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
+        await AddMemberAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
 
         (await viewer.Client.GetAsync($"/api/v1/projects/{projectId}/board")).StatusCode
             .ShouldBe(HttpStatusCode.OK);

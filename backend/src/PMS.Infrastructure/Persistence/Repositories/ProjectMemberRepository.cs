@@ -22,13 +22,4 @@ public class ProjectMemberRepository : Repository<ProjectMember>, IProjectMember
             .Select(m => m.EmployeeId)
             .ToListAsync(ct);
     }
-
-    public async Task<IReadOnlyList<ProjectMember>> GetPendingInvitationsAsync(
-        Guid employeeId, CancellationToken ct = default)
-        => await DbSet.AsNoTracking()
-                      .Include(m => m.Project)
-                      .Where(m => m.EmployeeId == employeeId
-                               && m.InvitationStatus == InvitationStatus.Pending)
-                      .OrderByDescending(m => m.CreatedAt)
-                      .ToListAsync(ct);
 }

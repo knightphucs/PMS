@@ -63,7 +63,7 @@ public class TaskPinTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         // Ghim là hành động quản lý board (ai cũng thấy cùng thứ tự) — cùng quyền UpdateTask,

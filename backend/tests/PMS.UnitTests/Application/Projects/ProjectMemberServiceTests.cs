@@ -141,55 +141,13 @@ public class ProjectMemberServiceTests
         _notifications.Received(1).Notify(
             invitee.Id, NotificationType.InvitedToProject, Arg.Any<string>(), project.Id);
 
+        // ADR-057: MỘT hành động sinh ĐÚNG MỘT thông báo, và người bấm nút không tự nhận
+        // thông báo về việc mình vừa làm. Trước đó PM nhận thêm InvitationAccepted khi
+        // người kia bấm chấp nhận — nay không còn bước đó nữa.
+        _notifications.DidNotReceiveWithAnyArgs().NotifyMany(default!, default, default!, default);
+
         // ADR-013: log + notification + membership cùng 1 SaveChanges -> cùng 1 transaction
         await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
-    }
-
-    // ---------- Phản hồi lời mời ----------
-
-    [Fact]
-    public async Task AcceptInvitationAsync_KHONG_goi_AuthorizeAsync()
-    {
-        var inviteeId = Guid.NewGuid();
-        _currentUser.EmployeeId.Returns(inviteeId);
-        var project = ProjectOf((inviteeId, RoleInProject.Member, InvitationStatus.Pending));
-
-        await _sut.AcceptInvitationAsync(project.Id);
-
-        // ADR-012 / seq-05: AuthorizeAsync lọc InvitationStatus == Accepted nên người
-        // Pending sẽ nhận 404 khi chấp nhận lời mời của CHÍNH MÌNH. Test này khóa lại
-        // quyết định thiết kế đó — ai đó "dọn dẹp" bằng cách thêm _authz vào sẽ fail ngay.
-        await _authz.DidNotReceiveWithAnyArgs().AuthorizeAsync(default, default, default);
-    }
-
-    [Fact]
-    public async Task AcceptInvitationAsync_dong_dau_JoinedDate_va_bao_cho_PM()
-    {
-        var inviteeId = Guid.NewGuid();
-        _currentUser.EmployeeId.Returns(inviteeId);
-        var project = ProjectOf((inviteeId, RoleInProject.Member, InvitationStatus.Pending));
-
-        var result = await _sut.AcceptInvitationAsync(project.Id);
-
-        result.InvitationStatus.ShouldBe(InvitationStatus.Accepted);
-        result.JoinedDate.ShouldNotBeNull();
-
-#pragma warning disable CS8604 // Possible null reference argument.
-        _notifications.Received(1).NotifyMany(
-            Arg.Is<IEnumerable<Guid>>(ids => ids.Contains(_pmId)),
-            NotificationType.InvitationAccepted, Arg.Any<string>(), project.Id);
-#pragma warning restore CS8604 // Possible null reference argument.
-        await _uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task AcceptInvitationAsync_khong_co_loi_moi_thi_404()
-    {
-        _currentUser.EmployeeId.Returns(Guid.NewGuid());   // người lạ
-        var project = ProjectOf();
-
-        await Should.ThrowAsync<NotFoundException>(() => _sut.AcceptInvitationAsync(project.Id));
-        await _uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     // ---------- ChangeRoleAsync ----------

@@ -25,6 +25,16 @@ export const boardColumnKeys = {
   all: (projectId: string) => [...projectDataKeys.all(projectId), 'columns'] as const,
 };
 
+/** Lược đồ trường tuỳ biến của project (ADR-059) — KHÁC với giá trị trên từng task. */
+export const fieldDefinitionKeys = {
+  all: (projectId: string) => [...projectDataKeys.all(projectId), 'fields'] as const,
+};
+
+/** Loại công việc của project (ADR-060). */
+export const workItemTypeKeys = {
+  all: (projectId: string) => [...projectDataKeys.all(projectId), 'work-item-types'] as const,
+};
+
 export const boardKeys = {
   all: (projectId: string) => [...projectDataKeys.all(projectId), 'board'] as const,
   /** `sprintId === null` = board "tất cả task", khóa bằng chuỗi 'all' cho ổn định. */
@@ -67,6 +77,8 @@ export const taskDetailKeys = {
     [...taskKeys.detail(projectId, taskId), 'links'] as const,
   activity: (projectId: string, taskId: string) =>
     [...taskKeys.detail(projectId, taskId), 'activity'] as const,
+  fieldValues: (projectId: string, taskId: string) =>
+    [...taskKeys.detail(projectId, taskId), 'field-values'] as const,
 };
 
 export const projectActivityKeys = {
@@ -99,15 +111,10 @@ export const labelKeys = {
   all: ['labels'] as const,
 };
 
-/** Lời mời của TÔI — không thuộc project nào cụ thể (tôi còn chưa là thành viên). */
-export const invitationKeys = {
-  all: ['my-invitations'] as const,
-};
-
 /**
- * Xem trước một lời mời qua TOKEN trong link (`/invitations/{token}`) — cố ý TÁCH khỏi
- * `invitationKeys`: đây là public, theo token thô, không thuộc "hộp thư lời mời" của một
- * người đã đăng nhập như `invitationKeys` ở trên.
+ * Xem trước một lời mời qua TOKEN trong link (`/invitations/{token}`) — public, theo token
+ * thô, không cần đăng nhập. Đây là hộp khóa DUY NHẤT còn lại cho lời mời kể từ ADR-057:
+ * lời mời trong-app (`invitationKeys`) đã bị gỡ cùng ba endpoint của nó.
  */
 export const invitationPreviewKeys = {
   detail: (token: string) => ['invitation-preview', token] as const,

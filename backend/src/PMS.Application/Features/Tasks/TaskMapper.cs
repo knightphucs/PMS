@@ -57,12 +57,19 @@ public partial class TaskMapper
         task.BoardColumn.Color,
         task.BoardColumn.Category);
 
+    public static TaskTypeRef ToTypeRef(TaskItem task) => new(
+        task.WorkItemTypeId,
+        task.WorkItemType.Name,
+        task.WorkItemType.Icon,
+        task.WorkItemType.Color);
+
     public TaskSummaryResponse ToSummary(TaskItem task, string projectKey) => new(
         task.Id,
         task.Number,
         FormatCode(projectKey, task.Number),
         task.Name,
         ToStatusRef(task),
+        ToTypeRef(task),
         task.Priority,
         task.StoryPoints,
         task.DueDate,
@@ -86,6 +93,7 @@ public partial class TaskMapper
         task.Name,
         task.Description,
         ToStatusRef(task),
+        ToTypeRef(task),
         task.Priority,
         task.StoryPoints,
         task.DueDate,

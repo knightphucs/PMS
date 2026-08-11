@@ -93,14 +93,6 @@ public class ProjectMemberService : IProjectMemberService
         return _mapper.ToMemberResponse(member);
     }
 
-    public Task<ProjectMemberResponse> AcceptInvitationAsync(
-        Guid projectId, CancellationToken ct = default)
-        => RespondToInvitationAsync(projectId, accept: true, ct);
-
-    public Task<ProjectMemberResponse> DeclineInvitationAsync(
-        Guid projectId, CancellationToken ct = default)
-        => RespondToInvitationAsync(projectId, accept: false, ct);
-
     public async Task<ProjectMemberResponse> ChangeRoleAsync(
         Guid projectId, Guid employeeId, ChangeMemberRoleRequest request,
         CancellationToken ct = default)
@@ -174,54 +166,6 @@ public class ProjectMemberService : IProjectMemberService
 
         _logger.LogInformation("Gỡ {EmployeeId} khỏi project {ProjectId} bởi {ActorId} (selfLeave={SelfLeave})",
             employeeId, projectId, actorId, isSelfLeave);
-    }
-
-    public async Task<IReadOnlyList<MyInvitationResponse>> GetMyInvitationsAsync(
-        CancellationToken ct = default)
-    {
-        var invitations = await _uow.ProjectMembers.GetPendingInvitationsAsync(
-            _currentUser.RequireEmployeeId(), ct);
-
-        return invitations.Select(_mapper.ToMyInvitation).ToList();
-    }
-
-    private async Task<ProjectMemberResponse> RespondToInvitationAsync(
-        Guid projectId, bool accept, CancellationToken ct)
-    {
-        var employeeId = _currentUser.RequireEmployeeId();
-
-        var project = await LoadProjectAsync(projectId, ct);
-
-        var member = project.Members.FirstOrDefault(m => m.EmployeeId == employeeId)
-            ?? throw new NotFoundException("Không tìm thấy lời mời tham gia project này.");
-
-        // Endpoint cũ vẫn có thể được client gọi sau POST /members. Thành viên nay được
-        // thêm ngay lập tức, vì vậy accept lần nữa là no-op để tương thích ngược.
-        if (accept && member.IsActive())
-            return _mapper.ToMemberResponse(member);
-
-        // Trạng thái != Pending -> DomainException = 409 (chống double-click / replay request)
-        if (accept) member.Accept();
-        else        member.Decline();
-
-        var action  = accept ? ActivityAction.MemberJoined : ActivityAction.MemberDeclined;
-        var verb    = accept ? "chấp nhận" : "từ chối";
-        var notiType = accept ? NotificationType.InvitationAccepted
-                              : NotificationType.InvitationDeclined;
-
-        _activityLog.Log(nameof(Project), projectId, action,
-            $"{member.Employee.Name} đã {verb} lời mời (vai trò {member.RoleInProject})");
-
-        _notifications.NotifyMany(ActiveManagerIds(project), notiType,
-            $"{member.Employee.Name} đã {verb} lời mời tham gia project '{project.Name}'",
-            projectId);
-
-        await _uow.SaveChangesAsync(ct);
-
-        _logger.LogInformation("{EmployeeId} {Verb} lời mời vào project {ProjectId}",
-            employeeId, verb, projectId);
-
-        return _mapper.ToMemberResponse(member);
     }
 
     public async Task<ExternalInvitationResponse> InviteExternalAsync(

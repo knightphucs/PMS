@@ -104,7 +104,7 @@ public class SprintsCrudTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
 
         var res = await member.Client.PostAsJsonAsync($"/api/v1/projects/{projectId}/sprints",
             new CreateSprintRequest("Sprint lén", "Mục tiêu",
@@ -182,7 +182,7 @@ public class SprintsCrudTests : IntegrationTestBase
         var pm = await CreateUserAsync();
         var member = await CreateUserAsync();
         var projectId = await CreateProjectAsync(pm.Client);
-        await InviteAndAcceptAsync(pm.Client, member, projectId, RoleInProject.Member);
+        await AddMemberAsync(pm.Client, member, projectId, RoleInProject.Member);
         var sprintId = await CreateSprintAsync(pm.Client, projectId);
 
         (await member.Client.DeleteAsync($"/api/v1/sprints/{sprintId}")).StatusCode

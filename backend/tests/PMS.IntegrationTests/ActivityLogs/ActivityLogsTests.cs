@@ -110,7 +110,7 @@ public class ActivityLogsTests : IntegrationTestBase
         var taskId = await CreateTaskAsync(pm.Client, projectId);
 
         var viewer = await CreateUserAsync();
-        await InviteAndAcceptAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
+        await AddMemberAsync(pm.Client, viewer, projectId, RoleInProject.Viewer);
 
         (await viewer.Client.GetAsync($"/api/v1/tasks/{taskId}/activity"))
             .StatusCode.ShouldBe(HttpStatusCode.OK);

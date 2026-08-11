@@ -54,6 +54,10 @@ public class PmsWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
                 ["Jwt:AccessTokenMinutes"]  = "15",
                 ["Jwt:RefreshTokenDays"]    = "7",
                 ["Cors:AllowedOrigins:0"]   = TestFrontendOrigin,
+                // Bắt buộc từ 2026-08-11: AppOptions nay ValidateOnStart. Không có dòng này
+                // thì host không dựng được và MỌI test đỏ cùng lúc với một thông điệp về
+                // options — đó là chủ ý, xem chú thích ở DependencyInjection.
+                ["App:FrontendBaseUrl"]     = TestFrontendOrigin,
                 ["FileStorage:Root"]        = TestFileStorageRoot,
                 // Nhỏ hơn hẳn 20 MB của production: test 413 không nên phải dựng một
                 // MemoryStream 20 MB chỉ để chứng minh giới hạn có hiệu lực.
