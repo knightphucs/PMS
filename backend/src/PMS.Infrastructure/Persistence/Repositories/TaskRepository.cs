@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using PMS.Application.Common.Filtering;
 using PMS.Application.Common.Interfaces;
 using PMS.Application.Common.Models;
 using PMS.Domain.Entities;
@@ -142,6 +143,288 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
             PageSize = request.PageSize
         };
     }
+
+    public async Task<PagedResult<TaskItem>> QueryAsync(
+        Guid projectId, TaskQuerySpec spec, PagedRequest request, CancellationToken ct = default)
+    {
+        // Cùng chiến thuật HAI BƯỚC của GetPagedByProjectAsync, và ở đây còn cần thiết hơn:
+        // bộ lọc trên trường tuỳ biến sinh subquery trên FieldValues, mà JOIN thêm ba
+        // collection Include vào cùng câu đó thì số dòng nhân lên rất nhanh.
+        var query = DbSet
+            .AsNoTracking()
+            .Where(t => t.ProjectId == projectId && t.ParentTaskId == null);
+
+        foreach (var filter in spec.Filters)
+            query = Apply(query, filter);
+
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var keyword = request.Search.Trim();
+            query = query.Where(t => t.Name.Contains(keyword));
+        }
+
+        var totalCount = await query.CountAsync(ct);
+
+        query = Sort(query, spec.SortBy, spec.SortDescending);
+
+        var pageIds = await query
+            .Skip(request.Skip)
+            .Take(request.PageSize)
+            .Select(t => t.Id)
+            .ToListAsync(ct);
+
+        var loaded = await DbSet
+            .AsNoTracking()
+            .Include(t => t.Assignments).ThenInclude(a => a.Employee)
+            .Include(t => t.Subtasks)
+            .Include(t => t.Labels)
+            // FieldValues + lựa chọn đang chọn: màn danh sách hiển thị được CỘT là trường
+            // tuỳ biến, nên thiếu Include ở đây thì mọi ô đó trống một cách im lặng — đúng
+            // lớp lỗi SubtaskProgress-luôn-0 (ADR-034) và IsWatching-luôn-false (ADR-036).
+            .Include(t => t.FieldValues).ThenInclude(v => v.SelectedOptions)
+            .AsSplitQuery()
+            .Where(t => pageIds.Contains(t.Id))
+            .ToListAsync(ct);
+
+        var byId = loaded.ToDictionary(t => t.Id);
+        var items = pageIds.Where(byId.ContainsKey).Select(id => byId[id]).ToList();
+
+        return new PagedResult<TaskItem>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = request.Page,
+            PageSize = request.PageSize
+        };
+    }
+
+    /// <summary>
+    /// Sắp xếp theo một <see cref="TaskField"/> (danh mục ĐÓNG). Tie-break bằng <c>Id</c> ở
+    /// MỌI nhánh — không trường nào duy nhất, nên thiếu nó thì hai lần gọi cùng một trang có
+    /// thể trả thứ tự khác nhau và task nhảy trang khi người dùng bấm qua lại.
+    /// </summary>
+    private static IQueryable<TaskItem> Sort(
+        IQueryable<TaskItem> query, TaskField? sortBy, bool descending)
+    {
+        // Sắp theo VỊ TRÍ cột chứ không theo tên (xem GetPagedByProjectAsync): "trạng thái
+        // tăng dần" nghĩa là đi từ đầu quy trình tới cuối.
+        var keyed = sortBy switch
+        {
+            TaskField.Name         => Order(query, t => t.Name, descending),
+            TaskField.BoardColumn  => Order(query, t => t.BoardColumn.Order, descending),
+            TaskField.Category     => Order(query, t => t.Category, descending),
+            TaskField.Priority     => Order(query, t => t.Priority, descending),
+            TaskField.WorkItemType => Order(query, t => t.WorkItemType.Order, descending),
+            TaskField.Sprint       => Order(query, t => t.SprintId, descending),
+            TaskField.Reporter     => Order(query, t => t.ReporterId, descending),
+            TaskField.DueDate      => Order(query, t => t.DueDate, descending),
+            TaskField.StoryPoints  => Order(query, t => t.StoryPoints, descending),
+            TaskField.CreatedAt    => Order(query, t => t.CreatedAt, descending),
+            // Assignee là quan hệ N–N: "sắp theo người đảm nhận" không có một khoá duy nhất
+            // (một task có nhiều người), nên nó rơi về mặc định thay vì bịa ra một thứ tự.
+            _                      => Order(query, t => t.DueDate, descending)
+        };
+
+        return keyed.ThenBy(t => t.Id);
+    }
+
+    private static IOrderedQueryable<TaskItem> Order<TKey>(
+        IQueryable<TaskItem> query, System.Linq.Expressions.Expression<Func<TaskItem, TKey>> key,
+        bool descending)
+        => descending ? query.OrderByDescending(key) : query.OrderBy(key);
+
+    /// <summary>
+    /// Dịch MỘT điều kiện đã phân giải thành một <c>Where</c>.
+    ///
+    /// <para>
+    /// Nhiều điều kiện nối bằng AND — mỗi lượt gọi chồng thêm một <c>Where</c>, đúng ngữ
+    /// nghĩa đã ghi ở <see cref="SavedViewFilter"/>.
+    /// </para>
+    /// </summary>
+    private static IQueryable<TaskItem> Apply(IQueryable<TaskItem> query, ResolvedFilter f)
+        => f.IsCustomField ? ApplyCustom(query, f) : ApplyBuiltIn(query, f);
+
+    private static IQueryable<TaskItem> ApplyBuiltIn(IQueryable<TaskItem> query, ResolvedFilter f)
+    {
+        var op = f.Operator;
+        var negate = op is FilterOperator.NotEquals or FilterOperator.IsEmpty;
+
+        return f.Field switch
+        {
+            TaskField.Name => op switch
+            {
+                FilterOperator.Contains   => query.Where(t => t.Name.Contains(f.Text!)),
+                FilterOperator.Equals     => query.Where(t => t.Name == f.Text),
+                FilterOperator.NotEquals  => query.Where(t => t.Name != f.Text),
+                FilterOperator.IsEmpty    => query.Where(t => t.Name == ""),
+                _                         => query.Where(t => t.Name != "")
+            },
+
+            TaskField.BoardColumn => negate
+                ? query.Where(t => t.BoardColumnId != f.Reference)
+                : query.Where(t => t.BoardColumnId == f.Reference),
+
+            TaskField.WorkItemType => negate
+                ? query.Where(t => t.WorkItemTypeId != f.Reference)
+                : query.Where(t => t.WorkItemTypeId == f.Reference),
+
+            TaskField.Reporter => negate
+                ? query.Where(t => t.ReporterId != f.Reference)
+                : query.Where(t => t.ReporterId == f.Reference),
+
+            // Sprint rỗng = task đang ở Backlog. Đây là một trong hai chỗ IsEmpty mang nghĩa
+            // nghiệp vụ thật (chỗ kia là Assignee = chưa ai nhận).
+            TaskField.Sprint => op switch
+            {
+                FilterOperator.IsEmpty    => query.Where(t => t.SprintId == null),
+                FilterOperator.IsNotEmpty => query.Where(t => t.SprintId != null),
+                FilterOperator.NotEquals  => query.Where(t => t.SprintId != f.Reference),
+                _                         => query.Where(t => t.SprintId == f.Reference)
+            },
+
+            TaskField.Assignee => op switch
+            {
+                FilterOperator.IsEmpty    => query.Where(t => !t.Assignments.Any()),
+                FilterOperator.IsNotEmpty => query.Where(t => t.Assignments.Any()),
+                // "khác X" = KHÔNG có X trong danh sách người đảm nhận. Đọc theo nghĩa
+                // "có một người khác X" sẽ khiến một task giao cho cả X lẫn Y lọt lưới —
+                // và đó không phải thứ người dùng muốn khi họ gõ "không phải của tôi".
+                FilterOperator.NotEquals  => query.Where(t => !t.Assignments.Any(a => a.EmployeeId == f.Reference)),
+                _                         => query.Where(t => t.Assignments.Any(a => a.EmployeeId == f.Reference))
+            },
+
+            TaskField.Category => negate
+                ? query.Where(t => t.Category != (StatusCategory)f.EnumValue!.Value)
+                : query.Where(t => t.Category == (StatusCategory)f.EnumValue!.Value),
+
+            TaskField.Priority => negate
+                ? query.Where(t => t.Priority != (Priority)f.EnumValue!.Value)
+                : query.Where(t => t.Priority == (Priority)f.EnumValue!.Value),
+
+            TaskField.DueDate => op switch
+            {
+                FilterOperator.IsEmpty            => query.Where(t => t.DueDate == null),
+                FilterOperator.IsNotEmpty         => query.Where(t => t.DueDate != null),
+                FilterOperator.Equals             => query.Where(t => t.DueDate == f.Date),
+                FilterOperator.NotEquals          => query.Where(t => t.DueDate != f.Date),
+                FilterOperator.GreaterThan        => query.Where(t => t.DueDate >  f.Date),
+                FilterOperator.GreaterThanOrEqual => query.Where(t => t.DueDate >= f.Date),
+                FilterOperator.LessThan           => query.Where(t => t.DueDate <  f.Date),
+                _                                 => query.Where(t => t.DueDate <= f.Date)
+            },
+
+            // ⚠️ StoryPoints là int KHÔNG nullable, mặc định 0. Nên "rỗng" ở đây nghĩa là
+            // CHƯA ƯỚC LƯỢNG (= 0), không phải NULL. Ghi rõ vì đây là chỗ duy nhất trong
+            // catalog mà IsEmpty không đọc theo nghĩa đen.
+            TaskField.StoryPoints => op switch
+            {
+                FilterOperator.IsEmpty            => query.Where(t => t.StoryPoints == 0),
+                FilterOperator.IsNotEmpty         => query.Where(t => t.StoryPoints != 0),
+                FilterOperator.Equals             => query.Where(t => t.StoryPoints == f.Number),
+                FilterOperator.NotEquals          => query.Where(t => t.StoryPoints != f.Number),
+                FilterOperator.GreaterThan        => query.Where(t => t.StoryPoints >  f.Number),
+                FilterOperator.GreaterThanOrEqual => query.Where(t => t.StoryPoints >= f.Number),
+                FilterOperator.LessThan           => query.Where(t => t.StoryPoints <  f.Number),
+                _                                 => query.Where(t => t.StoryPoints <= f.Number)
+            },
+
+            // CreatedAt luôn có giá trị -> IsEmpty không bao giờ đúng. Trả về tập rỗng thay
+            // vì bỏ qua điều kiện: bỏ qua sẽ khiến view trả về MỌI task và người dùng tưởng
+            // bộ lọc của họ đang chạy.
+            TaskField.CreatedAt => op switch
+            {
+                FilterOperator.IsEmpty            => query.Where(_ => false),
+                FilterOperator.IsNotEmpty         => query,
+                FilterOperator.Equals             => query.Where(t => t.CreatedAt == f.Date),
+                FilterOperator.NotEquals          => query.Where(t => t.CreatedAt != f.Date),
+                FilterOperator.GreaterThan        => query.Where(t => t.CreatedAt >  f.Date),
+                FilterOperator.GreaterThanOrEqual => query.Where(t => t.CreatedAt >= f.Date),
+                FilterOperator.LessThan           => query.Where(t => t.CreatedAt <  f.Date),
+                _                                 => query.Where(t => t.CreatedAt <= f.Date)
+            },
+
+            _ => query
+        };
+    }
+
+    /// <summary>
+    /// Điều kiện trên trường TUỲ BIẾN (ADR-059) — một subquery trên <c>FieldValues</c>.
+    ///
+    /// <para>
+    /// 🔴 So với <b>cột có kiểu</b>: <c>ValueNumber</c> cho số, <c>ValueDate</c> cho ngày.
+    /// Đây đúng là thứ ADR-059 mua về khi từ chối một cột JSON — với JSON thì <c>"9" &gt;
+    /// "10"</c> và không index nào dùng được.
+    /// </para>
+    /// <para>
+    /// 📌 <b>"Rỗng" = KHÔNG CÓ HÀNG</b>, không phải hàng toàn null: ADR-059 xoá hẳn hàng khi
+    /// người dùng xoá trắng giá trị, chính để mọi phép đếm "bao nhiêu task đã điền trường
+    /// này" trả lời đúng. Bộ lọc ở đây thừa hưởng nguyên tính chất đó.
+    /// </para>
+    /// <para>
+    /// 📌 <b>"khác X" bao gồm cả task CHƯA ĐIỀN.</b> Đọc theo nghĩa "có giá trị và giá trị
+    /// đó khác X" sẽ loại bỏ task chưa điền — trong khi người dùng gõ "Mức rủi ro khác Cao"
+    /// thì họ mong thấy cả những việc chưa ai đánh giá rủi ro.
+    /// </para>
+    /// </summary>
+    private static IQueryable<TaskItem> ApplyCustom(IQueryable<TaskItem> query, ResolvedFilter f)
+    {
+        var fieldId = f.FieldDefinitionId!.Value;
+
+        if (f.Operator is FilterOperator.IsEmpty)
+            return query.Where(t => !t.FieldValues.Any(v => v.FieldDefinitionId == fieldId));
+
+        if (f.Operator is FilterOperator.IsNotEmpty)
+            return query.Where(t => t.FieldValues.Any(v => v.FieldDefinitionId == fieldId));
+
+        System.Linq.Expressions.Expression<Func<TaskItem, bool>> match = f.Kind switch
+        {
+            FilterValueKind.Text when f.Operator is FilterOperator.Contains =>
+                t => t.FieldValues.Any(v => v.FieldDefinitionId == fieldId
+                                         && v.ValueText != null && v.ValueText.Contains(f.Text!)),
+
+            FilterValueKind.Text =>
+                t => t.FieldValues.Any(v => v.FieldDefinitionId == fieldId && v.ValueText == f.Text),
+
+            FilterValueKind.Boolean =>
+                t => t.FieldValues.Any(v => v.FieldDefinitionId == fieldId && v.ValueBoolean == f.Boolean),
+
+            // Select: giá trị là Id của một FieldOption đang được chọn.
+            FilterValueKind.Reference =>
+                t => t.FieldValues.Any(v => v.FieldDefinitionId == fieldId
+                                         && v.SelectedOptions.Any(o => o.Id == f.Reference)),
+
+            FilterValueKind.Number => f.Operator switch
+            {
+                FilterOperator.GreaterThan        => t => t.FieldValues.Any(v => v.FieldDefinitionId == fieldId && v.ValueNumber >  f.Number),
+                FilterOperator.GreaterThanOrEqual => t => t.FieldValues.Any(v => v.FieldDefinitionId == fieldId && v.ValueNumber >= f.Number),
+                FilterOperator.LessThan           => t => t.FieldValues.Any(v => v.FieldDefinitionId == fieldId && v.ValueNumber <  f.Number),
+                FilterOperator.LessThanOrEqual    => t => t.FieldValues.Any(v => v.FieldDefinitionId == fieldId && v.ValueNumber <= f.Number),
+                _                                 => t => t.FieldValues.Any(v => v.FieldDefinitionId == fieldId && v.ValueNumber == f.Number)
+            },
+
+            FilterValueKind.Date => f.Operator switch
+            {
+                FilterOperator.GreaterThan        => t => t.FieldValues.Any(v => v.FieldDefinitionId == fieldId && v.ValueDate >  f.Date),
+                FilterOperator.GreaterThanOrEqual => t => t.FieldValues.Any(v => v.FieldDefinitionId == fieldId && v.ValueDate >= f.Date),
+                FilterOperator.LessThan           => t => t.FieldValues.Any(v => v.FieldDefinitionId == fieldId && v.ValueDate <  f.Date),
+                FilterOperator.LessThanOrEqual    => t => t.FieldValues.Any(v => v.FieldDefinitionId == fieldId && v.ValueDate <= f.Date),
+                _                                 => t => t.FieldValues.Any(v => v.FieldDefinitionId == fieldId && v.ValueDate == f.Date)
+            },
+
+            _ => _ => false
+        };
+
+        // NotEquals đảo cả vị từ "có giá trị bằng X" -> "không có giá trị bằng X", nên task
+        // chưa điền cũng lọt vào. Xem chú thích trên.
+        return f.Operator is FilterOperator.NotEquals
+            ? query.Where(Negate(match))
+            : query.Where(match);
+    }
+
+    private static System.Linq.Expressions.Expression<Func<TaskItem, bool>> Negate(
+        System.Linq.Expressions.Expression<Func<TaskItem, bool>> expression)
+        => System.Linq.Expressions.Expression.Lambda<Func<TaskItem, bool>>(
+            System.Linq.Expressions.Expression.Not(expression.Body), expression.Parameters);
 
     // ⚠️ Ba query dưới đây nuôi Board và Backlog, tức là nguồn của TaskSummaryResponse.
     // Cả hai Include đều BẮT BUỘC, không phải tối ưu:

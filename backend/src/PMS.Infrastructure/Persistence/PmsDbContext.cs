@@ -20,6 +20,9 @@ public class PmsDbContext : DbContext
     public DbSet<FieldValue> FieldValues => Set<FieldValue>();
     public DbSet<WorkItemType> WorkItemTypes => Set<WorkItemType>();
     public DbSet<WorkItemTypeField> WorkItemTypeFields => Set<WorkItemTypeField>();
+    public DbSet<SavedView> SavedViews => Set<SavedView>();
+    public DbSet<SavedViewFilter> SavedViewFilters => Set<SavedViewFilter>();
+    public DbSet<SavedViewColumn> SavedViewColumns => Set<SavedViewColumn>();
     public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
     public DbSet<TaskAssignment> TaskAssignments => Set<TaskAssignment>();
     public DbSet<Watcher> Watchers => Set<Watcher>();

@@ -45,6 +45,20 @@ public enum ProjectAction
     /// </summary>
     ManageWorkItemTypes,
 
+    /// <summary>
+    /// Thêm/sửa/xoá/sắp xếp view CHIA SẺ của project (ADR-061).
+    ///
+    /// <para>
+    /// ⚠️ Khác ba action lược đồ ở trên ở một điểm quan trọng: <b>view RIÊNG không đi qua
+    /// đây</b>. Ai cũng tạo được view của riêng mình (kể cả <c>Viewer</c> — nó chỉ đổi cách
+    /// chính họ nhìn danh sách, không ai khác thấy, cùng lý lẽ <see cref="Watch"/> ở ADR-036).
+    /// Action này chỉ gác thao tác ghi lên view mà CẢ ĐỘI nhìn thấy, và nó tồn tại song song
+    /// với luật "chủ sở hữu tự quản view của mình" nằm trong <c>SavedViewService</c> —
+    /// đúng "ranh giới còn lại" của ADR-019: luật cần dữ liệu per-row thì ở service.
+    /// </para>
+    /// </summary>
+    ManageSavedViews,
+
     /// <summary>Tự nhận / tự rút khỏi task — Member cũng làm được, Viewer thì không.</summary>
     SelfAssign,
 

@@ -6,13 +6,38 @@
 
 ---
 
-## 000. 🆕 Phiên kế tiếp — VIEW LƯU ĐƯỢC (ADR-061)
+## 000. 🆕 Phiên kế tiếp — BỘ MÁY QUY TRÌNH (ADR-062 → 064)
 
-### Trạng thái khi bàn giao — 2026-08-12
+> ✅ **ADR-061 ĐÃ XONG 2026-08-18.** Phần đặc tả bên dưới giữ nguyên làm hồ sơ thiết kế —
+> cả ba quyết định đều đã chốt và cài đặt đúng như ghi. Việc kế tiếp là **Giai đoạn 2.5**:
+> ADR-062 (phê duyệt) → 063 (cổng yêu cầu) → 064 (khuôn dự án). Bốn ADR đã viết đầy đủ ở
+> cuối §15 `ARCHITECTURE.md`, **trước khi gõ code**.
 
-`main` xanh: **587 test backend** (249 unit + 338 integration) + 72 test frontend.
-typecheck · lint · `next build` sạch. Nhánh làm việc gần nhất:
-`fix/adr-057-member-onboarding` (2 commit, **chưa merge** vào `dev`/`main`).
+### Trạng thái khi bàn giao — 2026-08-18
+
+**614 test backend** (249 unit + **365** integration) + 72 test frontend, 0 đỏ.
+typecheck · lint · `next build` sạch. Drift check `Up()` rỗng.
+
+| ADR | Nội dung |
+|---|---|
+| **061** | `SavedView` + `SavedViewFilter` + `SavedViewColumn` · 6 endpoint · 27 test · tab **Danh sách** + tab **Cấu hình** |
+
+🔴 **Ba thứ của phiên ADR-061 cần biết trước khi làm tiếp:**
+
+1. **`POST /projects/{id}/tasks/query` là POST cho một thao tác ĐỌC.** Hệ quả ở client:
+   `queryKey` phải chứa **trọn body**, nếu không đổi bộ lọc sẽ hiện lại kết quả cũ. Xem
+   `taskQueryKeys.run` trong `lib/hooks/keys.ts`.
+2. **Cấu hình đã RỜI khỏi header trang Bảng.** Ba dialog quản lý nay ở
+   `/projects/{id}/settings`. ⚠️ **Đừng thêm nút cấu hình mới vào trang Bảng** — thêm một
+   mục vào trang Cấu hình. Đây là luật 5 của Doctrine (§0), và tầng 2.5 chính là lý do nó
+   được dựng sớm.
+3. **`PROJECT_SECTIONS` nay có cờ `requiresManage`.** Tab và sidebar **cùng** lọc theo nó
+   (`canManageTasks`). Thêm một khu vực chỉ dành cho PM thì đặt cờ, đừng gác ở một chỗ.
+
+⚠️ **Test integration trên máy dev cần `PMS_TEST_DB`** — mặc định trỏ `localhost,1433` +
+`sa`, máy này không phải vậy. Lệnh dựng biến đã ghi ở **RUNBOOK §5**. Triệu chứng nếu quên
+trông **hệt** lỗi cascade của ADR-059 (mọi test đỏ trong vài chục ms) nhưng nguyên nhân
+khác hẳn — đọc thông điệp, đừng đoán theo tiền lệ.
 
 | ADR | Nội dung |
 |---|---|
@@ -113,20 +138,50 @@ drift check trước khi báo xong.
 
 ---
 
-### Sau ADR-061 — Giai đoạn 3 (lớp đặc thù hạ tầng)
+### 🆕 Cập nhật 2026-08-17 — lộ trình đã đổi hình dạng sau khi phó phòng review
 
-Xây trên nền ADR-059/060 nên **không phải hardcode** thứ gì. Xếp theo giá trị:
+> 🔴 **Đọc `ARCHITECTURE.md` §0 lại từ đầu** — nó đã đổi. Bảng lộ trình nay có **BỐN tầng**
+> chứ không phải ba, và có thêm mục **"Chẩn đoán: đủ danh từ, thiếu động từ"** cùng
+> **"Doctrine chống rối"** (5 luật). Bốn ADR mới (061 → 064) đã được **viết đầy đủ trước
+> khi gõ code**, nằm ở cuối §15.
 
-| # | Hạng mục | Vì sao, và móc vào đâu |
+**Điều đã thay đổi:** hạng mục "Phê duyệt (CAB)" từng nằm ở đây như một mục của Giai đoạn 3
+(đặc thù hạ tầng). Nó đã được **tách lên thành một tầng riêng** — Giai đoạn 2.5, ADR-062 —
+vì nó không phải đặc thù hạ tầng mà là **bộ máy chung**: cùng một cơ chế phục vụ CAB của
+hạ tầng, luồng duyệt cấp quyền của mọi phòng ban, và bất kỳ quy trình nào sau này.
+
+| Giai đoạn | Hạng mục | ADR |
 |---|---|---|
-| 1 | **Phê duyệt (CAB)** | Change Request phải có người ký duyệt mới được chuyển cột. Cắm vào `TaskStatusTransitionService` — guard duy nhất còn lại sau khi ADR-052 gỡ ma trận. Hiện **không có cách nào** diễn đạt điều này |
-| 2 | **Việc lặp định kỳ + cửa sổ bảo trì** | Vá lỗi, kiểm backup, gia hạn chứng thư — nhịp sống của đội hạ tầng. `DueDateNotificationWorker` đã có sẵn `PeriodicTimer` mỗi giờ |
-| 3 | **View lịch** | Gần cách hạ tầng lập kế hoạch hơn sprint. `SprintTimelineChart` là mẫu tự dựng bằng `<div>` định vị `%`, dùng lại cách đó |
-| 4 | **Đồng hồ SLA** | `Priority` + `DueDate` đã có; thiếu tầng chính sách + cảnh báo sắp vi phạm |
-| 5 | **Gắn tài sản / hệ thống (CMDB nhẹ)** | "Task này ảnh hưởng server X". Có thể làm **hoàn toàn bằng trường tuỳ biến** kiểu MultiSelect — thử cách đó trước khi dựng bảng mới |
-| 6 | **Xuất nhật ký cho kiểm toán** | `ActivityLog` đã đủ dữ liệu (kể cả nhóm xác thực từ ADR-058), thiếu đường xuất CSV |
+| **2 (đang làm)** | View lưu được + màn danh sách + **gom cấu hình về `/settings`** | **061** |
+| **2.5** | Phê duyệt · cổng yêu cầu · khuôn dự án + 3 quy trình mẫu | **062 · 063 · 064** |
+| 3 | SLA · việc lặp/bảo trì · view lịch · CMDB nhẹ · xuất kiểm toán | §14 |
+| 4 | Scheme dùng chung · danh bạ Đội · chuyển việc liên phòng · automation | §14 |
 
-Nếu hết thời gian: làm **1 + 2** (giá trị cao nhất, chi phí thấp nhất), ghi 3–6 vào §14.
+**Ranh giới cắt nếu hết thời gian:** ADR-061 + ADR-062 là hai hạng mục có giá trị cao nhất
+trên mỗi đồng công sức. ADR-063/064 lùi về lộ trình mà không để lại gì dở dang.
+
+#### 🔴 Việc phải làm KÈM ADR-061, không để phiên sau
+
+Theo **luật 5 của Doctrine** (§0): `ManageColumnsDialog`, `ManageFieldsDialog`,
+`ManageWorkItemTypesDialog` **đều đang treo trên header trang Bảng**
+(`app/(app)/projects/[id]/board/page.tsx`), và **không có route settings nào tồn tại**.
+Giai đoạn 2.5 sẽ đổ thêm luật duyệt + khuôn lên đó → **sáu nút cấu hình trên một màn làm
+việc**.
+
+→ Gom về `app/(app)/projects/[id]/settings/`, gác bằng `canManage`. Rẻ khi làm bây giờ,
+đắt khi làm sau. Đây là thứ ngăn app rối **trước khi** app kịp rối.
+
+#### Ghi chú tái sử dụng cho màn danh sách (đã khảo sát 2026-08-17)
+
+- `listProjectTasks` (`lib/api/endpoints/tasks.ts`) **đã có**, đã phân trang, tới giờ chỉ
+  có một người dùng nhỏ là `useProjectTaskOptions`
+- `components/backlog/backlog-table.tsx` là **tiền lệ gần nhất** — đã có `TaskStatusChip`,
+  `PriorityLabel`, `AvatarStack`, `movingIds`, `renderMenu`
+- `components/projects/project-pagination.tsx` **đã generic** theo item type
+- `components/tasks/use-task-actions.tsx` là điểm cắm hành động, đã dùng chung board + backlog
+- Thêm một entry vào `PROJECT_SECTIONS` (`components/projects/project-tabs.tsx`) là nuôi
+  **cả tab bar lẫn sidebar** cùng lúc. ⚠️ Nhớ thêm `TAB_LABEL` ở `lib/hooks/use-breadcrumbs.ts`
+  — `velocity` và `timeline` hiện **đang thiếu**, sửa luôn thể
 
 ---
 

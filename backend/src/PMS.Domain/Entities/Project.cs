@@ -56,6 +56,9 @@ public class Project : BaseEntity, ISoftDeletable
     /// <summary>Loại công việc của project này (ADR-060).</summary>
     public ICollection<WorkItemType> WorkItemTypes { get; set; } = [];
 
+    /// <summary>View lưu được trên danh sách task của project này (ADR-061).</summary>
+    public ICollection<SavedView> SavedViews { get; set; } = [];
+
     public bool IsCompleted() => Status == Status.Done;
 
     /// <summary>

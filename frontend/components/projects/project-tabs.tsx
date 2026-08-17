@@ -5,6 +5,8 @@ import {
   GanttChartIcon,
   KanbanSquareIcon,
   ListTodoIcon,
+  SettingsIcon,
+  TableIcon,
   TimerIcon,
   TrendingUpIcon,
   UsersIcon,
@@ -13,6 +15,8 @@ import {
 import Link from 'next/link';
 import { useSelectedLayoutSegment } from 'next/navigation';
 
+import { useMyProjectRole } from '@/lib/hooks/use-my-project-role';
+import { canManageTasks } from '@/lib/tasks/permissions';
 import { cn } from '@/lib/utils';
 
 /**
@@ -25,8 +29,25 @@ import { cn } from '@/lib/utils';
  * Backlog Insight là ngữ cảnh của Backlog, nên mở dưới dạng panel "Insights" tại chính màn
  * Backlog thay vì là một tab cạnh dashboard tổng quan.
  */
-export const PROJECT_SECTIONS: { segment: string; label: string; icon: LucideIcon }[] = [
+export interface ProjectSection {
+  segment: string;
+  label: string;
+  icon: LucideIcon;
+  /**
+   * Chỉ hiện với người quản lý được task (PM).
+   *
+   * 🔴 **Ẩn chứ không vô hiệu hoá** — luật 3 và 5 của Doctrine chống rối (§0
+   * `ARCHITECTURE.md`): một tab xám vẫn gợi ý rằng đâu đó có cách bật nó lên, còn một tab
+   * dẫn tới màn "bạn không có quyền" thì tốn của người dùng một cú bấm để biết điều đó.
+   */
+  requiresManage?: boolean;
+}
+
+export const PROJECT_SECTIONS: ProjectSection[] = [
   { segment: 'board', label: 'Bảng', icon: KanbanSquareIcon },
+  // Danh sách + view lưu được (ADR-061). Đứng ngay sau Bảng vì đây là góc nhìn thứ hai của
+  // CÙNG một tập task, còn Backlog/Sprint là chuyện lập kế hoạch.
+  { segment: 'list', label: 'Danh sách', icon: TableIcon },
   { segment: 'backlog', label: 'Backlog', icon: ListTodoIcon },
   { segment: 'sprints', label: 'Sprint', icon: TimerIcon },
   { segment: 'members', label: 'Thành viên', icon: UsersIcon },
@@ -35,6 +56,11 @@ export const PROJECT_SECTIONS: { segment: string; label: string; icon: LucideIco
   // Hai báo cáo dưới cùng cùng quyền với Thống kê — không tạo action mới.
   { segment: 'velocity', label: 'Velocity', icon: TrendingUpIcon },
   { segment: 'timeline', label: 'Timeline', icon: GanttChartIcon },
+  // 🔴 Cấu hình gom về ĐÂY, không nằm trên header trang Bảng (ADR-061, luật 5 của Doctrine).
+  // Trước đó ba dialog quản lý (cột · trường · loại việc) treo trên màn LÀM VIỆC, và tầng
+  // "bộ máy quy trình" sắp đổ thêm hai bề mặt nữa lên đó — sáu nút cấu hình trên một màn
+  // người ta dùng để nhìn công việc.
+  { segment: 'settings', label: 'Cấu hình', icon: SettingsIcon, requiresManage: true },
 ];
 
 /**
@@ -50,10 +76,12 @@ export const PROJECT_SECTIONS: { segment: string; label: string; icon: LucideIco
  */
 export function ProjectTabs({ projectId }: { projectId: string }) {
   const active = useSelectedLayoutSegment();
+  const { role } = useMyProjectRole(projectId);
+  const canManage = canManageTasks(role);
 
   return (
     <nav aria-label="Khu vực của dự án" className="-mb-px flex gap-1 overflow-x-auto">
-      {PROJECT_SECTIONS.map(({ segment, label, icon: Icon }) => {
+      {PROJECT_SECTIONS.filter((s) => !s.requiresManage || canManage).map(({ segment, label, icon: Icon }) => {
         const isActive = active === segment;
 
         return (

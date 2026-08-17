@@ -1,3 +1,4 @@
+using PMS.Application.Common.Filtering;
 using PMS.Application.Common.Models;
 using PMS.Domain.Entities;
 
@@ -30,6 +31,25 @@ public interface ITaskRepository : IRepository<TaskItem>
     Task<TaskItem?> GetWithNotificationTargetsAsync(Guid id, CancellationToken ct = default);
     Task<PagedResult<TaskItem>> GetPagedByProjectAsync(
         Guid projectId, PagedRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Danh sách task của project sau khi áp một <see cref="TaskQuerySpec"/> — nguồn của màn
+    /// danh sách và của mọi "hàng đợi" (ADR-061).
+    ///
+    /// <para>
+    /// 🔑 Điều kiện trên trường TUỲ BIẾN so <b>đúng kiểu</b> (<c>ValueNumber</c>/<c>ValueDate</c>
+    /// /<c>ValueText</c>), không so chuỗi — đây là chỗ quyết định "cột có kiểu thay vì một cột
+    /// JSON" của ADR-059 được thu hồi vốn.
+    /// </para>
+    /// <para>
+    /// ⚠️ Không tái dùng <see cref="GetPagedByProjectAsync"/>: cái đó nhận
+    /// <c>PagedRequest.SortBy</c> dạng chuỗi tự do với đúng bốn nhánh, còn ở đây sắp xếp đi
+    /// theo <see cref="Domain.Enums.TaskField"/> (danh mục ĐÓNG) và còn phải gánh bộ lọc.
+    /// Nhồi cả hai vào một hàm sẽ tạo một chữ ký mà mỗi caller chỉ dùng một nửa.
+    /// </para>
+    /// </summary>
+    Task<PagedResult<TaskItem>> QueryAsync(
+        Guid projectId, TaskQuerySpec spec, PagedRequest request, CancellationToken ct = default);
     Task<IReadOnlyList<TaskItem>> GetBacklogAsync(Guid projectId, CancellationToken ct = default);
 
     /// <summary>
