@@ -12,12 +12,21 @@ export interface Crumb {
   loading?: boolean;
 }
 
+/**
+ * ⚠️ Phải khớp với `PROJECT_SECTIONS` ở `components/projects/project-tabs.tsx`. Thiếu một
+ * segment ở đây thì breadcrumb của tab đó **không có nhãn lá** — hỏng im lặng, chỉ thấy khi
+ * nhìn kỹ. `velocity` và `timeline` từng thiếu suốt từ ADR-056; bổ sung cùng ADR-061.
+ */
 const TAB_LABEL: Record<string, string> = {
   board: 'Bảng',
+  list: 'Danh sách',
   backlog: 'Backlog',
   sprints: 'Sprint',
   members: 'Thành viên',
   statistics: 'Thống kê',
+  velocity: 'Velocity',
+  timeline: 'Timeline',
+  settings: 'Cấu hình',
 };
 
 /** Khu quản trị — nhãn tĩnh, không phải nạp gì nên không có trạng thái `loading`. */

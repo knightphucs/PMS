@@ -6,9 +6,6 @@ import { Suspense } from 'react';
 
 import { BoardSkeleton } from '@/components/board/board-skeleton';
 import { BoardView } from '@/components/board/board-view';
-import { ManageColumnsDialog } from '@/components/board/manage-columns-dialog';
-import { ManageFieldsDialog } from '@/components/fields/manage-fields-dialog';
-import { ManageWorkItemTypesDialog } from '@/components/fields/manage-work-item-types-dialog';
 import { SprintSwitcher } from '@/components/board/sprint-switcher';
 import { PageHeader } from '@/components/common/page-header';
 import { QueryError } from '@/components/common/query-error';
@@ -85,11 +82,12 @@ function BoardContent() {
               value={sprintId}
               onChange={handleSprintChange}
             />
-            {/* Quản lý cột: PM-only, cùng ngưỡng quyền với tạo task
-                (`ProjectAction.ManageBoardColumns`, ADR-052). */}
-            {taskActions.canManage ? <ManageColumnsDialog projectId={id} /> : null}
-            {taskActions.canManage ? <ManageFieldsDialog projectId={id} /> : null}
-            {taskActions.canManage ? <ManageWorkItemTypesDialog projectId={id} /> : null}
+            {/* 🔴 Ba dialog cấu hình (cột · trường tuỳ biến · loại công việc) ĐÃ CHUYỂN sang
+                `/projects/{id}/settings` ở ADR-061 — luật 5 của Doctrine chống rối (§0):
+                cấu hình không nằm trên bề mặt làm việc. Đây là màn người ta mở ra để NHÌN
+                CÔNG VIỆC, và tầng "bộ máy quy trình" sắp thêm luật duyệt + khuôn dự án.
+                Để nguyên thì header này thành sáu nút cấu hình.
+                ⚠️ Đừng thêm nút cấu hình mới vào đây — thêm một mục vào trang Cấu hình. */}
 
             {/* Nút chung này luôn tạo vào cột TRÁI NHẤT (không truyền columnId). Từ
                 2026-08-06 mỗi cột còn có nút "+" riêng trong header

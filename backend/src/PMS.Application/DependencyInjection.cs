@@ -16,6 +16,7 @@ using PMS.Application.Features.Labels;
 using PMS.Application.Features.Notifications;
 using PMS.Application.Features.Projects;
 using PMS.Application.Features.Reports;
+using PMS.Application.Features.SavedViews;
 using PMS.Application.Features.Sprints;
 using PMS.Application.Features.Statistics;
 using PMS.Application.Features.TaskLinks;
@@ -41,6 +42,7 @@ public static class DependencyInjection
         services.AddScoped<IBoardColumnService, BoardColumnService>();
         services.AddScoped<ICustomFieldService, CustomFieldService>();
         services.AddScoped<IWorkItemTypeService, WorkItemTypeService>();
+        services.AddScoped<ISavedViewService, SavedViewService>();
         services.AddScoped<ITaskStatusTransitionService, TaskStatusTransitionService>();
         services.AddScoped<ITaskAssignmentService, TaskAssignmentService>();
         services.AddSingleton<TaskMapper>();

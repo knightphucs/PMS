@@ -9,6 +9,7 @@ public interface IUnitOfWork
     IBoardColumnRepository BoardColumns { get; }
     IFieldDefinitionRepository FieldDefinitions { get; }
     IWorkItemTypeRepository WorkItemTypes { get; }
+    ISavedViewRepository SavedViews { get; }
     IRepository<FieldValue> FieldValues { get; }
     IEmployeeRepository Employees { get; }
     IRefreshTokenRepository RefreshTokens { get; }

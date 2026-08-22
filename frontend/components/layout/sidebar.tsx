@@ -19,6 +19,7 @@ import {
 } from '@/lib/auth/system-permissions';
 import { useMyProjectRole } from '@/lib/hooks/use-my-project-role';
 import { useProjectOverview } from '@/lib/hooks/use-projects';
+import { canManageTasks } from '@/lib/tasks/permissions';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth-store';
 import { ROLE_IN_PROJECT_LABEL } from '@/types/enums';
@@ -30,6 +31,9 @@ interface NavItem {
   /** Chỉ hiện khi người dùng có quyền tầng 1 này (ADR-045). */
   permission?: SystemPermission;
 }
+
+/** Khu vực xếp vào nhóm "Quản lý" thay vì "Lập kế hoạch". */
+const MANAGEMENT_SEGMENTS = new Set(['members', 'settings']);
 
 /**
  * Điều hướng TOÀN CỤC — chỉ hiện khi người dùng **không** đang ở trong một dự án.
@@ -142,7 +146,10 @@ function GlobalNav({ pathname, onNavigate }: { pathname: string; onNavigate?: ()
  * Các mục đọc từ hằng `PROJECT_SECTIONS` **dùng chung với `ProjectTabs`**: chép tay sang hai
  * nơi thì thêm một khu vực ở tab sẽ âm thầm để sidebar thiếu một mục.
  *
- * Không gác quyền mục nào — cả ba vai trò đều xem được cả năm khu vực (Thống kê: ADR-039).
+ * ⚠️ **Từ ADR-061 CÓ gác quyền một mục.** Phần lớn khu vực vẫn mở cho cả ba vai trò (Thống
+ * kê: ADR-039), nhưng "Cấu hình" mang `requiresManage` nên chỉ PM thấy — và phép lọc phải
+ * dùng CHUNG luật với `ProjectTabs`, nếu không tab ẩn mà sidebar vẫn hiện một lối vào dẫn
+ * tới màn không dùng được.
  */
 function ProjectNav({
   projectId,
@@ -159,6 +166,10 @@ function ProjectNav({
   const { role } = useMyProjectRole(projectId);
 
   const name = overview.data?.name;
+
+  // Cùng phép lọc với `ProjectTabs` — hai nơi dựng hai luật thì có lúc lệch (ADR-034).
+  const canManage = canManageTasks(role);
+  const visible = PROJECT_SECTIONS.filter((s) => !s.requiresManage || canManage);
 
   return (
     <nav aria-label="Điều hướng dự án" className="flex flex-col gap-4 p-3">
@@ -192,8 +203,9 @@ function ProjectNav({
 
       <div className="grid gap-1">
         <p className={GROUP_TITLE}>Lập kế hoạch</p>
-        {PROJECT_SECTIONS.filter((s) => s.segment !== 'members').map(
-          ({ segment, label, icon: Icon }) => (
+        {visible
+          .filter((s) => !MANAGEMENT_SEGMENTS.has(s.segment))
+          .map(({ segment, label, icon: Icon }) => (
             <ProjectNavLink
               key={segment}
               projectId={projectId}
@@ -203,14 +215,14 @@ function ProjectNav({
               pathname={pathname}
               onNavigate={onNavigate}
             />
-          ),
-        )}
+          ))}
       </div>
 
       <div className="grid gap-1">
         <p className={GROUP_TITLE}>Quản lý</p>
-        {PROJECT_SECTIONS.filter((s) => s.segment === 'members').map(
-          ({ segment, label, icon: Icon }) => (
+        {visible
+          .filter((s) => MANAGEMENT_SEGMENTS.has(s.segment))
+          .map(({ segment, label, icon: Icon }) => (
             <ProjectNavLink
               key={segment}
               projectId={projectId}
@@ -220,8 +232,7 @@ function ProjectNav({
               pathname={pathname}
               onNavigate={onNavigate}
             />
-          ),
-        )}
+          ))}
       </div>
     </nav>
   );

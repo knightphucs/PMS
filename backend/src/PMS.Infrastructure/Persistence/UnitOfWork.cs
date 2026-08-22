@@ -30,6 +30,7 @@ public class UnitOfWork : IUnitOfWork
     private IProjectInvitationRepository? _projectInvitations;
     private IFieldDefinitionRepository? _fieldDefinitions;
     private IWorkItemTypeRepository? _workItemTypes;
+    private ISavedViewRepository? _savedViews;
     private IRepository<FieldValue>? _fieldValues;
 
     public UnitOfWork(PmsDbContext context) => _context = context;
@@ -39,6 +40,7 @@ public class UnitOfWork : IUnitOfWork
     public IBoardColumnRepository BoardColumns => _boardColumns ??= new BoardColumnRepository(_context);
     public IFieldDefinitionRepository FieldDefinitions => _fieldDefinitions ??= new FieldDefinitionRepository(_context);
     public IWorkItemTypeRepository WorkItemTypes => _workItemTypes ??= new WorkItemTypeRepository(_context);
+    public ISavedViewRepository SavedViews => _savedViews ??= new SavedViewRepository(_context);
     public IRepository<FieldValue> FieldValues => _fieldValues ??= new Repository<FieldValue>(_context);
     public IEmployeeRepository Employees => _employees ??= new EmployeeRepository(_context);
     public IRefreshTokenRepository RefreshTokens => _refreshTokens ??= new RefreshTokenRepository(_context);
