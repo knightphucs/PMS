@@ -10,10 +10,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { errorMessage } from '@/lib/api/problem';
 import { useChangeTaskStatus } from '@/lib/hooks/use-board';
 import { useBoardColumns } from '@/lib/hooks/use-board-columns';
 import { canChangeTaskStatus } from '@/lib/tasks/permissions';
+import { notifyStatusChangeFailure } from '@/lib/tasks/status-change-toast';
 import { mayFailUnpredictably } from '@/lib/tasks/status-transitions';
 import { type RoleInProject } from '@/types/enums';
 import type { BoardColumnResponse, TaskDetailResponse, TaskStatusRef } from '@/types/task';
@@ -78,13 +78,13 @@ export function TaskStatusControl({
       { taskId: task.id, targetColumnId: target.id },
       {
         onSuccess: () => toast.success(`Đã chuyển sang "${target.name}".`),
+        // Hai nước đi có thể 409 mà client KHÔNG đoán trước được:
+        //   1. cột đích thuộc NHÓM `InProgress` trong khi task đang bị một task chưa xong chặn
+        //   2. cột đích có CỔNG DUYỆT (ADR-062) — ca này còn không hẳn là lỗi, xem helper
         onError: (error) =>
-          toast.error(
-            // Đúng một nước đi có thể 409 mà client KHÔNG đoán trước được: cột đích thuộc
-            // NHÓM `InProgress` trong khi task đang bị một task chưa xong chặn.
-            mayFailUnpredictably(target.category)
-              ? `Không chuyển được sang "${target.name}": ${errorMessage(error)}`
-              : errorMessage(error),
+          notifyStatusChangeFailure(
+            error,
+            mayFailUnpredictably(target.category) ? target.name : undefined,
           ),
       },
     );

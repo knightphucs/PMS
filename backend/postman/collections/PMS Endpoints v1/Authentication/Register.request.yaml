@@ -6,9 +6,9 @@ body:
   type: json
   content: |-
     {
-        "name": "Nguyen Van B",
-        "email": "vanB@gmail.com",
-        "password": "VanB123!",
-        "confirmPassword": "VanB123!"
+        "name": "Gia Phuc",
+        "email": "phuc@pms.local",
+        "password": "Password123!",
+        "confirmPassword": "Password123!"
     }
 order: 1785125630638

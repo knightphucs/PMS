@@ -5,6 +5,7 @@ using PMS.Application.Common.Interfaces;
 using PMS.Application.Common.Services;
 using PMS.Application.Features.ActivityLogs;
 using PMS.Application.Features.Admin;
+using PMS.Application.Features.Approvals;
 using PMS.Application.Features.Attachments;
 using PMS.Application.Features.BoardColumns;
 using PMS.Application.Features.CustomFields;
@@ -43,6 +44,7 @@ public static class DependencyInjection
         services.AddScoped<ICustomFieldService, CustomFieldService>();
         services.AddScoped<IWorkItemTypeService, WorkItemTypeService>();
         services.AddScoped<ISavedViewService, SavedViewService>();
+        services.AddScoped<IApprovalService, ApprovalService>();
         services.AddScoped<ITaskStatusTransitionService, TaskStatusTransitionService>();
         services.AddScoped<ITaskAssignmentService, TaskAssignmentService>();
         services.AddSingleton<TaskMapper>();

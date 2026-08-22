@@ -59,6 +59,13 @@ public class Project : BaseEntity, ISoftDeletable
     /// <summary>View lưu được trên danh sách task của project này (ADR-061).</summary>
     public ICollection<SavedView> SavedViews { get; set; } = [];
 
+    /// <summary>
+    /// Cổng duyệt của project này (ADR-062) — "loại việc X vào cột Y thì cần N chữ ký".
+    /// Rỗng với mọi project chưa dùng tính năng, và khi rỗng thì đường đổi trạng thái chạy
+    /// y hệt như trước ADR-062.
+    /// </summary>
+    public ICollection<ApprovalPolicy> ApprovalPolicies { get; set; } = [];
+
     public bool IsCompleted() => Status == Status.Done;
 
     /// <summary>

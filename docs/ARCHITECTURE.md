@@ -193,7 +193,7 @@ công việc thật của người dùng**. Đó cũng là câu chuyện tốt h
 | Tầng | Là gì | Trạng thái |
 |---|---|---|
 | 1. **Nền tảng mở rộng** | Đội tự khai **trường** (ADR-059) và **loại công việc** (ADR-060) của họ; **view lưu được** (ADR-061) | 059 ✅ · 060 ✅ · **061 ✅** |
-| 2. **Bộ máy quy trình** 🆕 | **Phê duyệt** (ADR-062) · **cổng yêu cầu** (ADR-063) · **khuôn dự án** (ADR-064) | ⬜ Giai đoạn 2.5 |
+| 2. **Bộ máy quy trình** 🆕 | **Phê duyệt** (ADR-062) · **cổng yêu cầu** (ADR-063) · **khuôn dự án** (ADR-064) | **062 ✅** · 063 ⬜ · 064 ⬜ |
 | 3. **Lớp đặc thù hạ tầng** | SLA · việc lặp/bảo trì · lịch · gắn tài sản · xuất kiểm toán | ⬜ Giai đoạn 3 |
 | 4. **Nền tảng đa phòng ban** 🆕 | Scheme dùng chung · danh bạ Đội/Phòng ban · chuyển việc liên phòng · automation | ⬜ Giai đoạn 4 |
 | — | **Sẵn sàng vận hành** — email thật · kiểm toán xác thực · Docker · CI (ADR-058) | ✅ (còn AD/SSO ở §14) |
@@ -275,13 +275,13 @@ JSM mà sản phẩm này chưa chạm tới.
    form và trạng thái yêu cầu của mình · người xử lý thấy hàng đợi và bảng · người cấu hình
    thấy `/settings`.
 
-   🔴 **Luật 5 đang bị vi phạm ngay lúc viết dòng này.** `ManageColumnsDialog`,
-   `ManageFieldsDialog` và `ManageWorkItemTypesDialog` **đều treo trên header trang Bảng**
-   (`app/(app)/projects/[id]/board/page.tsx`), và **không có route settings nào tồn tại**.
-   Thêm luật duyệt và khuôn dự án vào đó là **sáu nút cấu hình trên một màn làm việc**.
-   Cách sửa: gom về `app/(app)/projects/[id]/settings/`, gác bằng `canManage`. Rẻ, và phải
-   làm **trước** khi tầng 2 đổ thêm bề mặt lên đó — đây là thứ ngăn app rối trước khi app
-   kịp rối.
+   ✅ **Đã sửa 2026-08-18 (ADR-061), và khoản đầu tư đó đã thu hồi 2026-08-23.** Lúc viết
+   luật này, `ManageColumnsDialog`/`ManageFieldsDialog`/`ManageWorkItemTypesDialog` đều treo
+   trên header trang **Bảng** và không có route settings nào tồn tại. ADR-061 gom cả ba về
+   `app/(app)/projects/[id]/settings/`, gác bằng `canManage`.
+   Khi ADR-062 tới, `ManageApprovalPoliciesDialog` chỉ việc **thêm một hàng** vào trang đã
+   có — không ai phải cân nhắc gì, và trang Bảng không hề bị chạm tới. Đó chính xác là điều
+   luật này được viết ra để mua: *ngăn app rối **trước khi** app kịp rối*.
 
 ### Những gì CỐ Ý không làm, và vì sao
 
@@ -362,6 +362,7 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | **Trường tuỳ biến theo project (ADR-059)** | ⚠️ backend xong, FE chưa | Mới 2026-08-12. 4 bảng + 7 endpoint + 18 test. Hậu bản của ADR-052 — đội tự khai trường thay vì nhận một khuôn cố định. **Frontend chưa dựng** |
 | **View lưu được + màn danh sách (ADR-061)** | ✅ | Mới 2026-08-18. 3 bảng (`SavedViews`/`SavedViewFilters`/`SavedViewColumns`) + 6 endpoint + 27 test. Bộ lọc là **bảng quan hệ**, không phải JSON — xoá một trường tuỳ biến thì điều kiện trỏ vào nó biến mất bằng cascade của DB. Lọc theo trường tuỳ biến **so đúng kiểu** (nghiệm thu quyết định "cột có kiểu" của ADR-059). Kèm: gom ba dialog cấu hình về `/projects/{id}/settings` |
 | **Loại công việc theo project (ADR-060)** | ✅ | Mới 2026-08-12. `WorkItemType` + bảng nối `WorkItemTypeFields` (khoá ghép) + 5 endpoint + 17 test + frontend (chip trên thẻ/chi tiết, ô chọn ở form task, dialog quản lý). **`IsRequired` cuối cùng có điểm cưỡng chế thật** |
+| **Phê duyệt là dữ liệu (ADR-062)** | ✅ | Mới 2026-08-23. 4 bảng (`ApprovalPolicies`/`ApprovalPolicyApprovers`/`Approvals`/`ApprovalDecisions`) + 3 enum ĐÓNG + 7 endpoint + **24 integration test**. **ĐỘNG TỪ đầu tiên của hệ thống** — trước đó hệ thống có đủ danh từ mà không có cách nào diễn đạt "cái này phải có người ký duyệt". Yêu cầu duyệt **tự sinh** khi task chạm cổng (không có nút "Gửi duyệt"); `ConsumedAt` khiến task rời cột rồi quay lại phải duyệt LẠI; lời từ chối **vẫn chặn** tới khi có người huỷ tường minh. Guard đã qua **mutation test**: gỡ ra thì 13 test đỏ |
 | Real-time (SignalR) | ⬜ | Có chủ đích — chỉ làm sau khi core CRUD ổn định (xem §6) |
 
 ### Lộ trình các phiên tiếp theo
@@ -398,7 +399,7 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | ~~17~~ | ~~**Trường tuỳ biến theo project**~~ | ✅ 2026-08-12 | **ADR-059** — nền tảng mở rộng, phần 1. 4 bảng, 7 endpoint, 18 test, frontend đầy đủ |
 | ~~18~~ | ~~**Loại công việc theo project**~~ | ✅ 2026-08-12 | **ADR-060** — nền tảng mở rộng, phần 2. `IsRequired` có điểm cưỡng chế thật. 5 endpoint, 17 test, frontend đầy đủ |
 | ~~19~~ | ~~**View lưu được (`SavedView`)** + màn danh sách task~~ | ✅ 2026-08-18 | **ADR-061** — 3 bảng · 6 endpoint · **27 integration test** · frontend đầy đủ. Cả ba quyết định chốt trước khi gõ code. Làm kèm: **gom cấu hình về `/projects/{id}/settings/`** (luật 5 của Doctrine §0) |
-| **20** | **Phê duyệt là dữ liệu** | ⬜ **Giai đoạn 2.5** | **ADR-062** — `ApprovalPolicy` + `Approval` + `ApprovalDecision`; điểm cưỡng chế đúng MỘT chỗ trong `TaskStatusTransitionService`, mirror `EnsureNotBlockedAsync`. Trả lời câu *"Change Request phải có người ký duyệt mới được chuyển cột"* — thứ hệ thống **hiện không có cách nào diễn đạt**. ⚠️ Phải viết rõ vì sao đây KHÔNG phải khôi phục ma trận ADR-052 đã gỡ |
+| ~~**20**~~ | ~~**Phê duyệt là dữ liệu**~~ | ✅ 2026-08-23 | **ADR-062** — 4 bảng · 3 enum ĐÓNG · 7 endpoint · **24 integration test**. Điểm cưỡng chế đúng MỘT chỗ trong `TaskStatusTransitionService`, mirror `EnsureNotBlockedAsync`, và **đã qua mutation test** (gỡ ra → 13 test đỏ). Ba quyết định bổ sung chốt trước khi gõ code: yêu cầu **tự sinh** khi bị chặn · `ConsumedAt` cho vòng đời duyệt-lại · từ chối **vẫn chặn** tới khi huỷ tường minh |
 | **21** | **Cổng yêu cầu (form tiếp nhận)** | ⬜ Giai đoạn 2.5 | **ADR-063** — `WorkItemType.IsRequestable`; form dựng thẳng từ `WorkItemTypeFields` + `IsRequired` (đã có từ ADR-060), hàng đợi dùng lại ADR-061. 🔴 Một quyết định chặn: người gửi yêu cầu **không phải thành viên project**, mà tầng 2 hiện trả 404 cho người ngoài |
 | **22** | **Khuôn dự án + 3 quy trình mẫu** | ⬜ Giai đoạn 2.5 | **ADR-064** — tạo project chọn khuôn → sinh sẵn loại việc + trường + cột + luật duyệt. Ba khuôn (**Vận hành hạ tầng · Cấp quyền truy cập · Phát triển phần mềm**) khai **hoàn toàn bằng cấu hình, không một dòng code riêng** — đó là bằng chứng cho câu hỏi đa phòng ban |
 | **23** | **Lớp đặc thù hạ tầng** | ⬜ Giai đoạn 3 | SLA · việc lặp/bảo trì · view lịch · gắn tài sản · xuất kiểm toán. *(Phê duyệt CAB đã tách lên hạng mục 20 vì nó là bộ máy chung, không phải đặc thù hạ tầng.)* Chi tiết ở §14 |
@@ -4365,11 +4366,90 @@ Bốn entity, ba enum ĐÓNG:
 |---|---|
 | `ApprovalPolicy` | `ProjectId`, `WorkItemTypeId`, `TargetColumnId`, `ApproverMode`, `MinApprovals` (quorum), `Order` |
 | `ApprovalPolicyApprover` | khoá **GHÉP** `(PolicyId, EmployeeId)` — cùng khuôn `Watcher` (ADR-036) và `WorkItemTypeField` (ADR-060) |
-| `Approval` | `TaskId`, `PolicyId`, `Status`, `RequestedById`, `RequestedAt`, `DecidedAt` |
+| `Approval` | `TaskId`, `PolicyId`, `Status`, `RequestedById`, `RequestedAt`, `DecidedAt`, **`ConsumedAt`** |
 | `ApprovalDecision` | `ApprovalId`, `ApproverId`, `Decision`, `Comment`, `DecidedAt` |
 
 `ApprovalStatus {Pending, Approved, Rejected, Cancelled}` ·
 `ApproverMode {ProjectManagers, NamedApprovers}` · `DecisionKind {Approve, Reject}`.
+
+##### 🆕 Ba quyết định bổ sung — chốt 2026-08-23, trước khi gõ code
+
+Bản soạn 2026-08-17 chốt được entity, enum và điểm cưỡng chế, nhưng để hở ba chỗ mà không
+trả lời thì không viết được dòng code nào. Chốt ở đây:
+
+**(a) Hàng `Approval` TỰ SINH khi bị chặn, không có nút "Gửi duyệt".** Kéo task sang cột có
+luật duyệt → hệ thống sinh `Approval` trạng thái `Pending`, thông báo cho approver, và trả
+**409** kèm thông điệp *"đã gửi yêu cầu duyệt tới N người"*. `RequestedById` chính là người
+kéo.
+
+> Lý do không chọn một nút tường minh: nó thêm một bề mặt mới lên **màn làm việc** (luật 5
+> của Doctrine §0 — đúng thứ ADR-061 vừa dọn đi), và tệ hơn, nó bắt người dùng **biết trước**
+> là phải bấm gì. Một người kéo thẻ mà không biết loại việc này có cổng duyệt sẽ chỉ thấy
+> "không kéo được" và không có manh mối nào. Tự sinh biến đúng thao tác tự nhiên đó thành
+> đường vào của quy trình.
+>
+> ⚠️ Hệ quả phải xử lý ở frontend: **lần kéo đầu tiên có tác dụng phụ hợp lệ.** Hiển thị nó
+> thành một toast lỗi trơn là nói dối người dùng — phải nói rõ yêu cầu đã được gửi, và
+> invalidate query của khối duyệt để nó hiện ra ngay.
+
+**(b) Task rời cột đích rồi quay lại thì phải duyệt LẠI** — và điều đó cần một cột
+`ConsumedAt DateTime?`, không phải một giá trị enum thứ năm.
+
+- Approval **đang hiệu lực** cho một cổng = hàng có `ConsumedAt IS NULL`.
+- Khi task **thật sự đi qua** cổng, đặt `ConsumedAt = now`. Hàng ở nguyên `Approved` vĩnh
+  viễn — nó là **lịch sử kiểm toán**, không phải state tạm.
+
+> 📌 *"Đã duyệt"* và *"đã dùng"* là **hai trục độc lập**. Nhồi chúng vào một enum sẽ mất câu
+> trả lời cho *"ai đã ký lần triển khai thứ hai"* — đúng câu hỏi mà "xuất kiểm toán" (§14,
+> Giai đoạn 3) sẽ hỏi tới. Đây cũng là nghĩa đúng của CAB: mỗi lần triển khai là một lần ký,
+> không phải một con dấu vĩnh viễn đóng lên cái thẻ.
+
+**(c) `Rejected` vẫn CHẶN cho tới khi bị huỷ tường minh.** Một approval bị từ chối giữ
+`ConsumedAt = NULL`, tức vẫn là hàng đang hiệu lực. Muốn thử lại phải
+`POST /approvals/{id}/cancel` (người gửi HOẶC PM) → `Cancelled` + `ConsumedAt = now`.
+
+> 🔴 Nếu để `Rejected` tự tiêu thụ ngay lúc quyết định thì kéo lại một cái là có `Pending`
+> mới — **lời từ chối không chặn được gì**, và ta vừa ship đúng thứ luật 4 của Doctrine cấm.
+> Buộc một bước huỷ tường minh khiến việc bỏ qua một lời từ chối là một **hành động có người
+> chịu trách nhiệm**, không phải một cú kéo chuột.
+
+##### Một cổng = một luật
+
+`UNIQUE (ProjectId, WorkItemTypeId, TargetColumnId)`. `MinApprovals` (quorum) đã phủ được ca
+thực tế *"CR cần 2 người duyệt"*. **Duyệt nhiều chặng tuần tự** (Trưởng phòng rồi Giám đốc)
+cố ý **chưa ship**: nó cần khái niệm "chặng đang chờ" mà chưa có màn nào diễn đạt được, và
+luật 2 của Doctrine nói thẳng — khái niệm chưa khai được hợp đồng đóng của nó là khái niệm
+chưa chín. `Order` giữ lại nhưng **chỉ** để sắp thứ tự hiển thị ở màn cấu hình.
+
+##### 🔴 Sơ đồ cascade — vẽ TRƯỚC khi chạy migration
+
+```
+Projects       ─ClientNoAction─→ ApprovalPolicies   ─Cascade──→ ApprovalPolicyApprovers
+WorkItemTypes  ─Restrict───────→ ApprovalPolicies
+BoardColumns   ─Restrict───────→ ApprovalPolicies
+Employees      ─Restrict───────→ ApprovalPolicyApprovers
+
+Tasks            ─Cascade──────→ Approvals          ─Cascade──→ ApprovalDecisions
+ApprovalPolicies ─Restrict─────→ Approvals
+Employees        ─Restrict─────→ Approvals  (RequestedById)
+Employees        ─Restrict─────→ ApprovalDecisions
+```
+
+Phép kiểm là *"không bảng con nào nhận CASCADE từ một gốc chung theo HAI lối"*:
+
+- `ApprovalPolicies` **không nhận cascade từ đâu cả**. `Projects` là `ClientNoAction` vì
+  Project xoá MỀM (tiền lệ `SavedViewConfiguration`), còn `WorkItemTypes`/`BoardColumns` là
+  `Restrict` đúng tiền lệ `TaskItemConfiguration`: xoá một loại hay một cột phải đi qua
+  service để chọn đích, không được cascade làm mất dữ liệu.
+- `Approvals` nhận cascade **chỉ từ `Tasks`** (tiền lệ `CommentConfiguration`, kèm
+  `HasQueryFilter(!Task.IsDeleted)` vì Task xoá mềm). Lối thứ hai — từ `ApprovalPolicies` —
+  là `Restrict`, nên không gốc nào đi được hai đường.
+
+⚠️ **Cái giá của `Restrict`, và đây là điểm dễ quên nhất của cả hạng mục:** xoá một
+`WorkItemType` hoặc `BoardColumn` đang có luật duyệt sẽ ném `DbUpdateException` → **500**.
+`WorkItemTypeService.DeleteAsync` và `BoardColumnService.DeleteAsync` phải dọn
+`ApprovalPolicy` liên quan trong cùng transaction. Nó **không đỏ lúc biên dịch** và chỉ nổ
+ở một đường xoá mà bộ test hiện tại đã đi qua sẵn.
 
 ##### 🔴 Vì sao đây KHÔNG phải khôi phục ma trận mà ADR-052 đã gỡ
 
@@ -4389,9 +4469,48 @@ nước chuyển cột.
 no-op cùng cột, **trước** `task.MoveTo(target)`, mirror y hệt `EnsureNotBlockedAsync` đang
 là guard duy nhất còn sót lại sau ADR-052.
 
+```
+policy = FindGate(task.ProjectId, task.WorkItemTypeId, target.Id)
+  null                    → return                (không có cổng: đường cũ nguyên vẹn)
+
+approval = ActiveFor(task.Id, policy.Id)          (ConsumedAt IS NULL)
+  null                    → tạo Pending + notify approver → 409 "đã gửi yêu cầu duyệt tới N người"
+  Pending                 → 409 "còn chờ {x}/{MinApprovals} duyệt"    (KHÔNG tạo hàng trùng)
+  Rejected                → 409 "đã bị từ chối bởi {tên}: {lý do}"
+  Approved                → ConsumedAt = now; đi tiếp ✅
+```
+
+Nhánh `Pending` **không sinh thêm hàng** — nếu không, mỗi cú kéo lại là một yêu cầu duyệt
+mới và hộp thư của approver thành bãi rác.
+
 **Không kiểm ngược lên task đã có.** Đúng bài học `IsRequired` của ADR-060: chặn *hành
 động* thì hẹp đúng mức; chặn cả *bản ghi* thì biến một cấu hình thành một bức tường, và
 người dùng không sửa được gì cho tới khi điền xong thứ họ không biết là đang thiếu.
+
+##### Bảy endpoint
+
+| | Endpoint | Quyền |
+|---|---|---|
+| 1 | `GET /projects/{id}/approval-policies` | `View` |
+| 2 | `POST /projects/{id}/approval-policies` | `ManageApprovalPolicies` |
+| 3 | `PUT /approval-policies/{id}` | `ManageApprovalPolicies` |
+| 4 | `DELETE /approval-policies/{id}` | `ManageApprovalPolicies` |
+| 5 | `GET /tasks/{id}/approvals` | `View` — hàng đang hiệu lực + lịch sử |
+| 6 | `POST /approvals/{id}/decisions` | **approver của policy** — ngoại lệ, xem bên dưới |
+| 7 | `POST /approvals/{id}/cancel` | người gửi HOẶC PM (per-row, ở service) |
+
+`PUT /tasks/{id}/status` **không đổi hợp đồng** — chỉ thêm một nhánh 409 mới.
+
+##### ⚠️ Khoảng trống đã biết: "hàng đợi chờ tôi duyệt" chưa phải một `SavedView`
+
+ADR-061 hứa *"hàng đợi của một quy trình chính là một view lưu được"*. Với phê duyệt, lời
+hứa đó **chỉ đứng được nếu `TaskField` có một giá trị lọc theo trạng thái duyệt** — hiện
+chưa có. Ghi thẳng ra đây thay vì để nó im lặng ✅ trong tài liệu (dự án đã gặp hình dạng
+lỗi đó **tám lần**). Lời giải — thêm `TaskField.ApprovalState` vào `POST /tasks/query` —
+để lại cho **ADR-063**, vì cổng yêu cầu cũng cần đúng thứ đó cho hàng đợi tiếp nhận.
+
+Trong lúc chờ, approver vẫn không bị bỏ rơi: họ nhận **thông báo** `ApprovalRequested` và
+đi thẳng tới task từ chuông.
 
 ##### Ba chỗ dễ vấp, ghi trước
 
@@ -4413,6 +4532,36 @@ người dùng không sửa được gì cho tới khi điền xong thứ họ k
 Gỡ `EnsureApprovedAsync` phải làm **đúng ≥1 test đỏ**. Tiền lệ bắt buộc: bộ lọc @mention
 (ADR-048) và `IsRequired` (ADR-060) đều đã qua phép kiểm này. Một guard không có test nào
 chết khi gỡ nó ra là một guard chưa được chứng minh là đang chạy.
+
+##### ✅ Kết quả (2026-08-23)
+
+4 bảng · 3 enum ĐÓNG · 7 endpoint · **24 integration test**, 0 đỏ ngay lần chạy đầu.
+Tổng bộ test backend: **638** (249 unit + 389 integration) + 72 frontend. Drift check `Up()`
+rỗng. typecheck · lint · `next build` sạch.
+
+**Mutation test đã chạy thật:** gỡ lời gọi `EnsureApprovedAsync` → **13 test đỏ**. Guard
+được chứng minh là đang chạy, không phải được tin là đang chạy.
+
+Frontend: khối **Phê duyệt** ở chi tiết task (tự ẩn hoàn toàn khi loại việc không có cổng)
+và **hàng thứ tư** ở `/projects/{id}/settings`.
+
+🪤 **Ba thứ phiên này gặp, ghi để khỏi mất thời gian lần sau:**
+
+1. 🔴 **Một 409 mà thao tác đã THÀNH CÔNG MỘT NỬA — hình dạng chưa từng có trong dự án.**
+   Lần kéo đầu vào cột có cổng trả 409 nhưng đã kịp tạo yêu cầu duyệt và báo cho người ký.
+   Hiện nó thành toast đỏ là nói dối, và hậu quả cụ thể là người dùng kéo lại lần nữa vì
+   tưởng chưa có gì.
+   *Lời giải KHÔNG phải dò chuỗi thông điệp* — đó sẽ là hai nơi cùng dựng một luật (ADR-034)
+   và hỏng im lặng ở lần đầu ai sửa câu văn. Đã thêm `AppException.Code` (mặc định `null`,
+   chỉ gắn khi client phải xử lý khác nhau giữa hai lỗi **cùng mã HTTP**) → `code` trong
+   ProblemDetails → `ApiError.code` ở client. Hạ tầng này dùng lại được cho mọi ca sau.
+2. 🔴 **Tác dụng phụ phải `SaveChangesAsync` TRƯỚC khi ném ngoại lệ.** Ngược lại thì yêu cầu
+   duyệt biến mất cùng ngoại lệ và người dùng kéo mãi không ai nhận được thông báo nào.
+3. ⚠️ **`Restrict` từ `WorkItemTypes`/`BoardColumns` là cái giá phải trả có ý thức**, và nó
+   được trả ở **hai** service chứ không một: cả `WorkItemTypeService.DeleteAsync` lẫn
+   `BoardColumnService.DeleteAsync` phải dọn `ApprovalPolicy` trước. Hai test riêng canh
+   đúng chỗ đó — không có chúng thì nó nổ 500 ở một đường xoá mà bộ test đã đi qua sẵn, tức
+   trông y hệt một lỗi có sẵn chứ không phải lỗi vừa gây ra.
 
 ---
 

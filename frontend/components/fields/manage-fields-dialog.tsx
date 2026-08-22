@@ -321,7 +321,14 @@ function FieldFormDialog({
             ) : (
               <Select value={type} onValueChange={(v) => setType(v as FieldType)}>
                 <SelectTrigger id="field-type">
-                  <SelectValue />
+                  {/* 🔴 Render prop bắt buộc: `SelectValue` trần in ra chính giá trị của ô —
+                      ở đây là chuỗi enum `SingleSelect`, không phải nhãn "Chọn một". Lỗi có
+                      sẵn từ ADR-059, phát hiện 2026-08-23. */}
+                  <SelectValue>
+                    {(current: string) =>
+                      FIELD_TYPE_LABEL[current as FieldType] ?? current
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {TYPES.map((t) => (

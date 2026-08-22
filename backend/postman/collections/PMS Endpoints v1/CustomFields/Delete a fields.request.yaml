@@ -1,0 +1,22 @@
+$kind: http-request
+name: Delete a fields
+url: "{{api_url}}/fields/:id"
+method: DELETE
+pathVariables:
+  - key: id
+    value: ""
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+order: 2534082756503060

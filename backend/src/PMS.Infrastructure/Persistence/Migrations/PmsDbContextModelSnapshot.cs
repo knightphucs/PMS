@@ -93,6 +93,151 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.ToTable("ActivityLogs", (string)null);
                 });
 
+            modelBuilder.Entity("PMS.Domain.Entities.Approval", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ApprovalPolicyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ConsumedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("RequestedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovalPolicyId");
+
+                    b.HasIndex("RequestedById");
+
+                    b.HasIndex("TaskId", "ApprovalPolicyId", "ConsumedAt");
+
+                    b.ToTable("Approvals", (string)null);
+                });
+
+            modelBuilder.Entity("PMS.Domain.Entities.ApprovalDecision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ApprovalId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ApproverId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("DecidedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Decision")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApproverId");
+
+                    b.HasIndex("ApprovalId", "ApproverId")
+                        .IsUnique();
+
+                    b.ToTable("ApprovalDecisions", (string)null);
+                });
+
+            modelBuilder.Entity("PMS.Domain.Entities.ApprovalPolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ApproverMode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("MinApprovals")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TargetColumnId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("WorkItemTypeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TargetColumnId");
+
+                    b.HasIndex("WorkItemTypeId");
+
+                    b.HasIndex("ProjectId", "WorkItemTypeId", "TargetColumnId")
+                        .IsUnique();
+
+                    b.ToTable("ApprovalPolicies", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ApprovalPolicies_MinApprovalsDuong", "[MinApprovals] >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("PMS.Domain.Entities.ApprovalPolicyApprover", b =>
+                {
+                    b.Property<Guid>("ApprovalPolicyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("ApprovalPolicyId", "EmployeeId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.ToTable("ApprovalPolicyApprovers", (string)null);
+                });
+
             modelBuilder.Entity("PMS.Domain.Entities.Attachment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1270,6 +1415,98 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Navigation("Employee");
                 });
 
+            modelBuilder.Entity("PMS.Domain.Entities.Approval", b =>
+                {
+                    b.HasOne("PMS.Domain.Entities.ApprovalPolicy", "ApprovalPolicy")
+                        .WithMany()
+                        .HasForeignKey("ApprovalPolicyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PMS.Domain.Entities.Employee", "RequestedBy")
+                        .WithMany()
+                        .HasForeignKey("RequestedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PMS.Domain.Entities.TaskItem", "Task")
+                        .WithMany("Approvals")
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ApprovalPolicy");
+
+                    b.Navigation("RequestedBy");
+
+                    b.Navigation("Task");
+                });
+
+            modelBuilder.Entity("PMS.Domain.Entities.ApprovalDecision", b =>
+                {
+                    b.HasOne("PMS.Domain.Entities.Approval", "Approval")
+                        .WithMany("Decisions")
+                        .HasForeignKey("ApprovalId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PMS.Domain.Entities.Employee", "Approver")
+                        .WithMany()
+                        .HasForeignKey("ApproverId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Approval");
+
+                    b.Navigation("Approver");
+                });
+
+            modelBuilder.Entity("PMS.Domain.Entities.ApprovalPolicy", b =>
+                {
+                    b.HasOne("PMS.Domain.Entities.Project", "Project")
+                        .WithMany("ApprovalPolicies")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.ClientNoAction)
+                        .IsRequired();
+
+                    b.HasOne("PMS.Domain.Entities.BoardColumn", "TargetColumn")
+                        .WithMany()
+                        .HasForeignKey("TargetColumnId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PMS.Domain.Entities.WorkItemType", "WorkItemType")
+                        .WithMany()
+                        .HasForeignKey("WorkItemTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+
+                    b.Navigation("TargetColumn");
+
+                    b.Navigation("WorkItemType");
+                });
+
+            modelBuilder.Entity("PMS.Domain.Entities.ApprovalPolicyApprover", b =>
+                {
+                    b.HasOne("PMS.Domain.Entities.ApprovalPolicy", "ApprovalPolicy")
+                        .WithMany("Approvers")
+                        .HasForeignKey("ApprovalPolicyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PMS.Domain.Entities.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ApprovalPolicy");
+
+                    b.Navigation("Employee");
+                });
+
             modelBuilder.Entity("PMS.Domain.Entities.Attachment", b =>
                 {
                     b.HasOne("PMS.Domain.Entities.Project", "Project")
@@ -1653,6 +1890,16 @@ namespace PMS.Infrastructure.Persistence.Migrations
                     b.Navigation("WorkItemType");
                 });
 
+            modelBuilder.Entity("PMS.Domain.Entities.Approval", b =>
+                {
+                    b.Navigation("Decisions");
+                });
+
+            modelBuilder.Entity("PMS.Domain.Entities.ApprovalPolicy", b =>
+                {
+                    b.Navigation("Approvers");
+                });
+
             modelBuilder.Entity("PMS.Domain.Entities.BoardColumn", b =>
                 {
                     b.Navigation("Tasks");
@@ -1691,6 +1938,8 @@ namespace PMS.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("PMS.Domain.Entities.Project", b =>
                 {
+                    b.Navigation("ApprovalPolicies");
+
                     b.Navigation("BoardColumns");
 
                     b.Navigation("FieldDefinitions");
@@ -1720,6 +1969,8 @@ namespace PMS.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("PMS.Domain.Entities.TaskItem", b =>
                 {
+                    b.Navigation("Approvals");
+
                     b.Navigation("Assignments");
 
                     b.Navigation("Comments");

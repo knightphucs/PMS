@@ -1,0 +1,55 @@
+$kind: http-request
+name: Update value of fields in task
+url: "{{api_url}}/tasks/:task_id/field-values"
+method: PATCH
+pathVariables:
+  - key: task_id
+    value: ""
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: "{\r
+
+    \    \"values\": [\r
+
+    \        {\r
+
+    \            \"fieldDefinitionId\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\r
+
+    \            \"valueText\": \"string\",\r
+
+    \            \"valueNumber\": 0,\r
+
+    \            \"valueDate\": \"2026-08-22T22:08:43.179Z\",\r
+
+    \            \"valueBoolean\": true,\r
+
+    \            \"selectedOptionIds\": [\r
+
+    \                \"3fa85f64-5717-4562-b3fc-2c963f66afa6\"\r
+
+    \            ]\r
+
+    \        }\r
+
+    \    ]\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 3727760050655164

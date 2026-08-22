@@ -1,0 +1,45 @@
+$kind: http-request
+name: Update a fields
+url: "{{api_url}}/fields/:id"
+method: PUT
+pathVariables:
+  - key: id
+    value: ""
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: "{\r
+
+    \    \"label\": \"string\",\r
+
+    \    \"options\": [\r
+
+    \        {\r
+
+    \            \"label\": \"string\",\r
+
+    \            \"color\": \"string\"\r
+
+    \        }\r
+
+    \    ]\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 2144408464028481
