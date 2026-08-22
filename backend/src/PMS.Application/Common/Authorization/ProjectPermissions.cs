@@ -31,7 +31,11 @@ public static class ProjectPermissions
         // trường là xoá giá trị của nó trên MỌI task trong project.
         or ProjectAction.ManageFieldDefinitions
         // Loại công việc (ADR-060): xoá một loại đẩy mọi task mang nó sang loại khác.
-        or ProjectAction.ManageWorkItemTypes => role is RoleInProject.ProjectManager,
+        or ProjectAction.ManageWorkItemTypes
+        // View CHIA SẺ (ADR-061): cùng mức "cấu hình cả đội nhìn thấy" với ba cái trên.
+        // 🔴 View RIÊNG KHÔNG đi qua đây — mọi vai trò tự tạo/sửa/xoá view của chính mình,
+        // luật đó nằm ở SavedViewService vì nó cần dữ liệu per-row (ai là chủ sở hữu).
+        or ProjectAction.ManageSavedViews => role is RoleInProject.ProjectManager,
 
         ProjectAction.CreateSubtask => role is RoleInProject.ProjectManager
                                             or RoleInProject.Member,

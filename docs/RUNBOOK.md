@@ -141,13 +141,31 @@ kiểm chứng minh cả ba thứ ADR-058 sửa đều thật.
 ## 5. Test
 
 ```bash
-cd backend  && dotnet test                       # 587 test (249 unit + 338 integration)
+cd backend  && dotnet test                       # 614 test (249 unit + 365 integration)
 cd frontend && npm run typecheck && npm run lint && npm test    # 72 test
 ```
 
-⚠️ Integration test cần **SQL Server thật** ở `localhost:1433`. Đổi bằng `PMS_TEST_DB`.
-Bộ test phụ thuộc `rowversion`, trigger, view, stored procedure (ADR-055) — provider khác
-sẽ xanh vì lý do sai.
+⚠️ Integration test cần **SQL Server thật**. Bộ test phụ thuộc `rowversion`, trigger, view,
+stored procedure (ADR-055) — provider khác sẽ xanh vì lý do sai.
+
+🔴 **Mặc định là `localhost,1433` + user `sa`, và máy dev hiện tại KHÔNG phải vậy** (nó chạy
+một named instance với user riêng). Triệu chứng nếu quên: **mọi test đỏ cùng lúc trong vài
+chục mili-giây** — trông hệt như lỗi cascade của ADR-059, nhưng thông điệp thật là
+`Login failed for user 'sa'`. *Đọc thông điệp, đừng đoán theo tiền lệ.*
+
+Lối thoát là biến `PMS_TEST_DB`. Dựng nó từ chính connection string dev, chỉ đổi tên
+database để **không đụng DB `PMS` thật**:
+
+```bash
+cd backend
+DEV_CS=$(dotnet user-secrets list --project src/PMS.API \
+  | grep '^ConnectionStrings:DefaultConnection' | sed 's/^.* = //')
+export PMS_TEST_DB=$(echo "$DEV_CS" | sed 's/Database=PMS;/Database=PmsTestDb;/')
+dotnet test
+```
+
+⚠️ Test chạy `EnsureDeleted` + `Migrate` mỗi lượt, nên `PmsTestDb` bị **xoá và dựng lại**
+từ đầu — đừng bao giờ trỏ biến này vào một database có dữ liệu cần giữ.
 
 ### Kiểm lệch model snapshot
 

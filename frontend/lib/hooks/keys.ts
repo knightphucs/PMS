@@ -35,6 +35,26 @@ export const workItemTypeKeys = {
   all: (projectId: string) => [...projectDataKeys.all(projectId), 'work-item-types'] as const,
 };
 
+/** View lưu được của project (ADR-061) — KHÁC với kết quả chạy một view. */
+export const savedViewKeys = {
+  all: (projectId: string) => [...projectDataKeys.all(projectId), 'views'] as const,
+};
+
+/**
+ * Kết quả CHẠY một bộ lọc.
+ *
+ * 🔴 `request` phải nằm TRỌN trong khoá. Endpoint là POST nên hai lượt lọc khác nhau đi
+ * cùng một URL — thiếu nó thì đổi bộ lọc sẽ hiện lại kết quả của bộ lọc trước, và người
+ * dùng tưởng bộ lọc mới không có kết quả nào.
+ *
+ * Nằm dưới `projectDataKeys` để một lần sửa task cuốn theo được cả danh sách.
+ */
+export const taskQueryKeys = {
+  all: (projectId: string) => [...projectDataKeys.all(projectId), 'task-query'] as const,
+  run: (projectId: string, request: unknown) =>
+    [...taskQueryKeys.all(projectId), request] as const,
+};
+
 export const boardKeys = {
   all: (projectId: string) => [...projectDataKeys.all(projectId), 'board'] as const,
   /** `sprintId === null` = board "tất cả task", khóa bằng chuỗi 'all' cho ổn định. */

@@ -185,17 +185,58 @@ Vì vậy hướng khác biệt **không phải** "thêm thứ Notion-like cho k
 công việc thật của người dùng**. Đó cũng là câu chuyện tốt hơn hẳn cho báo cáo thực tập:
 *"không clone Jira, mà làm cái Jira không làm được cho đội tôi."*
 
-### Ba tầng của lộ trình
+### Bốn tầng của lộ trình
+
+> 🆕 **Sửa 2026-08-17.** Bảng này từng có **ba** tầng. Một đợt rà soát sau khi phó phòng
+> review đã tìm ra một tầng bị thiếu **ở giữa** — xem "Chẩn đoán" ngay bên dưới.
 
 | Tầng | Là gì | Trạng thái |
 |---|---|---|
-| **Nền tảng mở rộng** | Đội tự khai **trường** (ADR-059) và **loại công việc** (ADR-060) của họ; view lưu được (ADR-061) | 059 ✅ · 060 ✅ · 061 ⬜ |
-| **Lớp đặc thù hạ tầng** | Phê duyệt CAB · việc lặp/bảo trì · lịch · SLA · gắn tài sản · xuất kiểm toán | ⬜ Giai đoạn 3 |
-| **Sẵn sàng vận hành** | Email thật · kiểm toán xác thực · Docker · CI (ADR-058) | ✅ (còn AD/SSO ở §14) |
+| 1. **Nền tảng mở rộng** | Đội tự khai **trường** (ADR-059) và **loại công việc** (ADR-060) của họ; **view lưu được** (ADR-061) | 059 ✅ · 060 ✅ · **061 ✅** |
+| 2. **Bộ máy quy trình** 🆕 | **Phê duyệt** (ADR-062) · **cổng yêu cầu** (ADR-063) · **khuôn dự án** (ADR-064) | ⬜ Giai đoạn 2.5 |
+| 3. **Lớp đặc thù hạ tầng** | SLA · việc lặp/bảo trì · lịch · gắn tài sản · xuất kiểm toán | ⬜ Giai đoạn 3 |
+| 4. **Nền tảng đa phòng ban** 🆕 | Scheme dùng chung · danh bạ Đội/Phòng ban · chuyển việc liên phòng · automation | ⬜ Giai đoạn 4 |
+| — | **Sẵn sàng vận hành** — email thật · kiểm toán xác thực · Docker · CI (ADR-058) | ✅ (còn AD/SSO ở §14) |
 
-🔴 **Thứ tự có lý do.** Tầng 1 phải xong trước tầng 2: có trường tuỳ biến và loại công việc
-rồi thì "Change Request có Hệ thống ảnh hưởng và Mức rủi ro" là **cấu hình**, không phải
-code. Làm ngược lại là hardcode từng loại việc — đúng cái khuôn cứng đang muốn thoát khỏi.
+🔴 **Thứ tự có lý do, và lý do lặp lại y hệt ở mỗi bậc.** Tầng 1 phải xong trước tầng 2:
+có trường tuỳ biến và loại công việc rồi thì "Change Request có Hệ thống ảnh hưởng và Mức
+rủi ro" là **cấu hình**, không phải code. Tầng 2 phải xong trước tầng 4 vì cùng một lẽ:
+chia sẻ cấu hình giữa các phòng ban trước khi có quy trình để chia sẻ thì chỉ là chia sẻ
+một cái vỏ rỗng. Làm ngược lại ở bất kỳ bậc nào cũng là hardcode — đúng cái khuôn cứng
+đang muốn thoát khỏi.
+
+### 🔬 Chẩn đoán 2026-08-17 — đủ DANH TỪ, thiếu ĐỘNG TỪ
+
+Phó phòng xem bản deploy và nêu hai mong muốn: *kết hợp kiến trúc mô hình xây dựng của
+Jira*, và *nhúng một quy trình thực tế mà nội bộ doanh nghiệp cần dùng*. Đợt rà soát sau
+đó tìm ra khoảng trống, và nó **không phải** là thiếu tính năng.
+
+Thứ làm Jira "chuyên nghiệp" không phải danh sách tính năng mà là **cấu hình-thành-dữ-liệu
+theo tầng**: issue type / workflow / field / screen / permission đều là *scheme*, project
+chỉ **trỏ** vào. Dự án này đã đi đúng đường đó từ ADR-052 — nhưng dừng ở một bậc thấp hơn,
+và bỏ trống hẳn một cột:
+
+| | Jira | PMS tính tới ADR-060 | Khoảng trống |
+|---|---|---|---|
+| Trạng thái | Workflow scheme dùng chung | `BoardColumns`, **mỗi project một bộ** (ADR-052) | Không tái dùng được |
+| Loại việc | Issue type scheme | `WorkItemType`, **mỗi project một bộ** (ADR-060) | Không tái dùng được |
+| Trường | Field configuration scheme | `FieldDefinition`, **mỗi project một bộ** (ADR-059) | Không tái dùng được |
+| **Quy trình** | Điều kiện · validator · post-function | **KHÔNG CÓ** — ADR-052 gỡ ma trận, còn đúng một guard | 🔴 mong muốn thứ nhất |
+| **Tiếp nhận** | Portal · form · hàng đợi · SLA | **KHÔNG CÓ** | 🔴 mong muốn thứ hai |
+| Bố cục màn | Screen scheme | Mọi trường hiện ở mọi nơi | Nguồn gốc của "app rối" |
+
+> **Nói gọn: hệ thống đã có đủ DANH TỪ (loại việc, trường, cột) nhưng chưa có ĐỘNG TỪ
+> (quy trình, phê duyệt, tiếp nhận).** Khai xong một loại việc tên "Change Request" hôm nay
+> thì nó vẫn chỉ là một cái thẻ đẹp — **không ai phải ký duyệt gì cả**, và không có cách
+> nào diễn đạt điều đó. Đây là thứ tầng 2 sinh ra để lấp.
+
+📌 **Một câu hỏi đã được trả lời trong đợt rà soát này**, ghi lại vì nó định hình tầng 2:
+*"có thật là một đội dùng Jira làm form nhập thông tin + phân quyền user, mà vẫn là sản
+phẩm chạy thật không?"* — **Có.** Đó là **Jira Service Management**: form tiếp nhận →
+luồng phê duyệt → cấp quyền → đóng ticket, kèm SLA và hàng đợi. "Yêu cầu cấp quyền truy
+cập" là use case kinh điển nhất của nó và chạy production ở rất nhiều ngân hàng. Tức mong
+muốn của phó phòng **không phải** là thêm tính năng cho giống Jira — mà là đúng cái nửa
+JSM mà sản phẩm này chưa chạm tới.
 
 ### Ba nguyên tắc rút ra từ chính dự án này
 
@@ -208,6 +249,39 @@ code. Làm ngược lại là hardcode từng loại việc — đúng cái khu�
 3. **"Build sạch, test xanh, tài liệu ghi ✅" có thể là ba lời khai sai cùng lúc.** Dự án đã
    gặp đúng hình dạng lỗi này **tám lần**. Mới nhất: 12 test đỏ nằm trên `main` bốn ngày
    trong khi bảng tiến độ ghi ✅ cho toàn bộ module (ADR-057).
+
+### 🧭 Doctrine chống rối — điều kiện để một hạng mục được phép vào lộ trình
+
+> 🆕 Soạn 2026-08-17, cùng đợt với bảng bốn tầng. Lý do nó tồn tại: từ tầng 2 trở đi mỗi
+> hạng mục đều **thêm một khái niệm mới** cho người dùng, và một sản phẩm nội bộ chết vì
+> rối trước khi nó chết vì thiếu tính năng. Năm luật dưới đây **không phải nguyện vọng** —
+> mỗi luật đều có tiền lệ đã trả giá trong chính dự án này.
+
+1. **Khuôn trước, cấu hình sau.** Phần lớn người dùng không bao giờ mở màn cấu hình. Cấu
+   hình tồn tại để *sửa* một cái khuôn có sẵn, không phải để *dựng từ số không*. Một đội
+   mới không được phép nhìn thấy màn cấu hình trống. → ADR-064.
+2. **Danh mục ĐÓNG cho ngữ nghĩa, MỞ cho tên gọi.** Người dùng đặt tên và ý nghĩa; hình
+   dạng dữ liệu thì không. Tiền lệ: `StatusCategory` (ADR-052), `FieldType` (ADR-059),
+   `SystemPermissions` (ADR-045). **Mọi khái niệm mới phải khai được hợp đồng đóng của nó**
+   — không khai được là dấu hiệu khái niệm đó chưa chín.
+3. **Tính năng chưa dùng phải TỰ ẨN, không được hiện rỗng.** Tiền lệ đã chạy: khối trường
+   tuỳ biến tự ẩn khi project chưa khai trường nào, ô chọn loại tự ẩn khi project chỉ có
+   một loại (ADR-059/060). Một khối trống mang tiêu đề trên mọi task của mọi project chưa
+   dùng tính năng đó là nhiễu thuần tuý.
+4. **Không ship một cờ không chặn được gì.** Tiền lệ: `IsRequired` bị hoãn ở ADR-059 tới
+   khi có điểm cưỡng chế thật (ADR-060); `Project.Status` là một trường chết đội lốt tính
+   năng suốt nhiều phiên (ADR-048).
+5. **Ba vai, ba bề mặt — cấu hình KHÔNG nằm trên bề mặt làm việc.** Người gửi yêu cầu thấy
+   form và trạng thái yêu cầu của mình · người xử lý thấy hàng đợi và bảng · người cấu hình
+   thấy `/settings`.
+
+   🔴 **Luật 5 đang bị vi phạm ngay lúc viết dòng này.** `ManageColumnsDialog`,
+   `ManageFieldsDialog` và `ManageWorkItemTypesDialog` **đều treo trên header trang Bảng**
+   (`app/(app)/projects/[id]/board/page.tsx`), và **không có route settings nào tồn tại**.
+   Thêm luật duyệt và khuôn dự án vào đó là **sáu nút cấu hình trên một màn làm việc**.
+   Cách sửa: gom về `app/(app)/projects/[id]/settings/`, gác bằng `canManage`. Rẻ, và phải
+   làm **trước** khi tầng 2 đổ thêm bề mặt lên đó — đây là thứ ngăn app rối trước khi app
+   kịp rối.
 
 ### Những gì CỐ Ý không làm, và vì sao
 
@@ -286,6 +360,7 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | **Thêm thành viên MỘT bước (ADR-057)** | ✅ | Mới 2026-08-11. Gỡ hẳn luồng chờ-chấp-nhận trong-app: 3 endpoint (`me/accept`, `me/decline`, `GET /projects/invitations`), trang `/invitations`, badge sidebar. **Vá 12 test đỏ có sẵn trên `main`** từ commit WIP `7e4600d` |
 | **Email thật + kiểm toán xác thực + Docker/CI (ADR-058)** | ✅ | Mới 2026-08-11. `SmtpEmailSender` (3 nhánh chọn), `App:FrontendBaseUrl` ValidateOnStart, tách `Migrate`/`Seed` khỏi `IsDevelopment()`, 8 `ActivityAction` cho nhóm xác thực + `IActivityLogger.LogAs`, `Dockerfile` + `docker-compose.yml` + `.github/workflows/ci.yml` |
 | **Trường tuỳ biến theo project (ADR-059)** | ⚠️ backend xong, FE chưa | Mới 2026-08-12. 4 bảng + 7 endpoint + 18 test. Hậu bản của ADR-052 — đội tự khai trường thay vì nhận một khuôn cố định. **Frontend chưa dựng** |
+| **View lưu được + màn danh sách (ADR-061)** | ✅ | Mới 2026-08-18. 3 bảng (`SavedViews`/`SavedViewFilters`/`SavedViewColumns`) + 6 endpoint + 27 test. Bộ lọc là **bảng quan hệ**, không phải JSON — xoá một trường tuỳ biến thì điều kiện trỏ vào nó biến mất bằng cascade của DB. Lọc theo trường tuỳ biến **so đúng kiểu** (nghiệm thu quyết định "cột có kiểu" của ADR-059). Kèm: gom ba dialog cấu hình về `/projects/{id}/settings` |
 | **Loại công việc theo project (ADR-060)** | ✅ | Mới 2026-08-12. `WorkItemType` + bảng nối `WorkItemTypeFields` (khoá ghép) + 5 endpoint + 17 test + frontend (chip trên thẻ/chi tiết, ô chọn ở form task, dialog quản lý). **`IsRequired` cuối cùng có điểm cưỡng chế thật** |
 | Real-time (SignalR) | ⬜ | Có chủ đích — chỉ làm sau khi core CRUD ổn định (xem §6) |
 
@@ -322,8 +397,12 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | ~~16~~ | ~~**Sẵn sàng vận hành**~~ | ✅ 2026-08-11 | **ADR-058** — SMTP thật, `FrontendBaseUrl` ValidateOnStart, tách Migrate/Seed, kiểm toán xác thực, Docker + CI |
 | ~~17~~ | ~~**Trường tuỳ biến theo project**~~ | ✅ 2026-08-12 | **ADR-059** — nền tảng mở rộng, phần 1. 4 bảng, 7 endpoint, 18 test, frontend đầy đủ |
 | ~~18~~ | ~~**Loại công việc theo project**~~ | ✅ 2026-08-12 | **ADR-060** — nền tảng mở rộng, phần 2. `IsRequired` có điểm cưỡng chế thật. 5 endpoint, 17 test, frontend đầy đủ |
-| **19** | **View lưu được (`SavedView`)** | ⬜ **kế tiếp** | **ADR-061** — mảnh cuối Giai đoạn 2. Bộ lọc + group-by + tập cột, chia sẻ được; cần một màn danh sách task dạng bảng. Ba quyết định phải chốt trước — xem `frontend-next-session.md` §000 |
-| **20** | **Lớp đặc thù hạ tầng** | ⬜ Giai đoạn 3 | Phê duyệt CAB · việc lặp/bảo trì · view lịch · SLA · gắn tài sản · xuất kiểm toán. Xây trên ADR-059/060 nên **không hardcode** loại việc nào. Chi tiết + thứ tự ưu tiên ở `frontend-next-session.md` §000 |
+| ~~19~~ | ~~**View lưu được (`SavedView`)** + màn danh sách task~~ | ✅ 2026-08-18 | **ADR-061** — 3 bảng · 6 endpoint · **27 integration test** · frontend đầy đủ. Cả ba quyết định chốt trước khi gõ code. Làm kèm: **gom cấu hình về `/projects/{id}/settings/`** (luật 5 của Doctrine §0) |
+| **20** | **Phê duyệt là dữ liệu** | ⬜ **Giai đoạn 2.5** | **ADR-062** — `ApprovalPolicy` + `Approval` + `ApprovalDecision`; điểm cưỡng chế đúng MỘT chỗ trong `TaskStatusTransitionService`, mirror `EnsureNotBlockedAsync`. Trả lời câu *"Change Request phải có người ký duyệt mới được chuyển cột"* — thứ hệ thống **hiện không có cách nào diễn đạt**. ⚠️ Phải viết rõ vì sao đây KHÔNG phải khôi phục ma trận ADR-052 đã gỡ |
+| **21** | **Cổng yêu cầu (form tiếp nhận)** | ⬜ Giai đoạn 2.5 | **ADR-063** — `WorkItemType.IsRequestable`; form dựng thẳng từ `WorkItemTypeFields` + `IsRequired` (đã có từ ADR-060), hàng đợi dùng lại ADR-061. 🔴 Một quyết định chặn: người gửi yêu cầu **không phải thành viên project**, mà tầng 2 hiện trả 404 cho người ngoài |
+| **22** | **Khuôn dự án + 3 quy trình mẫu** | ⬜ Giai đoạn 2.5 | **ADR-064** — tạo project chọn khuôn → sinh sẵn loại việc + trường + cột + luật duyệt. Ba khuôn (**Vận hành hạ tầng · Cấp quyền truy cập · Phát triển phần mềm**) khai **hoàn toàn bằng cấu hình, không một dòng code riêng** — đó là bằng chứng cho câu hỏi đa phòng ban |
+| **23** | **Lớp đặc thù hạ tầng** | ⬜ Giai đoạn 3 | SLA · việc lặp/bảo trì · view lịch · gắn tài sản · xuất kiểm toán. *(Phê duyệt CAB đã tách lên hạng mục 20 vì nó là bộ máy chung, không phải đặc thù hạ tầng.)* Chi tiết ở §14 |
+| **24** | **Nền tảng đa phòng ban** | ⬜ Giai đoạn 4 | Scheme dùng chung · danh bạ Đội/Phòng ban · chuyển việc liên phòng · automation. ⚠️ Bản 80% **rẻ hơn nhiều** là hạng mục 22 — chỉ làm scheme thật khi số project vượt ngưỡng. Chi tiết ở §14 |
 | 13 | **Real-time (SignalR)** | ⬜ | Theo §6, chỉ làm sau khi core CRUD **và** frontend đã ổn định. Cố ý KHÔNG làm ở phiên 2026-08-06 |
 | 14 | **Elasticsearch + Redis** | ⬜ | Định hướng xa. Elasticsearch là lời giải thật cho "Search toàn cục"; Redis cho cache + rate limit phân tán |
 
@@ -1519,9 +1598,29 @@ mỗi nhóm đủ lớn để chiếm trọn một phiên.
 |---|---|---|
 | **Báo cáo kiểu Jira** | Backlog insight · velocity · report · timeline | ✅ **Vòng đời Sprint đã xong 2026-08-05** (ADR-050), nên velocity **hết bị chặn** — mốc đo là `Sprint.CompletedAt`. ⚠️ Gom số liệu theo `columnId`/`category`, KHÔNG theo enum (ADR-052) |
 | **Kỹ thuật DB** | Trigger · stored procedure · view · index | ⚠️ Trigger đụng thẳng vào `ApplyAuditFields`/`ApplySoftDelete` của `PmsDbContext` và vào lệnh cấm bulk-update của ADR-024 — đọc cả hai trước khi viết trigger đầu tiên. View là chỗ hợp lý nhất để bắt đầu: các truy vấn tổng hợp ở `ProjectStatisticsRepository` là ứng viên sẵn |
-| **Lớp đặc thù hạ tầng** | Phê duyệt CAB · việc lặp + cửa sổ bảo trì · view lịch · SLA · gắn tài sản (CMDB nhẹ) · xuất nhật ký kiểm toán | 🔴 **Đây là hướng khác biệt chính của sản phẩm** — xem §0. Xây trên ADR-059/060: "Change Request có Hệ thống ảnh hưởng" là **cấu hình**, không phải code. Gắn tài sản nên **thử bằng trường MultiSelect trước** khi dựng bảng mới |
+| **Bộ máy quy trình** 🆕 | Phê duyệt (ADR-062) · cổng yêu cầu (ADR-063) · khuôn dự án (ADR-064) | 🔴 **Đây là hướng khác biệt chính của sản phẩm** — xem §0 "đủ danh từ, thiếu động từ". Đã tách khỏi dòng "Lớp đặc thù hạ tầng" bên dưới 2026-08-17 vì nó là **bộ máy chung**, không phải đặc thù hạ tầng: cùng một cơ chế phục vụ cả CAB của hạ tầng lẫn luồng duyệt của bất kỳ phòng ban nào |
+| **Lớp đặc thù hạ tầng** | Việc lặp + cửa sổ bảo trì · view lịch · SLA · gắn tài sản (CMDB nhẹ) · xuất nhật ký kiểm toán | Xây trên ADR-059/060/062: "Change Request có Hệ thống ảnh hưởng và cần 2 người duyệt" là **cấu hình**, không phải code. Gắn tài sản nên **thử bằng trường MultiSelect trước** khi dựng bảng mới. Chi tiết móc nối ở bảng "Giai đoạn 3 & 4" bên dưới |
 | **AD / LDAP SSO** | Đăng nhập bằng tài khoản miền thay cho bảng mật khẩu BCrypt riêng | Bắt buộc khi thật sự vào hạ tầng nội bộ ngân hàng — một hệ thống nội bộ hiếm khi được phép giữ mật khẩu riêng. Hiện chạy Vercel + Cloudflare Tunnel nên chưa chặn gì. ⚠️ Đụng vào `AuthService` + `TokenService` + toàn bộ luồng refresh (ADR-027); **cần ADR riêng** |
 | **Elasticsearch + Redis** | Search toàn cục · cache + rate limit phân tán | Elasticsearch là **lời giải đúng** cho "Search toàn cục" (§1 mục B) — nới `?search=` không thay thế được vì nó chỉ lọc một trường mỗi endpoint. Redis: rate limit hiện là in-memory nên không đúng khi chạy nhiều instance |
+
+### Giai đoạn 3 & 4 — móc nối cụ thể *(khảo sát 2026-08-17)*
+
+Mỗi dòng dưới đây đã được **đối chiếu với code thật** để biết nó cắm vào đâu. Ghi ra để
+phiên sau không phải dò lại, và để phần "hướng phát triển" của báo cáo có căn cứ chứ không
+phải một danh sách nguyện vọng.
+
+| # | Hạng mục | Móc vào đâu — đã khảo sát |
+|---|---|---|
+| 1 | **Đồng hồ SLA** | Cần `SlaPolicy` + clock trên task. `Priority` và `DueDate` đã có; thiếu **tầng chính sách**. `DueDateNotificationWorker` đã có sẵn `PeriodicTimer` mỗi giờ để bắn cảnh báo sắp vi phạm |
+| 2 | **Việc lặp + cửa sổ bảo trì** | Nhịp sống thật của đội hạ tầng (vá lỗi, kiểm backup, gia hạn chứng thư). Thêm một `BackgroundService` thứ hai cạnh `DueDateNotificationWorker` trong `Program.cs`, **trong cùng guard non-Testing** |
+| 3 | **View lịch** | Gần cách hạ tầng lập kế hoạch hơn sprint. `SprintTimelineChart` là mẫu tự dựng bằng `<div>` định vị `%` — dùng lại cách đó, không thêm thư viện |
+| 4 | **Gắn tài sản (CMDB nhẹ)** | 🔴 **Thử bằng trường MultiSelect (ADR-059) TRƯỚC** khi dựng bảng mới. Nếu đủ dùng thì đây là hạng mục tốn 0 dòng backend |
+| 5 | **Xuất nhật ký kiểm toán** | `ActivityLog` đã đủ dữ liệu, kể cả nhóm xác thực từ ADR-058. Thiếu **đúng một đường xuất CSV** |
+| 6 | **Scheme dùng chung** | Tách cấu hình khỏi `ProjectId` → `SchemeId`, project trỏ vào. ⚠️ Bản 80% rẻ hơn hẳn là **khuôn dự án (ADR-064)** — chỉ làm scheme thật khi số project đủ lớn để việc sửa từng project trở nên đắt |
+| 7 | **Danh bạ Đội / Phòng ban** | `Team` + `TeamMember`. Mở ra thứ hiện không làm được: **gán việc cho một ĐỘI** chứ không chỉ cho cá nhân |
+| 8 | **Chuyển việc liên phòng ban** | Yêu cầu gửi tới Hạ tầng nhưng phải chuyển sang Cloud, **giữ nguyên lịch sử**. Cần một `LinkType` mới hoặc `TransferLog` |
+| 9 | **Automation rules** | "khi X thì Y" (tự gán, tự đổi cột, tự nhắc). Điểm cắm đã có sẵn: `INotificationService` và `IActivityLogger` đã nằm đúng chỗ mọi luồng ghi đi qua |
+| 10 | **Bố cục màn theo loại việc** *(screen scheme)* | Trường nào hiện ở màn tạo / màn xem / lúc chuyển cột. **Đây là chốt chặn chống rối ở quy mô lớn** — xem luật 5 của Doctrine ở §0 |
 
 ### Nhóm C — nice-to-have, chỉ làm nếu còn dư thời gian
 - Dark mode
@@ -1660,8 +1759,14 @@ CLI, xem `docs/uml/README.md`. Trước đây nguồn chỉ nằm trong thuộc 
 | **2026-08-05** | **(ADR-051)** Sidebar **đổi hẳn theo ngữ cảnh** kiểu Jira; hai vỏ chi tiết Task được cho **khác nhau thật** về bố cục | Ba đường tới cùng một chỗ trong một sidebar là thừa, không phải đầy đủ. Và hai vỏ nhìn y hệt nhau thì nút "Mở trang riêng" đang hứa một khác biệt không tồn tại — chi tiết bên dưới |
 | **2026-08-05** | **(ADR-052)** Cột board thành **DỮ LIỆU của từng project** (bảng `BoardColumns`) thay cho enum `Status`; mỗi cột khai một `StatusCategory` ĐÓNG; **gỡ ma trận chuyển trạng thái** (thay thế ADR-021) | Người dùng cần quy trình của riêng họ, mà 39 chỗ trong solution lại hỏi "task xong chưa" — `Category` là hợp đồng tối thiểu giữa tên do người dùng đặt và ngữ nghĩa mã nguồn cần. Với cột tuỳ biến thì không còn cơ sở nào nói cặp chuyển nào hợp lệ — chi tiết bên dưới |
 | **2026-08-05** | **(ADR-053)** `GET /tasks/my` — endpoint **xuyên dự án** đầu tiên, lọc "được gán cho tôi · chưa xong · hạn ≤ hôm nay" | Mọi endpoint task khác đều nằm dưới `/projects/{id}`, nên "sáng nay tôi cần làm gì" sẽ là N request rồi gộp ở client. Không nhận `employeeId` ở đâu cả — chi tiết bên dưới |
+| **2026-08-17** | **(ADR-061)** `SavedView` + `SavedViewFilter` là bảng **quan hệ**, không phải JSON blob; `FilterOperator` là danh mục ĐÓNG | Xoá một trường tuỳ biến thì cascade dọn được filter trỏ vào nó — JSON để lại filter trỏ vào hư không, đúng bài học `FieldOption` của ADR-059. Và đây là nơi khoản đầu tư "cột có kiểu" của ADR-059 được thu hồi — chi tiết bên dưới |
+| **2026-08-17** | **(ADR-062)** Phê duyệt là **DỮ LIỆU** (`ApprovalPolicy` do người dùng khai), cưỡng chế ở đúng MỘT chỗ trong `TaskStatusTransitionService` | Hệ thống **không có cách nào** diễn đạt "CR phải có người ký duyệt mới chuyển cột". KHÔNG phải khôi phục ma trận ADR-052 đã gỡ: ADR-052 gỡ vì hệ thống **đoán hộ**, ở đây người dùng **tự khai** — cùng cơ chế, ngược chiều quyền sở hữu — chi tiết bên dưới |
+| **2026-08-17** | **(ADR-063)** Cổng yêu cầu KHÔNG thêm khái niệm mới — `WorkItemType` + `IsRequired` (ADR-060) đã là một "request type"; chỉ thêm cờ `IsRequestable` | Thêm một khái niệm song song với "loại việc" là hai thứ cùng nghĩa phải giữ đồng bộ mãi mãi. 🔴 Còn MỘT quyết định chặn: người gửi yêu cầu không phải thành viên project, mà tầng 2 hiện trả 404 cho người ngoài — chi tiết bên dưới |
+| **2026-08-17** | **(ADR-064)** Khuôn dự án (bản sao lúc tạo) thay vì scheme dùng chung (trỏ tới); ba khuôn seed bằng `HasData` | Khuôn rẻ hơn hẳn và cho mỗi đội tự do đi lệch — thứ một phòng ban đa lĩnh vực cần hơn "sửa một chỗ đổi mọi nơi". `HasData` chứ không `DbSeeder` vì test factory không chạy seeder (tiền lệ ADR-045) — chi tiết bên dưới |
 
-| | | |
+> ⚠️ **Khoảng trống đã biết của bảng này:** ADR-054 → ADR-060 **chưa có dòng tóm tắt ở đây**
+> dù cả bảy đều đã có mục chi tiết đầy đủ ở cuối §15. Bảng tóm tắt ngắt mạch từ 2026-08-06.
+> Ghi ra thay vì im lặng — đây đúng lớp "tài liệu nói một đằng" mà §0 nguyên tắc 3 cảnh báo.
 
 ### Chi tiết ADR-006 → ADR-010
 
@@ -4167,3 +4272,211 @@ sai là hỏng nhẹ nhìn thấy được, một màn hình trắng thì không
 integration) + 72 frontend.
 
 ✅ **Nợ kéo–thả đã TRẢ** — người dùng xác nhận kiểm tay thành công 2026-08-12, sau 7 phiên treo.
+
+---
+
+### Chi tiết ADR-061 → ADR-064 (soạn 2026-08-17 — TRƯỚC khi gõ code)
+
+> 📌 **Bốn ADR này viết trước khi có dòng code nào**, đúng luật của dự án. Ngữ cảnh vì sao
+> chúng tồn tại nằm ở §0 — mục **"Chẩn đoán: đủ danh từ, thiếu động từ"** và bảng **bốn
+> tầng**. Đọc §0 trước, nếu không cả bốn trông như "thêm tính năng cho giống Jira", đúng
+> cái đang cố tránh.
+>
+> **Ranh giới cắt, chốt trước để không ship dở:** nếu hết thời gian thì **ADR-062 một mình
+> đã là một hạng mục hoàn chỉnh** — nó trả lời đúng câu hỏi của phó phòng. ADR-063/064 lùi
+> về lộ trình mà không để lại thứ gì dở dang.
+
+#### ADR-061 (2026-08-17) — `SavedView`: bộ lọc lưu được, và tiền đề của "hàng đợi"
+
+Hệ thống hiện **không lưu một bộ lọc nào**. Mọi thứ là state tạm: board có `?sprint=`,
+`/my-work` có toggle grouped/flat, hết.
+
+🔑 **Lý do nó phải đi TRƯỚC tầng 2, không phải vì thứ tự tuỳ tiện:** "hàng đợi" của một
+quy trình — *"mọi Change Request đang chờ tôi duyệt"* — **chính là** một view lưu được
+trên một màn danh sách. Làm quy trình trước thì phải dựng một màn danh sách tạm rồi vứt.
+
+##### Ba quyết định phải chốt trước khi gõ code
+
+**(a) Bộ lọc lưu dạng bảng QUAN HỆ, không phải JSON blob.** `SavedViewFilter`
+(`ViewId`, `FieldDefinitionId?`, `BuiltInField?`, `Operator`, `Value`). JSON viết nhanh
+hơn và hỏng ở đúng chỗ ADR-059 đã trả giá với `FieldOption`: xoá một trường tuỳ biến thì
+cascade dọn được filter trỏ vào nó, còn JSON để lại một filter **trỏ vào hư không** mà
+không lệnh nào tìm ra được.
+
+**(b) View chia sẻ: chủ sở hữu HOẶC bất kỳ ai có `ManageSavedViews`.** Chỉ chủ sở hữu thì
+view chung của cả đội **khoá chết** khi người đó rời dự án; cho mọi thành viên thì ai cũng
+ghi đè công của nhau.
+
+**(c) View riêng của người bị gỡ khỏi project: xoá theo.** Có tiền lệ thẳng —
+`RemoveMemberAsync` xoá **cứng** hàng `ProjectMember`.
+
+##### `FilterOperator` là danh mục ĐÓNG
+
+`Equals · NotEquals · Contains · GreaterThan · LessThan · Between · IsEmpty · IsNotEmpty`.
+Cùng lý lẽ `FieldType`/`StatusCategory` (luật 2 của Doctrine §0): mã nguồn phải biết dịch
+từng toán tử thành SQL cho từng kiểu cột.
+
+🔴 **Đây là chỗ khoản đầu tư của ADR-059 được thu hồi.** Bộ lọc phải so **ngày ra ngày, số
+ra số** — join vào đúng `ValueNumber`/`ValueDate`/`ValueText`. Nếu ADR-059 đã chọn một cột
+JSON thì `"9" > "10"` và không index nào dùng được. *Chọn cách lưu trữ cho tính năng KẾ
+TIẾP* (nguyên tắc 2 ở §0) được nghiệm thu ở đúng đây.
+
+##### Làm kèm: gom cấu hình về `/settings`
+
+Theo **luật 5 của Doctrine §0**, và phải làm ở phiên này chứ không phiên sau: ba dialog
+cấu hình đang treo trên header trang Bảng. Tầng 2 sẽ đổ thêm hai bề mặt nữa lên đó.
+
+##### ✅ Kết quả (2026-08-18)
+
+3 bảng · 6 endpoint (`GET/POST /projects/{id}/views` · `PUT/DELETE /views/{id}` ·
+`PUT …/views/order` · `POST /projects/{id}/tasks/query`) · **27 integration test**, 0 đỏ.
+Tổng bộ test backend: **614** (249 unit + 365 integration) + 72 frontend.
+
+Frontend: tab **Danh sách** (`/projects/{id}/list`) với thanh view + trình dựng bộ lọc +
+bảng có cột trường tuỳ biến; và tab **Cấu hình** (`/projects/{id}/settings`) gom ba dialog
+quản lý — `requiresManage` trên `PROJECT_SECTIONS` nên **ẩn hẳn** với người không phải PM
+ở cả tab bar lẫn sidebar (luật 3: ẩn chứ không vô hiệu hoá).
+
+**`POST` cho một thao tác ĐỌC** ở endpoint truy vấn — có chủ đích: bộ lọc là danh sách đối
+tượng × tối đa 20 dòng, nhét vào query string sẽ cần một cú pháp mã hoá tự chế mà cả hai
+đầu phải cùng hiểu (đúng lớp "hai nơi cùng dựng một thứ" của ADR-034). Hệ quả phải xử lý ở
+client: `queryKey` **phải chứa trọn body**, nếu không đổi bộ lọc sẽ hiện lại kết quả cũ.
+
+🪤 **Ba thứ phiên này gặp, ghi để khỏi mất thời gian lần sau:**
+
+1. **27 test đỏ cùng lúc trong 46ms** — đúng chữ ký "hỏng ở tầng dựng host" mà ADR-059 đã
+   đặt tên, nhưng **nguyên nhân lần này KHÁC**: không phải cascade mà là
+   `Login failed for user 'sa'`. Máy dev chạy instance riêng chứ không phải
+   `localhost,1433`. Lối thoát `PMS_TEST_DB` đã có sẵn ở RUNBOOK §5.
+   *Bài học: cùng một triệu chứng, đừng đoán nguyên nhân theo tiền lệ — đọc thông điệp.*
+2. **Sơ đồ cascade vẽ trước đã đúng** — `SavedViewFilters` nhận CASCADE từ hai bảng cha
+   nhưng không có gốc chung nào cascade xuống theo hai lối, y hệt phân tích của ADR-060
+   cho `WorkItemTypeFields`. SQL Server chấp nhận ngay lần đầu.
+3. **`onValueChange` của Base UI `Select` khai `string | null`**, không phải `string`.
+   Ép kiểu cho qua sẽ giấu mất một null thật nếu về sau bật `clearable`.
+
+---
+
+#### ADR-062 (2026-08-17) — Phê duyệt là DỮ LIỆU, không phải code
+
+Bốn entity, ba enum ĐÓNG:
+
+| Entity | Nội dung |
+|---|---|
+| `ApprovalPolicy` | `ProjectId`, `WorkItemTypeId`, `TargetColumnId`, `ApproverMode`, `MinApprovals` (quorum), `Order` |
+| `ApprovalPolicyApprover` | khoá **GHÉP** `(PolicyId, EmployeeId)` — cùng khuôn `Watcher` (ADR-036) và `WorkItemTypeField` (ADR-060) |
+| `Approval` | `TaskId`, `PolicyId`, `Status`, `RequestedById`, `RequestedAt`, `DecidedAt` |
+| `ApprovalDecision` | `ApprovalId`, `ApproverId`, `Decision`, `Comment`, `DecidedAt` |
+
+`ApprovalStatus {Pending, Approved, Rejected, Cancelled}` ·
+`ApproverMode {ProjectManagers, NamedApprovers}` · `DecisionKind {Approve, Reject}`.
+
+##### 🔴 Vì sao đây KHÔNG phải khôi phục ma trận mà ADR-052 đã gỡ
+
+Câu này phải trả lời trước tiên, vì nhìn qua hai thứ giống hệt nhau: cả hai đều chặn một
+nước chuyển cột.
+
+> ADR-052 gỡ ma trận vì **hệ thống đoán hộ** người dùng: với cột do người dùng tạo thì mã
+> nguồn không có cơ sở nào để biết "Chờ QA" đứng trước hay sau "Đang sửa". Ở đây **người
+> dùng tự khai luật của chính họ**. Cùng một cơ chế, **ngược chiều quyền sở hữu** — và
+> chiều đó là toàn bộ khác biệt.
+
+Đúng lý lẽ đã dùng để nâng cột board thành dữ liệu, chỉ áp cho một khái niệm khác.
+
+##### Điểm cưỡng chế: đúng MỘT chỗ
+
+`TaskStatusTransitionService.ChangeStatusAsync` — chèn `EnsureApprovedAsync` **sau** bước
+no-op cùng cột, **trước** `task.MoveTo(target)`, mirror y hệt `EnsureNotBlockedAsync` đang
+là guard duy nhất còn sót lại sau ADR-052.
+
+**Không kiểm ngược lên task đã có.** Đúng bài học `IsRequired` của ADR-060: chặn *hành
+động* thì hẹp đúng mức; chặn cả *bản ghi* thì biến một cấu hình thành một bức tường, và
+người dùng không sửa được gì cho tới khi điền xong thứ họ không biết là đang thiếu.
+
+##### Ba chỗ dễ vấp, ghi trước
+
+1. 🔴 **`NotificationType` thêm 3 giá trị → phải thêm cả 3 vào nhánh `Task` của
+   `RelatedEntityKind`.** Kind được **suy ra** từ `Type` (ADR-025), không lưu cột. Quên là
+   chuông điều hướng tới một id không tồn tại — đúng cái bẫy `ProjectStatusChanged` đã nổ
+   ở ADR-048. *Việc suy ra thay vì lưu hai cột sinh ra chính để chặn lớp lỗi này, nhưng nó
+   chỉ chặn được nếu nhánh switch được cập nhật.*
+2. **`ActivityAction` thêm 3 giá trị — an toàn**, vì nó `HasConversion<string>`, chèn ở vị
+   trí nào cũng được. Khác hẳn `Status`/`StatusCategory` lưu int, nơi thứ tự là load-bearing
+   (bẫy remap của ADR-052).
+3. ⚠️ **Quyền *quyết định* KHÔNG đi qua `RoleInProject`** mà theo danh sách approver của
+   policy. Đây là ngoại lệ có chủ đích thứ hai của mô hình hai tầng (thứ nhất là
+   `Notification`, ADR-023) — phải ghi rõ và có test, nếu không phiên sau sẽ "sửa" nó về
+   cho nhất quán.
+
+##### Cưỡng chế phải được MUTATION TEST
+
+Gỡ `EnsureApprovedAsync` phải làm **đúng ≥1 test đỏ**. Tiền lệ bắt buộc: bộ lọc @mention
+(ADR-048) và `IsRequired` (ADR-060) đều đã qua phép kiểm này. Một guard không có test nào
+chết khi gỡ nó ra là một guard chưa được chứng minh là đang chạy.
+
+---
+
+#### ADR-063 (2026-08-17) — Cổng yêu cầu: "loại việc" ĐÃ LÀ "request type"
+
+Không thêm khái niệm mới. `WorkItemType` + `WorkItemTypeFields` + `IsRequired` (ADR-060)
+đã là một request type đầy đủ; chỉ thiếu hai thứ:
+
+- `WorkItemType.IsRequestable` + `RequestInstructions`
+- Form tiếp nhận dựng thẳng từ lược đồ đã có · hàng đợi dùng lại `SavedView` (ADR-061)
+
+##### 🔴 Quyết định CHẶN — người gửi yêu cầu không phải thành viên project
+
+`ProjectAuthorizationService` hiện trả **404 cho người ngoài project** (cố ý: 403 sẽ tiết
+lộ project đó tồn tại). Nhưng bản chất của một cổng yêu cầu là **người ngoài gửi vào**.
+
+| | Đường | Giá |
+|---|---|---|
+| **(a)** *khuyến nghị* | Thêm `RoleInProject.Requester`, lọc theo hàng `ReporterId == me` | Rẻ, đi đúng qua `ProjectPermissions` đã có. **Nhưng lọc theo HÀNG là khái niệm MỚI** — hệ thống tới nay chỉ có phân quyền theo *project*, chưa từng có theo *bản ghi*. Phải làm ở repository và kiểm **mọi** endpoint project-scoped |
+| (b) | Portal riêng không cần membership | Sạch hơn về khái niệm, đắt hơn nhiều: một đường authz thứ hai chạy song song |
+
+⚠️ Kiểm `RoleInProject` đang lưu **int hay string** trước khi thêm giá trị enum — nếu int
+thì chỉ được **nối vào cuối**.
+
+📌 Ghi nhận: nếu chọn (a) thì đây là lần đầu dự án có phân quyền theo hàng, và nó **mở
+đường sẵn** cho `Issue Security Level` vốn đã nằm ở §14 Nhóm B từ đầu.
+
+---
+
+#### ADR-064 (2026-08-17) — Khuôn dự án: nơi ba quy trình mẫu ra đời mà không cần code
+
+**Đây là hạng mục biến ADR-062/063 từ hai cơ chế thành một sản phẩm bấm được**, và đồng
+thời là chốt chặn chống rối mạnh nhất (**luật 1 của Doctrine §0**): tạo project → chọn
+khuôn → có sẵn loại việc, trường, cột, luật duyệt. **Đội mới không bao giờ nhìn thấy một
+màn cấu hình trống.**
+
+- `POST /projects` nhận thêm `templateKey`; áp khuôn = sinh `WorkItemType` +
+  `FieldDefinition` + `BoardColumn` + `ApprovalPolicy` **trong một transaction**
+- Khuôn seed bằng `HasData`, không phải `DbSeeder` — cùng lý lẽ `PermissionConfiguration`
+  (ADR-045): **cấu hình là schema, không phải data**. `PmsWebApplicationFactory` chạy
+  `EnsureDeleted` + `Migrate` mà **không** chạy `DbSeeder`, nên khuôn nằm ở `DbSeeder` thì
+  không một integration test nào thấy nó
+
+##### Ba khuôn — khai HOÀN TOÀN bằng cấu hình, không một dòng code riêng
+
+| Khuôn | Loại việc | Trường | Cột | Luật duyệt |
+|---|---|---|---|---|
+| **Vận hành hạ tầng** | Sự cố · Yêu cầu · Change Request · Bảo trì | Hệ thống ảnh hưởng (MultiSelect) · Mức rủi ro (SingleSelect) · Cửa sổ bảo trì (Date) | Tiếp nhận → Chờ duyệt → Đang xử lý → Kiểm chứng → Đóng | CR cần **2 duyệt** để vào "Đang xử lý" |
+| **Cấp quyền truy cập** | Yêu cầu cấp quyền · Thu hồi quyền | Hệ thống (SingleSelect) · Mức quyền · Lý do (Text) · Thời hạn (Date) | Gửi → Trưởng phòng duyệt → Đang cấp → Hoàn tất | **1 duyệt** để vào "Đang cấp" |
+| **Phát triển phần mềm** | Story · Bug · Task | Story Points *(đã có)* | ToDo → In Progress → Review → Done | không có |
+
+🔑 **Khuôn thứ ba là bằng chứng, không phải phần thêm cho đủ bộ.** Nó cho thấy đội phần
+mềm chạy Scrum và đội hạ tầng chạy ITSM trên **cùng một hệ thống**, khác nhau **chỉ ở dữ
+liệu cấu hình** — tức câu trả lời cho "mở rộng ra nhiều team nhiều lĩnh vực" đã nằm sẵn
+trong kiến trúc từ ADR-052, chỉ chờ được chứng minh.
+
+##### Vì sao khuôn RẺ HƠN scheme dùng chung, và làm trước
+
+Scheme thật (nhiều project **trỏ** vào một bộ cấu hình, sửa một chỗ đổi mọi nơi) là lời
+giải đúng ở quy mô lớn — nhưng nó đắt và chỉ trả về giá trị khi số project đủ nhiều để
+việc sửa từng project trở nên tốn kém. Khuôn là **bản sao một lần lúc tạo**: mất tính
+"sửa một chỗ đổi mọi nơi", đổi lại chi phí thấp hơn hẳn và **mỗi đội tự do đi lệch khỏi
+khuôn** — thứ mà một phòng ban đa lĩnh vực thực tế lại cần hơn.
+
+Ghi rõ ở đây để phiên sau không nhầm đây là bản làm ẩu của scheme: đó là **hai điểm khác
+nhau trên cùng một trục**, và điểm rẻ hơn được chọn có ý thức. Scheme thật nằm ở §14
+"Giai đoạn 3 & 4" hạng mục 6.
