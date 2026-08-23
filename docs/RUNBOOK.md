@@ -141,7 +141,7 @@ kiểm chứng minh cả ba thứ ADR-058 sửa đều thật.
 ## 5. Test
 
 ```bash
-cd backend  && dotnet test                       # 614 test (249 unit + 365 integration)
+cd backend  && dotnet test                       # 638 test (249 unit + 389 integration)
 cd frontend && npm run typecheck && npm run lint && npm test    # 72 test
 ```
 

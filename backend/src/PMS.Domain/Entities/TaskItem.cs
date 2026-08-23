@@ -100,6 +100,12 @@ public class TaskItem : BaseEntity, ISoftDeletable
     /// <summary>Giá trị các trường tuỳ biến của project (ADR-059).</summary>
     public ICollection<FieldValue> FieldValues { get; set; } = new List<FieldValue>();
 
+    /// <summary>
+    /// Nhật ký các lần task này đi qua một cổng duyệt (ADR-062) — kể cả các lần đã tiêu thụ.
+    /// Là LỊCH SỬ, không phải trạng thái hiện tại: lọc <c>IsActive</c> để lấy hàng đang chặn.
+    /// </summary>
+    public ICollection<Approval> Approvals { get; set; } = new List<Approval>();
+
     // Id phải sinh phía application: PmsDbContext.ApplyIdNeverGenerated() đặt
     // ValueGeneratedNever() cho mọi BaseEntity.Id, nên để mặc định Guid.Empty thì
     // bản ghi thứ hai sẽ vi phạm khóa chính. Nhất quán với ProjectMember.Invite().

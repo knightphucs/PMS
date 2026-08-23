@@ -1,5 +1,6 @@
 'use client';
 
+import { ApprovalPanel } from '@/components/approvals/approval-panel';
 import { QueryError } from '@/components/common/query-error';
 import { WarningBanner } from '@/components/common/warning-banner';
 import { TaskAttachments } from '@/components/tasks/task-attachments';
@@ -103,6 +104,11 @@ export function TaskDetailContent({
           />
 
           <TaskCustomFields projectId={projectId} taskId={taskId} canEdit={canEdit} />
+
+          {/* Đứng ngay sau trường tuỳ biến, TRƯỚC subtask: khi task đang bị chặn thì đây là
+              thứ người ta mở task ra để xem, và nó phải nằm trên nếp gấp. Tự ẩn hoàn toàn
+              nếu loại việc này không có cổng duyệt nào (ADR-062). */}
+          <ApprovalPanel projectId={projectId} taskId={taskId} myEmployeeId={myEmployeeId} />
 
           <TaskSubtasks
             projectId={projectId}

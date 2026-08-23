@@ -1,0 +1,49 @@
+$kind: http-request
+name: Update work item types
+url: "{{api_url}}/work-item-types/:id"
+method: PUT
+pathVariables:
+  - key: id
+    value: ""
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: "{\r
+
+    \    \"name\": \"string\",\r
+
+    \    \"icon\": \"string\",\r
+
+    \    \"color\": \"string\",\r
+
+    \    \"fields\": [\r
+
+    \        {\r
+
+    \            \"fieldDefinitionId\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\r
+
+    \            \"isRequired\": true\r
+
+    \        }\r
+
+    \    ]\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1490311392298738

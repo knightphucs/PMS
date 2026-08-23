@@ -1,0 +1,31 @@
+$kind: http-request
+name: Get report in backlog-insight
+url: "{{api_url}}/projects/:project_id/reports/backlog-insight?dueSoonHorizonDays="
+method: GET
+queryParams:
+  - key: dueSoonHorizonDays
+    value: ""
+    disabled: false
+    description: ""
+    $type: integer
+pathVariables:
+  - key: project_id
+    value: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 1787436958401

@@ -1,0 +1,35 @@
+$kind: http-request
+name: Invite non-member (not register yet)
+url: "{{api_url}}/project/:id/members/invitations"
+method: POST
+pathVariables:
+  - key: id
+    value: ""
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: "{\r
+
+    \    \"email\": \"string\",\r
+
+    \    \"role\": \"ProjectManager\"\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 3546366476255124

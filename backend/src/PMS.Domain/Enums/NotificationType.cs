@@ -42,5 +42,22 @@ public enum NotificationType
     /// vào của nó là tab Sprint của dự án.
     /// </para>
     /// </summary>
-    SprintCompleted
+    SprintCompleted,
+
+    // ---------- Nhóm phê duyệt (ADR-062, 2026-08-23) ----------
+    //
+    // 🔴 Cả ba đã được thêm vào nhánh `Task` của Notification.RelatedEntityKind. Kind SUY RA
+    // từ Type (ADR-025) chứ không lưu cột, nên thêm một giá trị ở đây mà quên nhánh switch
+    // là chuông điều hướng tới /tasks/{id} với một id không phải task — đúng cái bẫy
+    // ProjectStatusChanged đã nổ ở ADR-048. Cả ba đều trỏ tới TASK vì đó là nơi khối duyệt
+    // sống, và cũng là nơi người nhận thông báo cần tới để hành động.
+
+    /// <summary>Có yêu cầu duyệt mới cần bạn quyết định. Gửi cho approver của policy.</summary>
+    ApprovalRequested,
+
+    /// <summary>Yêu cầu duyệt đã đủ quorum. Gửi cho người đã gửi yêu cầu.</summary>
+    ApprovalApproved,
+
+    /// <summary>Yêu cầu duyệt bị từ chối. Gửi cho người đã gửi yêu cầu.</summary>
+    ApprovalRejected
 }

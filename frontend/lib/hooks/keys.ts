@@ -99,6 +99,21 @@ export const taskDetailKeys = {
     [...taskKeys.detail(projectId, taskId), 'activity'] as const,
   fieldValues: (projectId: string, taskId: string) =>
     [...taskKeys.detail(projectId, taskId), 'field-values'] as const,
+  /**
+   * Trạng thái duyệt của task (ADR-062).
+   *
+   * 🔴 Nằm dưới `taskKeys.detail` là **load-bearing**, không phải cho gọn: đổi trạng thái
+   * task có thể SINH ra một yêu cầu duyệt (guard tự sinh khi bị chặn), nên một lần
+   * invalidate task phải kéo theo cả khối này — nếu không, người dùng kéo thẻ, nhận thông
+   * báo "đã gửi yêu cầu duyệt", rồi nhìn xuống thấy khối duyệt vẫn trống.
+   */
+  approvals: (projectId: string, taskId: string) =>
+    [...taskKeys.detail(projectId, taskId), 'approvals'] as const,
+};
+
+/** Luật duyệt của project (ADR-062) — cấu hình, KHÁC với yêu cầu duyệt trên từng task. */
+export const approvalPolicyKeys = {
+  all: (projectId: string) => [...projectDataKeys.all(projectId), 'approval-policies'] as const,
 };
 
 export const projectActivityKeys = {

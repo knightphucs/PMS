@@ -59,6 +59,24 @@ public enum ProjectAction
     /// </summary>
     ManageSavedViews,
 
+    /// <summary>
+    /// Thêm/sửa/xoá LUẬT DUYỆT của project (ADR-062) — "loại việc X vào cột Y cần N chữ ký".
+    ///
+    /// <para>
+    /// Cùng mức với <see cref="ManageBoardColumns"/>/<see cref="ManageFieldDefinitions"/>/
+    /// <see cref="ManageWorkItemTypes"/>: đây là lược đồ mà cả đội chịu tác động, không phải
+    /// dữ liệu của một task.
+    /// </para>
+    /// <para>
+    /// 🔴 <b>KHÔNG dùng action này để gác việc QUYẾT ĐỊNH trên một yêu cầu duyệt.</b> Quyền
+    /// quyết định đi theo <c>ApproverMode</c> của chính luật đó, không theo
+    /// <c>RoleInProject</c> — ngoại lệ có chủ đích thứ hai của mô hình hai tầng (thứ nhất là
+    /// <c>Notification</c>, ADR-023). Người dựng luật và người ký duyệt là hai vai khác nhau,
+    /// và gộp chúng lại sẽ khiến mọi PM tự ký được luật của chính mình.
+    /// </para>
+    /// </summary>
+    ManageApprovalPolicies,
+
     /// <summary>Tự nhận / tự rút khỏi task — Member cũng làm được, Viewer thì không.</summary>
     SelfAssign,
 

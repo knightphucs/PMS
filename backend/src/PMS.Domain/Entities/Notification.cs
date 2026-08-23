@@ -55,7 +55,12 @@ public class Notification : BaseEntity
         or NotificationType.DueSoon
         or NotificationType.CommentAdded
         or NotificationType.StatusChanged
-        or NotificationType.Mentioned          => RelatedEntityKind.Task,
+        or NotificationType.Mentioned
+        // Nhóm phê duyệt (ADR-062): cả ba trỏ về TASK — khối duyệt sống ở chi tiết task, và
+        // đó cũng là nơi người nhận cần tới để hành động (bấm Duyệt / xem lý do từ chối).
+        or NotificationType.ApprovalRequested
+        or NotificationType.ApprovalApproved
+        or NotificationType.ApprovalRejected   => RelatedEntityKind.Task,
 
         _ => RelatedEntityKind.None
     };

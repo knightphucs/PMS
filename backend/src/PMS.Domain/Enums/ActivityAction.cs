@@ -52,5 +52,22 @@ public enum ActivityAction
     PasswordChanged,
     PasswordResetRequested,
     PasswordResetCompleted,
-    ProfileUpdated
+    ProfileUpdated,
+
+    // ---------- Nhóm phê duyệt (ADR-062, 2026-08-23) ----------
+    //
+    // An toàn khi chèn vì cột Action lưu CHUỖI (HasConversion<string>) — khác Status /
+    // StatusCategory lưu int, nơi thứ tự là load-bearing (bẫy remap của ADR-052).
+    //
+    // EntityType = "TaskItem" nên chúng hiện ở lịch sử của chính task, cạnh StatusChanged —
+    // đúng chỗ người đọc đang tìm câu trả lời "vì sao thẻ này đứng yên ba ngày".
+
+    /// <summary>Một yêu cầu duyệt được sinh ra (do người dùng kéo task vào cột có cổng).</summary>
+    ApprovalRequested,
+
+    /// <summary>Một lá phiếu thuận. Ghi TỪNG phiếu, không chỉ ghi lúc đủ quorum.</summary>
+    ApprovalApproved,
+
+    /// <summary>Một lá phiếu chống — kèm lý do trong phần mô tả.</summary>
+    ApprovalRejected
 }

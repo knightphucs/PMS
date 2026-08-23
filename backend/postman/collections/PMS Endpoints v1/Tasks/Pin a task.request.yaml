@@ -1,0 +1,29 @@
+$kind: http-request
+name: Pin a task
+url: "{{api_url}}/tasks/:id/pin"
+method: PATCH
+pathVariables:
+  - key: id
+    value: ""
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: "{\r\n    \"pinned\": true\r\n}"
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4503103595779345

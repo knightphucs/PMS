@@ -85,7 +85,14 @@ export function ChangeRoleDialog({
           <Label htmlFor="system-role">Vai trò</Label>
           <Select value={role} onValueChange={(value) => setRole(value as SystemRole)}>
             <SelectTrigger id="system-role">
-              <SelectValue />
+              {/* 🔴 Render prop bắt buộc: `SelectValue` trần in ra chính giá trị của ô — ở
+                  đây là chuỗi enum `SystemAdmin`, không phải nhãn tiếng Việt. Lỗi có sẵn từ
+                  ADR-045, phát hiện 2026-08-23. */}
+              <SelectValue>
+                {(current: string) =>
+                  SYSTEM_ROLE_LABEL[current as SystemRole] ?? current
+                }
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {ROLES.map((r) => (

@@ -1,0 +1,33 @@
+$kind: http-request
+name: Delete work item type
+url: "{{api_url}}/work-item-types/:id"
+method: DELETE
+pathVariables:
+  - key: id
+    value: ""
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: "{\r
+
+    \    \"targetTypeId\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\"\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 3147988346903478

@@ -35,7 +35,11 @@ public static class ProjectPermissions
         // View CHIA SẺ (ADR-061): cùng mức "cấu hình cả đội nhìn thấy" với ba cái trên.
         // 🔴 View RIÊNG KHÔNG đi qua đây — mọi vai trò tự tạo/sửa/xoá view của chính mình,
         // luật đó nằm ở SavedViewService vì nó cần dữ liệu per-row (ai là chủ sở hữu).
-        or ProjectAction.ManageSavedViews => role is RoleInProject.ProjectManager,
+        or ProjectAction.ManageSavedViews
+        // Luật duyệt (ADR-062): cùng mức "cấu hình cả đội chịu tác động". 🔴 Đây chỉ gác việc
+        // DỰNG luật — việc KÝ một yêu cầu duyệt đi theo ApproverMode của luật đó, không qua
+        // đây (xem XML doc ở ProjectAction.ManageApprovalPolicies).
+        or ProjectAction.ManageApprovalPolicies => role is RoleInProject.ProjectManager,
 
         ProjectAction.CreateSubtask => role is RoleInProject.ProjectManager
                                             or RoleInProject.Member,

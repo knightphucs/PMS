@@ -1,0 +1,35 @@
+$kind: http-request
+name: Decide an approval
+url: "{{api_url}}/approvals/:id/decisions"
+method: POST
+pathVariables:
+  - key: id
+    value: ""
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: "{\r
+
+    \    \"decision\": \"Approve\",\r
+
+    \    \"comment\": \"string\"\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4503595954829162
