@@ -22,6 +22,7 @@ import { TaskCard } from '@/components/board/task-card';
 import { errorMessage } from '@/lib/api/problem';
 import { useChangeTaskStatus, usePinTask } from '@/lib/hooks/use-board';
 import { canChangeTaskStatus, canManageTasks } from '@/lib/tasks/permissions';
+import { notifyStatusChangeFailure } from '@/lib/tasks/status-change-toast';
 import { cn } from '@/lib/utils';
 import { type RoleInProject } from '@/types/enums';
 import type { BoardResponse, TaskSummaryResponse } from '@/types/task';
@@ -163,12 +164,15 @@ export function BoardView({
     try {
       await changeStatus.mutateAsync({ taskId: task.id, targetColumnId });
     } catch (error) {
-      // Hai lỗi client KHÔNG đoán trước được, và cả hai đều đã có câu tiếng Việt giải
-      // thích đúng lý do ở `title` của backend:
+      // Ba kết cục client KHÔNG đoán trước được, cả ba đều đã có câu tiếng Việt giải thích
+      // đúng lý do ở `title` của backend:
       //   409 — task đang bị TaskLink loại IsBlockedBy chặn (chỉ khi đích là InProgress)
       //   403 — không phải assignee và cũng không phải PM
+      //   409 — cột đích có CỔNG DUYỆT (ADR-062). ⚠️ Ca này không hẳn là lỗi: yêu cầu duyệt
+      //         vừa được gửi đi giúp người dùng, nên `notifyStatusChangeFailure` hiện nó
+      //         bằng toast trung tính thay vì toast đỏ.
       // Cache đã tự trả thẻ về chỗ cũ ở `onError` của hook.
-      toast.error(errorMessage(error));
+      notifyStatusChangeFailure(error);
     } finally {
       setPending((prev) => {
         const next = new Set(prev);

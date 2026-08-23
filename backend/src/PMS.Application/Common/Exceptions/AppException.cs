@@ -2,6 +2,22 @@ namespace PMS.Application.Common.Exceptions;
 public abstract class AppException : Exception
 {
     public abstract int StatusCode { get; }
+
+    /// <summary>
+    /// Mã máy đọc được, đi kèm phản hồi lỗi dưới dạng <c>code</c> trong ProblemDetails.
+    /// <c>null</c> với hầu hết lỗi — chỉ đặt khi client phải **xử lý khác nhau** giữa hai lỗi
+    /// cùng mã HTTP.
+    ///
+    /// <para>
+    /// 🔴 Tồn tại để client khỏi phải **dò chuỗi thông điệp**. Ca đầu tiên cần nó là cổng
+    /// duyệt (ADR-062): cả ba nhánh đều là 409, nhưng "đã gửi yêu cầu duyệt giúp bạn" là
+    /// tin vui còn "đã bị từ chối" là tin xấu — hiện cả hai thành một toast đỏ là nói dối
+    /// người dùng về thứ vừa xảy ra. Khớp theo `title` sẽ là hai nơi cùng dựng một luật, đúng
+    /// lớp lỗi ADR-034 đã trả giá.
+    /// </para>
+    /// </summary>
+    public string? Code { get; init; }
+
     protected AppException(string message) : base(message) { }
 }
 

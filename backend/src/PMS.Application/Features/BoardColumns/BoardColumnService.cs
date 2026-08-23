@@ -163,12 +163,22 @@ public class BoardColumnService : IBoardColumnService
                 moved, columnId, targetId);
         }
 
+        // 🔴 ApprovalPolicies treo dưới BoardColumns bằng Restrict (ADR-062, sơ đồ cascade ở
+        // ApprovalConfigurations): còn một luật duyệt lấy cột này làm ĐÍCH thì DELETE ném
+        // DbUpdateException -> 500.
+        //
+        // Xoá theo chứ không chuyển sang cột đích: một luật duyệt nói "cần chữ ký để vào CỘT
+        // NÀY", và cột đó vừa bị xoá — mang luật sang cột khác là bịa thêm một cổng mà người
+        // dùng chưa từng khai, và cổng đó sẽ chặn công việc thật.
+        var removedPolicies = await _uow.Approvals.DeletePoliciesForAsync(null, columnId, ct);
+
         _uow.BoardColumns.Remove(column);
 
         _activityLog.Log(nameof(Project), column.ProjectId, ActivityAction.Updated,
-            taskCount > 0
+            (taskCount > 0
                 ? $"Xóa cột board '{column.Name}', chuyển {taskCount} task sang cột khác"
-                : $"Xóa cột board '{column.Name}'");
+                : $"Xóa cột board '{column.Name}'")
+            + (removedPolicies > 0 ? $"; gỡ {removedPolicies} luật duyệt theo" : ""));
 
         await _uow.SaveChangesAsync(ct);
     }

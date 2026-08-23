@@ -23,6 +23,10 @@ public class PmsDbContext : DbContext
     public DbSet<SavedView> SavedViews => Set<SavedView>();
     public DbSet<SavedViewFilter> SavedViewFilters => Set<SavedViewFilter>();
     public DbSet<SavedViewColumn> SavedViewColumns => Set<SavedViewColumn>();
+    public DbSet<ApprovalPolicy> ApprovalPolicies => Set<ApprovalPolicy>();
+    public DbSet<ApprovalPolicyApprover> ApprovalPolicyApprovers => Set<ApprovalPolicyApprover>();
+    public DbSet<Approval> Approvals => Set<Approval>();
+    public DbSet<ApprovalDecision> ApprovalDecisions => Set<ApprovalDecision>();
     public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
     public DbSet<TaskAssignment> TaskAssignments => Set<TaskAssignment>();
     public DbSet<Watcher> Watchers => Set<Watcher>();

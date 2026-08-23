@@ -1,0 +1,45 @@
+$kind: http-request
+name: Update approval policy
+url: "{{api_url}}/approval-policies/:id"
+method: PUT
+pathVariables:
+  - key: id
+    value: ""
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: "{\r
+
+    \    \"workItemTypeId\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\r
+
+    \    \"targetColumnId\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\r
+
+    \    \"approverMode\": \"ProjectManagers\",\r
+
+    \    \"minApprovals\": 0,\r
+
+    \    \"approverIds\": [\r
+
+    \        \"3fa85f64-5717-4562-b3fc-2c963f66afa6\"\r
+
+    \    ]\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4503524323104743

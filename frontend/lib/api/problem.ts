@@ -33,17 +33,26 @@ export class ApiError extends Error {
   readonly traceId?: string;
   /** Map field -> danh sách thông điệp. Chỉ có ở lỗi validate (400). */
   readonly fieldErrors?: Record<string, string[]>;
+  /**
+   * Mã máy đọc được, chỉ có ở những lỗi mà client phải **xử lý khác nhau** dù cùng mã HTTP.
+   *
+   * 🔴 Có để khỏi phải **dò chuỗi thông điệp**. Ca đầu tiên là cổng duyệt (ADR-062): ba nhánh
+   * đều 409, nhưng "đã gửi yêu cầu duyệt giúp bạn" là tin trung tính còn "đã bị từ chối" là
+   * tin xấu. Khớp theo `message` sẽ hỏng im lặng ngay lần đầu có ai sửa câu văn ở backend.
+   */
+  readonly code?: string;
 
   constructor(
     status: number,
     message: string,
-    options?: { traceId?: string; fieldErrors?: Record<string, string[]> },
+    options?: { traceId?: string; fieldErrors?: Record<string, string[]>; code?: string },
   ) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.traceId = options?.traceId;
     this.fieldErrors = options?.fieldErrors;
+    this.code = options?.code;
   }
 
   get isValidation() {
@@ -98,6 +107,8 @@ interface ProblemDetailsShape {
   status?: number;
   traceId?: string;
   errors?: Record<string, string[]>;
+  /** Chỉ có ở những lỗi cố ý gắn mã — xem `AppException.Code` ở backend. */
+  code?: string;
 }
 
 /** Đọc phản hồi lỗi một cách an toàn trước cả bốn hình dạng ở đầu file. */
@@ -132,7 +143,32 @@ export async function toApiError(response: Response): Promise<ApiError> {
 
   return new ApiError(status, problem.title?.trim() || fallback, {
     traceId: problem.traceId,
+    code: problem.code,
   });
+}
+
+/**
+ * Mã lỗi của cổng duyệt (ADR-062) — bản sao hợp đồng của `ApprovalCodes` ở backend.
+ *
+ * ⚠️ Đây là hai nơi cùng giữ một danh sách, thứ dự án vốn tránh (ADR-034). Chấp nhận ở đây
+ * vì nó là **hợp đồng qua dây**, không phải một luật được tính hai lần: giá trị chỉ được
+ * *so sánh*, không được *dựng lại*, nên lệch nhau thì nhánh xử lý im lặng không chạy chứ
+ * không cho ra hai kết quả khác nhau. Đổi ở một đầu thì phải đổi ở đầu kia.
+ */
+export const APPROVAL_CODES = {
+  requested: 'approval_requested',
+  pending: 'approval_pending',
+  rejected: 'approval_rejected',
+} as const;
+
+/**
+ * Lần chuyển cột này có **gửi giúp một yêu cầu duyệt** không.
+ *
+ * 🔴 Đây là 409 duy nhất mà thao tác đã thành công một nửa — hiện nó thành toast đỏ là nói
+ * dối, và người dùng sẽ bấm lại vì tưởng chưa có gì xảy ra.
+ */
+export function isApprovalRequested(error: unknown): boolean {
+  return error instanceof ApiError && error.code === APPROVAL_CODES.requested;
 }
 
 /** Lấy thông điệp hiển thị được từ bất kỳ lỗi nào, kể cả lỗi không phải của API. */

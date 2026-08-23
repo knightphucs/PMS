@@ -152,12 +152,23 @@ public class WorkItemTypeService : IWorkItemTypeService
             await _uow.WorkItemTypes.MoveAllTasksAsync(typeId, targetId, ct);
         }
 
+        // 🔴 ApprovalPolicies treo dưới WorkItemTypes bằng Restrict (ADR-062, sơ đồ cascade ở
+        // ApprovalConfigurations), nên còn một luật duyệt trỏ tới loại này là DELETE ném
+        // DbUpdateException -> 500. Không đỏ lúc biên dịch, và nổ ở một đường xoá mà bộ test
+        // đã đi qua sẵn nên trông y hệt một lỗi có sẵn.
+        //
+        // Xoá theo chứ không chuyển sang loại đích: một luật duyệt nói về loại việc CỤ THỂ
+        // ("Change Request cần 2 chữ ký"), và mang nó sang một loại khác là bịa ra một luật
+        // người dùng chưa từng khai.
+        var removedPolicies = await _uow.Approvals.DeletePoliciesForAsync(typeId, null, ct);
+
         _uow.WorkItemTypes.Remove(type);
 
         _activityLog.Log(nameof(Project), type.ProjectId, ActivityAction.Updated,
-            taskCount > 0
+            (taskCount > 0
                 ? $"Xoá loại công việc '{type.Name}', chuyển {taskCount} task sang loại khác"
-                : $"Xoá loại công việc '{type.Name}'");
+                : $"Xoá loại công việc '{type.Name}'")
+            + (removedPolicies > 0 ? $"; gỡ {removedPolicies} luật duyệt theo" : ""));
 
         await _uow.SaveChangesAsync(ct);
     }

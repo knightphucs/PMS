@@ -2,6 +2,7 @@
 
 import { useParams } from 'next/navigation';
 
+import { ManageApprovalPoliciesDialog } from '@/components/approvals/manage-approval-policies-dialog';
 import { ManageColumnsDialog } from '@/components/board/manage-columns-dialog';
 import { EmptyState } from '@/components/common/empty-state';
 import { PageHeader } from '@/components/common/page-header';
@@ -35,7 +36,7 @@ export default function ProjectSettingsPage() {
     return (
       <EmptyState
         title="Không có quyền cấu hình dự án"
-        description="Chỉ quản lý dự án mới sửa được cột, trường tuỳ biến và loại công việc."
+        description="Chỉ quản lý dự án mới sửa được cột, trường tuỳ biến, loại công việc và luật duyệt."
       />
     );
 
@@ -43,7 +44,7 @@ export default function ProjectSettingsPage() {
     <div className="grid min-w-0 gap-4">
       <PageHeader
         title="Cấu hình dự án"
-        description="Cột, trường tuỳ biến và loại công việc — những thứ định hình cách cả đội nhìn công việc."
+        description="Cột, trường tuỳ biến, loại công việc và luật duyệt — những thứ định hình cách cả đội làm việc."
       />
 
       <div className="grid gap-3">
@@ -61,6 +62,11 @@ export default function ProjectSettingsPage() {
           title="Loại công việc"
           description="Sự cố, Yêu cầu, Change Request… Mỗi loại lộ ra một tập trường khác nhau, và đánh dấu trường nào bắt buộc."
           action={<ManageWorkItemTypesDialog projectId={id} />}
+        />
+        <SettingRow
+          title="Luật duyệt"
+          description="Bắt một loại công việc phải có chữ ký mới vào được một cột. Yêu cầu duyệt gửi tự động khi có người chuyển task sang cột đó."
+          action={<ManageApprovalPoliciesDialog projectId={id} />}
         />
       </div>
     </div>

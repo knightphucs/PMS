@@ -1,0 +1,12 @@
+$kind: http-request
+name: Update profile
+url: "{{api_url}}/auth/profile"
+method: PUT
+body:
+  type: json
+  content: "{\r\n    \"name\": \"string\"\r\n}"
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4503313946772979

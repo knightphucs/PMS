@@ -1,0 +1,25 @@
+$kind: http-request
+name: Accept token invite
+url: "{{api_url}}/invitations/:token/accept"
+method: POST
+pathVariables:
+  - key: token
+    value: ""
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4159224300269944

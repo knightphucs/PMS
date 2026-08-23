@@ -21,7 +21,7 @@ public class ExceptionHandlingMiddleware
         catch (AppException ex)
         {
             _logger.LogInformation("Business exception: {Message}", ex.Message);
-            await Write(context, ex.StatusCode, ex.Message);
+            await Write(context, ex.StatusCode, ex.Message, ex.Code);
         }
         catch (DomainException ex)
         {
@@ -42,13 +42,18 @@ public class ExceptionHandlingMiddleware
         }
     }
 
-    private static async Task Write(HttpContext ctx, int status, string message)
+    private static async Task Write(HttpContext ctx, int status, string message, string? code = null)
     {
         var problem = new ProblemDetails
         {
             Status = status, Title = message,
             Extensions = { ["traceId"] = ctx.TraceIdentifier }
         };
+
+        // Chỉ gắn khi có — thêm một `"code": null` vào MỌI phản hồi lỗi là rác trên đường
+        // truyền và một trường mà client sẽ tưởng là luôn dùng được.
+        if (code is not null) problem.Extensions["code"] = code;
+
         ctx.Response.StatusCode = status;
         ctx.Response.ContentType = "application/problem+json";
         await ctx.Response.WriteAsJsonAsync(problem);

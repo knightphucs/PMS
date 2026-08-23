@@ -1,0 +1,69 @@
+$kind: http-request
+name: Update view
+url: "{{api_url}}/views/:id"
+method: PUT
+pathVariables:
+  - key: id
+    value: ""
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: "{\r
+
+    \    \"name\": \"string\",\r
+
+    \    \"isShared\": true,\r
+
+    \    \"sortBy\": \"Name\",\r
+
+    \    \"sortDescending\": true,\r
+
+    \    \"groupBy\": \"Name\",\r
+
+    \    \"filters\": [\r
+
+    \        {\r
+
+    \            \"field\": \"Name\",\r
+
+    \            \"fieldDefinitionId\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\r
+
+    \            \"operator\": \"Equals\",\r
+
+    \            \"value\": \"string\"\r
+
+    \        }\r
+
+    \    ],\r
+
+    \    \"columns\": [\r
+
+    \        {\r
+
+    \            \"field\": \"Name\",\r
+
+    \            \"fieldDefinitionId\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\"\r
+
+    \        }\r
+
+    \    ]\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4476918285979913

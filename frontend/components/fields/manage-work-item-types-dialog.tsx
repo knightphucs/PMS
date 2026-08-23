@@ -195,7 +195,16 @@ export function ManageWorkItemTypesDialog({ projectId }: { projectId: string }) 
               <Label htmlFor="target-type">Chuyển task sang</Label>
               <Select value={targetId} onValueChange={(v) => setTargetId(v ?? '')}>
                 <SelectTrigger id="target-type" className="w-full">
-                  <SelectValue placeholder="Chọn loại đích" />
+                  {/* 🔴 PHẢI có render prop — `SelectValue` trần của Base UI in ra chính GIÁ
+                      TRỊ của ô, ở đây là một Guid. Lỗi có sẵn từ ADR-060, phát hiện 2026-08-23
+                      khi cùng hình dạng lỗi lộ ra ở dialog luật duyệt. Ô này chỉ hiện khi loại
+                      đang xoá CÒN task, nên nó nằm ngoài đường đi thường ngày — đúng lớp lỗi
+                      "thứ cần kiểm chứng chưa có ai gọi tới" mà §15 đã đặt tên. */}
+                  <SelectValue placeholder="Chọn loại đích">
+                    {(current: string) =>
+                      others.find((t) => t.id === current)?.name ?? 'Chọn loại đích'
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {others.map((t) => (

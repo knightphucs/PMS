@@ -1,0 +1,26 @@
+$kind: http-request
+name: Delete view
+url: "{{api_url}}/views/:id"
+method: DELETE
+pathVariables:
+  - key: id
+    value: ""
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"
+order: 4502622155489914

@@ -10,6 +10,7 @@ public interface IUnitOfWork
     IFieldDefinitionRepository FieldDefinitions { get; }
     IWorkItemTypeRepository WorkItemTypes { get; }
     ISavedViewRepository SavedViews { get; }
+    IApprovalRepository Approvals { get; }
     IRepository<FieldValue> FieldValues { get; }
     IEmployeeRepository Employees { get; }
     IRefreshTokenRepository RefreshTokens { get; }
