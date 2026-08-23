@@ -5,21 +5,19 @@
 > Mục đích: đảm bảo tính nhất quán xuyên suốt quá trình phát triển, và làm tài liệu
 > tham chiếu cho báo cáo thực tập tốt nghiệp.
 >
-> Cập nhật lần cuối: **2026-08-05** (phiên **cột board tuỳ biến + vòng đời Sprint + Việc của tôi** — ADR-050/052/053)
+> Cập nhật lần cuối: **2026-08-23** (dọn banner này — xem lý do ngay dưới)
 
 > ## 🧭 Bắt đầu phiên mới ở đây
-> **Trạng thái: KHÔNG CÒN MÀN HÌNH NÀO ⬜ trong lộ trình ban đầu.** **480 test backend
-> (223 unit + 257 integration) + 69 test frontend**, build 0 warning **và có
-> `TreatWarningsAsErrors`** nên con số đó là một điều kiện chứ không còn là một quan sát.
+> **Banner này giữ BẪY KỸ THUẬT còn hiệu lực vĩnh viễn — KHÔNG phải trạng thái theo ngày.**
+> Muốn biết tiến độ/lộ trình hiện tại, đọc **§0** (Định hướng sản phẩm) rồi **§1** (bảng
+> tiến độ + lộ trình các phiên tiếp theo): hai mục đó được cập nhật mỗi phiên, banner này
+> thì không luôn theo kịp.
 >
-> ⚠️ **Hai con số test GIẢM so với bản trước (489 → 480 backend, 89 → 69 frontend) và đó là
-> ĐÚNG, không phải mất test.** ADR-052 gỡ ma trận chuyển trạng thái, nên ~29 test khóa một
-> luật **không còn tồn tại** đã bị xóa cùng thứ chúng bảo vệ. Ba trong số đó bị **đảo chiều**
-> chứ không xóa (409 → 200) — xem bảng trong ADR-052. Đừng "khôi phục" chúng.
->
-> Phiên 2026-08-05 làm ba việc lớn: **cột board tuỳ biến theo từng project** (ADR-052 — thay
-> đổi lớn nhất dự án tính tới nay), **vòng đời Sprint** (ADR-050, mở khóa velocity), và
-> **"Việc của tôi" xuyên dự án** (ADR-053).
+> 🔴 **Bài học đã trả giá bằng chính banner này.** Tới lúc dọn (2026-08-23) nó vẫn ghi "480
+> test, ADR-052 là thứ mới nhất" — lạc hậu qua **năm ADR** (057 → 061) mà không ai sửa, vì
+> nó tự giới thiệu như một "trạng thái hiện tại" trong khi đúng ra phải là một danh sách bẫy
+> không đổi theo thời gian. Một số con số/lộ trình theo ngày đã bị cắt khỏi bên dưới; phần
+> còn lại là bẫy kỹ thuật đã kiểm là vẫn đúng.
 >
 > ### 🔑 Sáu điều phải biết trước khi đụng vào code
 > - **Phân quyền tầng 1 nay là DỮ LIỆU, không phải code** (ADR-045). Năm mã trong danh mục
@@ -50,20 +48,10 @@
 >   để biết vì sao chấp nhận dữ liệu trùng. Người ghi duy nhất là `TaskItem.MoveTo`; đổi nhóm
 >   của một cột **bắt buộc** gọi `SyncTaskCategoriesAsync` cho mọi task trong cột đó.
 >
-> ### ➡️ Phiên tiếp theo — hai hạng mục, không cái nào chặn cái nào
-> 1. **Nhóm báo cáo kiểu Jira** — backlog insight, velocity, report, timeline.
->    ✅ **Velocity nay ĐÃ mở khóa**: `Sprint.CompletedAt` là mốc đo (ADR-050 đã cài đặt
->    2026-08-05). Sidebar đã có sẵn nhóm **LẬP KẾ HOẠCH** để thêm mục "Báo cáo" (ADR-051).
->    ⚠️ Đọc ADR-052 trước khi tính toán bất cứ thứ gì theo trạng thái: **cột là dữ liệu của
->    từng project**, nên biểu đồ phải gom theo `columnId`/`category`, không theo một enum
->    cố định — và số cột khác nhau giữa các project.
-> 2. **Áp kỹ thuật DB** — trigger, stored procedure, view, index. ⚠️ **Không có giao diện
->    nào** — đừng kỳ vọng nó lấp chỗ trên sidebar. *(Xa hơn: Elasticsearch cho Search toàn
->    cục, Redis cho cache + rate limit phân tán.)*
->
-> Còn lại, nhỏ hơn: **đường GHI cho hồ sơ cá nhân** (`PUT /employees/me` + đổi mật khẩu khi
-> đã đăng nhập) — đọc **ADR-049** trước, vấn đề không nằm ở endpoint mà ở chỗ `/auth/me`
-> dựng DTO từ claim. Và **SignalR** (§6).
+> *(Một mục "Phiên tiếp theo" từng nằm ở đây, liệt kê hai hạng mục — cả hai đã xong từ
+> ADR-055/056 nên đã bị cắt hẳn thay vì sửa lại: đúng cái loại nội dung banner này không nên
+> giữ. Nguồn đúng cho lộ trình phiên tiếp theo là **§1** trong file này và
+> `docs/frontend-next-session.md` §000.)*
 >
 > ### 🪤 Ba cái bẫy mới, đã trả giá — đừng phát hiện lại
 > - **`AuthController.Me()` dựng DTO từ CLAIM chứ không đọc DB.** Thêm trường vào
@@ -73,15 +61,6 @@
 >   sách attribute, đặt xen giữa làm 15 cảnh báo quay lại.
 > - **Lưu quyền ở `/admin/roles` tự đăng xuất chính admin đang bấm.** Đúng hợp đồng bảo mật
 >   (thu hồi mọi phiên của vai trò đó), banner đã nói rõ — đừng "sửa".
->
-> ### 📌 Ba đính chính với tài liệu cũ
-> - **`?search=` KHÔNG phải "chỉ Employee + Notification"** — 5/6 repository vẫn luôn lọc
->   thật; chỉ `ActivityLogRepository` là không, và nay đã sửa. Điều còn đúng: nó chỉ lọc
->   **một trường** mỗi endpoint nên không thay được search toàn cục.
-> - **Không thiếu 7 index khóa ngoại** — đã kiểm `sys.indexes` trên DB thật, 6/7 đã có do EF
->   tự sinh theo quy ước. Chỉ index ghép `(DueDate, Status)` là thật sự thiếu.
-> - **`GET /projects/{id}/statistics` từng hỏng 500 ở MỌI lần gọi** suốt từ ngày viết
->   (2026-08-03) tới 2026-08-04, trong khi tài liệu ghi ✅ — vì chưa có test nào gọi tới.
 >
 > ### 🔑 Ba điều của phiên chi tiết-Task vẫn còn hiệu lực
 > - **`PUT /tasks/{id}` là GHI ĐÈ TOÀN PHẦN, không phải PATCH** (ADR-044). Trường nào không
@@ -120,8 +99,15 @@
 >
 > - **Mọi cột đều là đích hợp lệ**, kể cả "nhảy bước". Kéo thẻ về đúng cột nó đang đứng nay
 >   trả **200** (no-op) chứ không 409 — vẫn nên chặn ở client để khỏi bắn request thừa.
-> - Guard **duy nhất** còn lại: task đang bị `Blocks`/`IsBlockedBy` chặn thì không vào được
->   cột thuộc **nhóm `InProgress`** → **409**. Điều kiện là `category`, **không phải tên cột**.
+> - 🆕 **HAI guard, không còn một** (ADR-062 thêm guard thứ hai 2026-08-23 — sửa lại đoạn
+>   "duy nhất" từng ghi ở đây, nó đã sai từ hôm đó):
+>   1. Task đang bị `Blocks`/`IsBlockedBy` chặn thì không vào được cột thuộc **nhóm
+>      `InProgress`** → **409**. Điều kiện là `category`, **không phải tên cột**.
+>   2. Cột đích có **cổng duyệt** (`ApprovalPolicy`, ADR-062) thì lần đầu chạm tới sẽ **tự
+>      sinh một yêu cầu duyệt** rồi trả **409** — task không di chuyển, nhưng yêu cầu ĐÃ
+>      được gửi. Đây là 409 duy nhất trong hệ thống mà thao tác thành công một nửa; client
+>      phân biệt nó với lỗi thật qua `ApiError.code === 'approval_requested'`, không phải
+>      qua status code. Chi tiết: `TaskStatusTransitionService.EnsureApprovedAsync`.
 > - `PATCH /tasks/{id}/status` và `PUT /tasks/{id}/sprint` **KHÔNG** cần `RowVersion`
 >   (ADR-021), nhưng `PUT /tasks/{id}` thì **bắt buộc**.
 >   ⚠️ Thân request nay là `{ targetColumnId }` (Guid), **không phải** `{ target }` (enum).
