@@ -32,7 +32,15 @@ export type TaskField =
   | 'Reporter'
   | 'DueDate'
   | 'StoryPoints'
-  | 'CreatedAt';
+  | 'CreatedAt'
+  /**
+   * Trạng thái duyệt hiện thời (ADR-063) — giá trị là một `TaskApprovalState`.
+   *
+   * ⚠️ Trường dựng sẵn ĐẦU TIÊN không phải một cột của bảng Tasks: nó là phép chiếu của
+   * bảng `Approvals` xuống task. Hệ quả ở UI: **không sắp xếp theo nó được** (backend cho
+   * nó rơi về thứ tự mặc định), nên đừng bày nó ra ở ô "Sắp xếp theo".
+   */
+  | 'ApprovalState';
 
 export const TASK_FIELD_LABEL: Record<TaskField, string> = {
   Name: 'Tên task',
@@ -46,6 +54,45 @@ export const TASK_FIELD_LABEL: Record<TaskField, string> = {
   DueDate: 'Hạn hoàn thành',
   StoryPoints: 'Story Points',
   CreatedAt: 'Ngày tạo',
+  ApprovalState: 'Trạng thái duyệt',
+};
+
+/**
+ * Các trường SẮP XẾP được. `ApprovalState` cố ý vắng mặt — xem XML doc của nó.
+ *
+ * 🔴 Danh sách này tồn tại thay vì `Object.keys(TASK_FIELD_LABEL)`: bày ra một khoá sắp
+ * xếp mà backend lặng lẽ bỏ qua là hứa với người dùng một thứ tự không tồn tại, và họ chỉ
+ * phát hiện bằng cách nhìn kết quả và tự nghi ngờ mắt mình.
+ */
+export const SORTABLE_TASK_FIELDS: readonly TaskField[] = [
+  'Name',
+  'BoardColumn',
+  'Category',
+  'Priority',
+  'WorkItemType',
+  'Sprint',
+  'Reporter',
+  'DueDate',
+  'StoryPoints',
+  'CreatedAt',
+];
+
+/**
+ * Trạng thái duyệt của một task, nhìn từ phía người lọc danh sách (ADR-063).
+ *
+ * ⚠️ KHÔNG phải `ApprovalStatus` (vòng đời của MỘT yêu cầu duyệt). Đây là phép chiếu của
+ * các yêu cầu **còn hiệu lực** xuống chính task — hai enum không thay thế nhau được.
+ *
+ * 📌 Cố ý không có "chờ TÔI duyệt": một `SavedView` lưu giá trị **literal**, nên một view
+ * CHIA SẺ mang điều kiện đó sẽ nói dối mọi người trừ tác giả của nó.
+ */
+export type TaskApprovalState = 'None' | 'Pending' | 'Approved' | 'Rejected';
+
+export const TASK_APPROVAL_STATE_LABEL: Record<TaskApprovalState, string> = {
+  None: 'Không cần duyệt',
+  Pending: 'Đang chờ ký',
+  Approved: 'Đã duyệt, chờ chuyển',
+  Rejected: 'Bị từ chối',
 };
 
 /** Danh mục ĐÓNG. Toán tử nào hợp lệ với trường nào do `FilterValueKind` quyết định. */
@@ -99,6 +146,7 @@ export function kindOfTaskField(field: TaskField): FilterValueKind {
       return 'Reference';
     case 'Category':
     case 'Priority':
+    case 'ApprovalState':
       return 'Enum';
     case 'DueDate':
     case 'CreatedAt':

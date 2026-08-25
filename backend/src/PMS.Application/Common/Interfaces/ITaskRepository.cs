@@ -82,4 +82,35 @@ public interface ITaskRepository : IRepository<TaskItem>
     Task<IReadOnlyList<TaskItem>> GetDueSoonOrOverdueWithTargetsAsync(
         int horizonDays, CancellationToken ct = default);
     Task<int> CountActiveAssignedAsync(Guid projectId, Guid employeeId, CancellationToken ct = default);
+
+    // ---------- Cổng yêu cầu (ADR-063) ----------
+
+    /// <summary>
+    /// Các yêu cầu do <paramref name="reporterId"/> gửi — xuyên dự án, mới nhất trước.
+    ///
+    /// <para>
+    /// 🔑 <b>Vị từ <c>ReporterId == reporterId</c> CHÍNH LÀ phép phân quyền</b>, không phải
+    /// một bộ lọc tiện lợi chồng lên một lượt kiểm khác. Cùng khuôn với
+    /// <see cref="GetMyOpenAssignedTasksAsync"/> (ADR-053) — xem XML doc ở
+    /// <c>TaskService.GetMyWorkAsync</c> để biết vì sao khuôn đó hợp lệ.
+    /// </para>
+    /// <para>
+    /// ⚠️ Chỉ trả task được tạo QUA CỔNG, nhận diện bằng <c>WorkItemType.IsRequestable</c>.
+    /// Không lọc theo cờ đó thì màn "Yêu cầu của tôi" sẽ hiện cả task nội bộ mà chính người
+    /// đó tạo trong project họ là thành viên — đúng nhưng không phải thứ màn này nói nó là.
+    /// </para>
+    /// </summary>
+    Task<PagedResult<TaskItem>> GetRequestsByReporterAsync(
+        Guid reporterId, int page, int pageSize, CancellationToken ct = default);
+
+    /// <summary>
+    /// Một yêu cầu của chính người gửi, kèm mọi thứ màn chi tiết chỉ-đọc cần (project, loại,
+    /// cột, giá trị trường, yêu cầu duyệt còn hiệu lực).
+    /// <para>
+    /// Trả <c>null</c> khi id không tồn tại <b>hoặc</b> người gọi không phải người gửi —
+    /// hai ca không phân biệt được từ phía client, đúng chủ đích (guard G3).
+    /// </para>
+    /// </summary>
+    Task<TaskItem?> GetRequestForReporterAsync(
+        Guid taskId, Guid reporterId, CancellationToken ct = default);
 }

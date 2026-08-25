@@ -1,233 +1,178 @@
 # Chuẩn bị cho phiên Frontend kế tiếp
 
-> **Cập nhật 2026-08-23** — **đọc §000 trước**. Mọi mục bên dưới là hồ sơ của các phiên cũ.
-> Đọc cùng `ARCHITECTURE.md` **§0 (Định hướng sản phẩm)**, §1 (bảng tiến độ) và
-> **ADR-061 → ADR-064**. Lệnh vận hành: `docs/RUNBOOK.md`.
+> **Cập nhật 2026-08-25** — **đọc §000 trước**. Mọi mục bên dưới là hồ sơ của các phiên cũ.
+> Đọc cùng `ARCHITECTURE.md` **§0 (Định hướng sản phẩm)**, §1 (bảng tiến độ) và **ADR-064**.
+> Lệnh vận hành: `docs/RUNBOOK.md`.
 
 ---
 
-## 000. 🆕 Phiên kế tiếp — CỔNG YÊU CẦU (ADR-063), rồi KHUÔN DỰ ÁN (ADR-064)
+## 000. 🆕 Phiên kế tiếp — KHUÔN DỰ ÁN (ADR-064), hạng mục CUỐI của Giai đoạn 2.5
 
-> ✅ **ADR-062 ĐÃ XONG 2026-08-23.** Hệ thống nay có **ĐỘNG TỪ đầu tiên**: một PM khai được
-> luật *"Change Request cần 2 chữ ký mới vào được cột Đang xử lý"* bằng cấu hình, và luật đó
-> **thật sự chặn** — có mutation test chứng minh. Còn lại của Giai đoạn 2.5: ADR-063 (cổng
-> yêu cầu) → ADR-064 (khuôn dự án). Cả hai đã viết đầy đủ ở cuối §15 `ARCHITECTURE.md`.
+> ✅ **ADR-063 ĐÃ XONG 2026-08-25.** Hệ thống nay có **cả hai nửa của một service desk**:
+> người ngoài phòng ban gửi được yêu cầu vào (cổng tiếp nhận), và yêu cầu đó đi qua được
+> luật duyệt (ADR-062). Còn đúng **một** hạng mục của Giai đoạn 2.5: **ADR-064 — khuôn dự
+> án**, thứ biến hai cơ chế rời rạc thành một sản phẩm bấm được.
 
-### Trạng thái khi bàn giao — 2026-08-23
+### Trạng thái khi bàn giao — 2026-08-25
 
-**638 test backend** (249 unit + **389** integration) + 72 test frontend, 0 đỏ.
+**673 test backend** (261 unit + **412** integration) + 72 test frontend, 0 đỏ.
 typecheck · lint · `next build` sạch. Drift check `Up()` rỗng.
 
 | ADR | Nội dung |
 |---|---|
-| **061** | `SavedView` + `SavedViewFilter` + `SavedViewColumn` · 6 endpoint · 27 test · tab **Danh sách** + tab **Cấu hình** |
-| **062** | `ApprovalPolicy` + `ApprovalPolicyApprover` + `Approval` + `ApprovalDecision` · 7 endpoint · 24 test · khối **Phê duyệt** ở chi tiết task + hàng thứ tư ở `/settings` |
+| **061** | `SavedView` + 6 endpoint + tab **Danh sách** + gom cấu hình về `/settings` |
+| **062** | `ApprovalPolicy` + `Approval` + 7 endpoint + khối **Phê duyệt** ở chi tiết task |
+| **063** | `IsRequestable` + `RequestInstructions` + `TaskApprovalState` + `TaskField.ApprovalState` · 5 endpoint `/request-portal/*` · 28 test · 3 route `/requests/*` |
 
-🔴 **Bốn thứ của phiên ADR-062 cần biết trước khi làm tiếp:**
+### ✅ Nợ kiểm chứng — ĐÃ TRẢ HẾT (2026-08-25)
 
-1. **Yêu cầu duyệt TỰ SINH, không có endpoint nào tạo nó.** Kéo task vào cột có cổng →
-   `PATCH /tasks/{id}/status` trả **409** *và* tạo hàng `Approval` trong chính lần gọi đó.
-   ⚠️ **Đừng dựng nút "Gửi duyệt"** — đọc ADR-062 quyết định (a) trước nếu định làm.
-2. **`AppException.Code` là hạ tầng MỚI, dùng lại được.** Khi hai lỗi cùng mã HTTP mà client
-   phải xử lý khác nhau, gắn `Code` thay vì để client dò chuỗi thông điệp. Nó chảy ra
-   `code` trong ProblemDetails → `ApiError.code` ở frontend. Ca đầu tiên: `ApprovalCodes`
-   (`approval_requested` / `_pending` / `_rejected`), vì "đã gửi yêu cầu giúp bạn" là tin
-   trung tính còn "đã bị từ chối" là tin xấu.
-   ⚠️ Danh sách mã tồn tại ở **hai** đầu (`ApprovalCodes` ở backend, `APPROVAL_CODES` ở
-   `lib/api/problem.ts`) — đổi một đầu phải đổi đầu kia.
-3. **Quyền KÝ không đi qua `RoleInProject`** mà theo `ApproverMode` của luật. Đây là ngoại
-   lệ có chủ đích thứ hai của mô hình hai tầng (thứ nhất là `Notification`, ADR-023), có
-   test riêng canh. **Đừng "sửa" nó về cho nhất quán** — với `NamedApprovers` thì một PM
-   ngoài danh sách nhận 403, và đó chính là điểm của chế độ đó.
-4. **`ApprovalPolicies` treo dưới `WorkItemTypes`/`BoardColumns` bằng `Restrict`.** Thêm bất
-   kỳ đường xoá mới nào chạm tới loại việc hoặc cột board thì phải dọn policy trước, nếu
-   không là **500**. Đã xử ở `WorkItemTypeService.DeleteAsync` và
-   `BoardColumnService.DeleteAsync`, mỗi chỗ có một test canh.
+Đây là phiên **đầu tiên có công cụ trình duyệt**, và món nợ treo qua nhiều phiên đã trả xong.
 
-📌 **Khoảng trống đã biết, ghi thẳng chứ không giấu:** ADR-061 hứa *"hàng đợi chính là một
-view lưu được"*. Với phê duyệt, lời hứa đó **chưa đứng được** — cần một
-`TaskField.ApprovalState` để `POST /tasks/query` lọc theo trạng thái duyệt. Để lại cho
-ADR-063 vì cổng yêu cầu cũng cần đúng thứ đó. Hiện approver vẫn đi tới task qua **thông báo**
-`ApprovalRequested`.
+- ✅ **Kéo–thả bằng CHUỘT chạy thật** — `left_click_drag` bắn được sự kiện tới `@dnd-kit`.
+  Nợ này treo từ 2026-08-03. ⚠️ Kéo bằng **bàn phím** và **cảm ứng** thì **vẫn chưa kiểm**.
+  ⚠️ Độ chính xác của cú thả không tuyệt đối: một lần thẻ rơi sang cột kế bên. Khi kiểm tay,
+  **luôn xác nhận cột đích bằng ảnh chụp**, đừng tin là nó rơi đúng chỗ.
+- ✅ **7/7 bước ADR-062 ĐẠT.** Toast lần chạm cổng đầu là `info` trung tính (không đỏ) ·
+  task không di chuyển · 1/2 rồi 2/2 lượt ký · kéo qua được · kéo ra kéo lại sinh yêu cầu
+  **MỚI** với "Lịch sử duyệt" giữ nguyên hai chữ ký cũ (nghiệm thu `ConsumedAt`) · task
+  không có cổng thì khối duyệt **ẩn hoàn toàn** · project chưa khai luật thì không đổi gì.
+- ✅ **5/5 mục ADR-059/060 ĐẠT.** Chip Select đổi đúng màu đã cấu hình (`#DC2626`) · ô Date
+  gõ 15/09 lưu `2026-09-15T00:00:00Z` **không lệch** dù máy ở UTC+7 · khối trường tự ẩn ·
+  chip loại trên thẻ Kanban · ô chọn loại tự ẩn khi project chỉ có một loại.
+- ⬜ **`docker compose up` đầy đủ vẫn chưa chạy được trên máy dev** (SQL Server không có ảnh
+  arm64; cần bật Rosetta). Ảnh API đã kiểm đầu-cuối, CI có job build + khởi động thật.
 
-⚠️ **Test integration trên máy dev cần `PMS_TEST_DB`** — mặc định trỏ `localhost,1433` +
-`sa`, máy này không phải vậy. Lệnh dựng biến đã ghi ở **RUNBOOK §5**. Triệu chứng nếu quên
-trông **hệt** lỗi cascade của ADR-059 (mọi test đỏ trong vài chục ms) nhưng nguyên nhân
-khác hẳn — đọc thông điệp, đừng đoán theo tiền lệ.
+### 🪤 Bốn lỗi CÓ SẴN mà việc bấm tay đã lộ ra — đọc trước khi tin bất cứ ✅ nào
 
-### 🔴 Quyết định CHẶN của ADR-063 — chốt TRƯỚC khi gõ code
+Cả bốn đều **build sạch, test xanh, tài liệu ghi ✅** — đúng lớp lỗi §0 nguyên tắc 3 đặt tên.
+Chúng sống sót vì **thứ cần kiểm chứng chưa có ai gọi tới**.
 
-Bản chất của một cổng yêu cầu là **người ngoài project gửi vào**, nhưng
-`ProjectAuthorizationService` hiện trả **404 cho người ngoài** (cố ý — 403 sẽ tiết lộ project
-tồn tại). Hai đường, chi tiết ở ADR-063 §15:
+1. 🔴 **MỌI bộ lọc Enum/Boolean ở màn Danh sách hỏng ngay lần đầu dùng** (có sẵn từ ADR-061).
+   `filter-builder.tsx` vẽ `value={value || options[0].value}` — **hiện** lựa chọn đầu nhưng
+   **không ghi** nó vào state. Người dùng thêm điều kiện "Độ ưu tiên bằng Cao nhất", nhìn
+   thấy đúng chữ đó, bấm chạy và nhận **400 *"thiếu giá trị so sánh"***. Lối thoát là mở ô
+   chọn rồi chọn lại đúng cái đang hiện — không ai đoán ra. Đã vá bằng `DefaultedSelect`.
+2. 🔴 **`ParseEnumByName` ở backend nói dối về tên của chính nó** (có sẵn từ ADR-061).
+   XML doc tuyên bố *"khớp theo TÊN, không theo số"*, nhưng `Enum.TryParse` của .NET **cũng
+   nhận chuỗi số**: `TryParse<Priority>("1")` → `High`, `IsDefined == true`. Một `SavedView`
+   lưu `"1"` vẫn chạy và sẽ **âm thầm đổi nghĩa** nếu ai chèn thành viên vào giữa enum.
+3. ⚠️ **Cùng một ternary HAI VẾ ở CẢ hai đầu** — danh sách giá trị hợp lệ (backend) và danh
+   sách lựa chọn (frontend) đều là `field === 'Priority' ? … : Category`. Đúng khi có hai
+   trường Enum, bắt đầu nói dối ở trường thứ ba. *Hai bản sao của một **lỗi** cũng trôi khỏi
+   nhau y như hai bản sao của một luật.*
+4. ⚠️ **Ghi chú "`velocity` và `timeline` thiếu `TAB_LABEL`" ở bản §000 cũ là SAI.** Cả hai
+   vốn có sẵn. Thủ phạm thật là **`backlog-insight`** — route có thật, không có nhãn, nên
+   breadcrumb của nó dừng ở tên dự án. Đã vá.
 
-- **(a)** thêm `RoleInProject.Requester` + lọc theo hàng `ReporterId == me` — rẻ, nhưng
-  **phân quyền theo HÀNG là khái niệm hệ thống chưa từng có**, phải kiểm **mọi** endpoint
-  project-scoped.
-- **(b)** portal riêng không cần membership — sạch hơn, đắt hơn nhiều.
+### 🔑 Bốn thứ của phiên ADR-063 cần biết trước khi làm tiếp
 
-⚠️ Kiểm `RoleInProject` đang lưu **int hay string** trước khi thêm giá trị enum — nếu int thì
-chỉ được **nối vào cuối**.
+1. **Quyết định chặn của ADR-063 đã bị LẬT có bằng chứng.** Bản 08-17 khuyến nghị
+   `RoleInProject.Requester`; phiên 08-25 chọn **đường (b′)** — nhóm route
+   `/request-portal/*` riêng, **authz LÀ chính vị từ truy vấn** `ReporterId == me`.
+   `RoleInProject` và `ProjectPermissions` **không đổi một dòng**. Lý do đầy đủ ở ADR-063;
+   bản cũ giữ trong `<details>`.
+2. 🔴 **`RequestPortalService` KHÔNG gọi `IProjectAuthorizationService`, và đó là thiết kế.**
+   Đây là **ngoại lệ có chủ đích thứ tư** của mô hình hai tầng (`Notification` ADR-023 ·
+   `ApproverMode` ADR-062 · `GetMyWorkAsync` ADR-053 · lớp này). **Đừng "sửa nó về cho nhất
+   quán"** — có test `Cong_yeu_cau_KHONG_mo_them_cua_nao_khac` canh 11 cửa.
+3. 🔴 **`IsRequired` nay có HAI điểm cưỡng chế khác nhau, cố ý.** Ở task nội bộ nó chỉ chặn
+   *xoá trắng* giá trị (ADR-060); ở cổng yêu cầu nó chặn *ngay lúc gửi* (ADR-063 G2).
+   ⚠️ **Đừng gộp lại** — có test `Diem_cuong_che_IsRequired_nay_KHONG_ap_cho_POST_tasks`
+   sẽ ĐỎ nếu ai đem phép kiểm về `TaskService`, và đó là điều đáng xảy ra.
+4. ⚠️ **Mọi DTO ở `Features/RequestPortal` đi tới một người có thể không thuộc project nào.**
+   Thêm một trường vào chúng là một **quyết định bảo mật**, không phải tiện ích hiển thị.
+   Test `Danh_muc_cong_KHONG_lo_noi_bo_project` khẳng định trên **JSON thô** — deserialize
+   vào record sẽ âm thầm bỏ qua trường thừa và test vẫn xanh.
 
-| ADR | Nội dung |
-|---|---|
-| **057** | Vá **12 test đỏ có sẵn trên `main`**; chốt "thêm thành viên là PHÂN CÔNG, không phải lời mời"; gỡ luồng chờ-chấp-nhận nội bộ; bù `.Designer.cs` cho `AddStoryPointsToTasks`; 7 test cho Story Points |
-| **058** | `SmtpEmailSender`; `App:FrontendBaseUrl` ValidateOnStart; tách `Migrate`/`Seed` khỏi `IsDevelopment()`; 8 `ActivityAction` cho nhóm xác thực + `IActivityLogger.LogAs`; Dockerfile + compose + CI 3 job |
-| **059** | **Trường tuỳ biến theo project** — 4 bảng, 7 endpoint, 18 test, frontend đầy đủ |
-| **060** | **Loại công việc theo project** — `WorkItemType` + bảng nối, 5 endpoint, 17 test, frontend đầy đủ. `IsRequired` có điểm cưỡng chế thật |
-
-> 📌 **Đọc `ARCHITECTURE.md` §0 "Định hướng sản phẩm" TRƯỚC KHI làm bất cứ gì.** Nó giải
-> thích vì sao lộ trình đi hướng này (người dùng đích là phòng quản lý hạ tầng, không chạy
-> Scrum) — thiếu ngữ cảnh đó thì mọi hạng mục dưới đây trông như "thêm tính năng cho giống
-> Jira", đúng cái đang cố tránh.
+📌 **Khoảng trống đã biết, ghi thẳng chứ không giấu:** *"CR chờ **TÔI** duyệt"* vẫn **chưa**
+phải một view lưu được. `SavedViewFilter` lưu **giá trị literal**, không có sentinel "người
+đang đăng nhập" — nên một view **chia sẻ** mang điều kiện đó sẽ nói dối mọi người trừ tác
+giả. `ApprovalState` giải quyết **hàng đợi của đội**, không giải quyết **hàng đợi cá nhân**.
+Lời giải cho phiên sau: cờ `SavedViewFilter.UseCurrentUser` áp cho trường `Reference` trỏ
+tới `Employee`, phân giải lúc chạy truy vấn.
 
 ---
 
-### Prompt để mở phiên kế tiếp (ADR-063)
+### Prompt để mở phiên kế tiếp (ADR-064)
 
 ```
 Đọc docs/ARCHITECTURE.md §0 (Định hướng sản phẩm), §1 (bảng tiến độ + lộ trình),
 phần "Chi tiết ADR-061 → ADR-064" ở cuối file, cùng
 docs/frontend-next-session.md §000.
 
-Làm ADR-063 — cổng yêu cầu (form tiếp nhận), hạng mục thứ hai của Giai đoạn 2.5:
+Làm ADR-064 — khuôn dự án, hạng mục CUỐI của Giai đoạn 2.5:
 
-1. GIẢI QUYẾT QUYẾT ĐỊNH CHẶN TRƯỚC KHI GÕ CODE: người gửi yêu cầu không phải
-   thành viên project, mà ProjectAuthorizationService hiện trả 404 cho người
-   ngoài. Đường (a) — RoleInProject.Requester + lọc theo hàng ReporterId == me —
-   là lần ĐẦU dự án có phân quyền theo HÀNG, nên phải kiểm MỌI endpoint
-   project-scoped, không chỉ endpoint mới.
-2. `WorkItemType.IsRequestable` + `RequestInstructions`. Không thêm khái niệm
-   mới — WorkItemType + WorkItemTypeFields + IsRequired (ADR-060) ĐÃ LÀ một
-   request type đầy đủ.
-3. Form tiếp nhận dựng thẳng từ lược đồ đã có; hàng đợi dùng lại SavedView
-   (ADR-061).
-4. Trả nốt lời hứa còn treo của ADR-061: thêm TaskField.ApprovalState vào
-   POST /tasks/query để "CR chờ tôi duyệt" thật sự là một view lưu được.
+1. `POST /projects` nhận thêm `templateKey`; áp khuôn = sinh WorkItemType +
+   FieldDefinition + BoardColumn + ApprovalPolicy TRONG MỘT TRANSACTION.
+2. 🔴 Khuôn seed bằng `HasData`, KHÔNG phải `DbSeeder` — PmsWebApplicationFactory
+   chạy EnsureDeleted + Migrate mà KHÔNG chạy seeder, nên khuôn nằm ở DbSeeder
+   thì không một integration test nào thấy nó (tiền lệ ADR-045).
+3. Ba khuôn khai HOÀN TOÀN bằng cấu hình, không một dòng code riêng:
+   Vận hành hạ tầng · Cấp quyền truy cập · Phát triển phần mềm.
+   🔑 Khuôn thứ ba là BẰNG CHỨNG cho câu hỏi đa phòng ban, không phải phần thêm
+   cho đủ bộ: đội Scrum và đội ITSM chạy trên cùng hệ thống, khác nhau CHỈ ở
+   dữ liệu cấu hình.
+4. Khuôn "Vận hành hạ tầng" và "Cấp quyền truy cập" phải bật sẵn
+   `IsRequestable` cho đúng loại việc (ADR-063) — nếu không thì cổng yêu cầu
+   vẫn là thứ phải tự đi bật, tức luật 1 Doctrine chưa được trả.
 
-Ràng buộc: cập nhật ADR-063 TRƯỚC khi gõ code. Migration qua `dotnet ef` (có
-Designer) — vẽ sơ đồ cascade ra trước. Test integration cho mọi nhánh quyền +
-ranh giới chéo project. Mutation test cho mọi guard mới. Chạy full test + drift
-check trước khi báo xong.
+Ràng buộc: cập nhật ADR-064 TRƯỚC khi gõ code. Migration qua `dotnet ef` (có
+Designer). Test integration cho từng khuôn: áp xong phải kiểm ĐỦ bốn loại đối
+tượng được sinh, và ranh giới chéo project. Mutation test cho mọi guard mới.
+Chạy full test + drift check trước khi báo xong.
+
+Có công cụ trình duyệt: sau khi xong, BẤM THỬ luồng tạo project bằng khuôn và
+xác nhận đội mới KHÔNG nhìn thấy một màn cấu hình trống nào (luật 1 Doctrine).
 ```
 
 ---
 
-### 🪤 Bảy cái bẫy đã trả giá — đừng đi lại
+### 🪤 Chín cái bẫy đã trả giá — đừng đi lại
 
-1. 🔴 **Cascade nhiều đường xuống một bảng nối → SQL Server từ chối tạo FK.** ADR-059 dính:
-   `FieldDefinitions` chạm `FieldValueOptions` qua hai lối. Triệu chứng rất dễ đọc nhầm —
-   **mọi test đỏ cùng lúc trong ~12ms**, tức hỏng ở tầng dựng host chứ không phải logic.
-   Vẽ sơ đồ cascade ra giấy trước khi chạy migration (ADR-060 làm vậy và tránh được).
-2. 🔴 **`AsNoTracking` + many-to-many = INSERT lại hàng đã có** →
-   `Violation of PRIMARY KEY constraint`. Đường GHI phải dùng bản đọc CÓ tracking.
-3. 🔴 **Đặt khoá ngoại mà quên navigation** → NRE ở mọi lần tạo, vì mapper đọc
-   `task.X.Name` ngay sau khi tạo entity trong bộ nhớ (ADR-060). Xem `MoveTo` làm mẫu:
-   đặt CẢ `BoardColumnId` lẫn `BoardColumn`.
-4. 🔴 **Trong một test có nhiều lần ghi, khẳng định mã trạng thái ở TỪNG lần.** Test
-   MultiSelect của ADR-059 chỉ kiểm lần PATCH thứ hai; lần đầu cũng 500 nhưng triệu chứng
-   hiện ra thành *"JSON không parse được"* — sai chỗ, sai cả nguyên nhân.
-5. ⚠️ **Cột FK bắt buộc thêm vào bảng có sẵn cần backfill, và backfill phải nằm ĐÚNG CHỖ**:
-   sau `CreateTable`, **trước** `AddForeignKey` (ADR-060).
+1. 🔴 **Cascade nhiều đường xuống một bảng nối → SQL Server từ chối tạo FK.** Triệu chứng dễ
+   đọc nhầm: **mọi test đỏ cùng lúc trong ~12ms**, tức hỏng ở tầng dựng host. Vẽ sơ đồ
+   cascade ra giấy trước khi chạy migration.
+2. 🔴 **`AsNoTracking` + many-to-many = INSERT lại hàng đã có** → `Violation of PRIMARY KEY`.
+   Đường GHI phải dùng bản đọc CÓ tracking.
+3. 🔴 **Đặt khoá ngoại mà quên navigation → NRE.** ⚠️ **ADR-063 gặp biến thể ở đường ĐỌC**:
+   `ListRequestableByProjectAsync` thiếu `.Include(t => t.Project)` trong khi `GetFormAsync`
+   đọc `types[0].Project.Name` → **500 ở mọi lần mở form, build vẫn sạch**. Bắt được nhờ gọi
+   HTTP thật bằng `curl`, không nhờ biên dịch.
+4. 🔴 **Trong một test có nhiều lần ghi, khẳng định mã trạng thái ở TỪNG lần.**
+   ⚠️ ADR-063 còn học thêm: **đừng đoán mã trạng thái**. `POST /approvals/{id}/decisions`
+   trả **200** (aggregate đã cập nhật), không phải 201 như một POST thường gợi ý.
+5. ⚠️ **Cột FK bắt buộc thêm vào bảng có sẵn cần backfill ĐÚNG CHỖ**: sau `CreateTable`,
+   **trước** `AddForeignKey`.
 6. ⚠️ **`dotnet ef migrations remove` xoá trắng snapshot nếu migration liền trước thiếu
-   `.Designer.cs`.** Đã vá ở ADR-057, nhưng luật còn nguyên: **mọi migration sinh bằng
-   `dotnet ef`**, không viết tay.
-7. ⚠️ **Thêm một khái niệm mới vào `TaskItem` là chạm vào ~6 test fixture.** ADR-060 phải
-   sửa `IntegrationTestBase.SeedTaskAsync`, `DbSeeder`, và ba fixture unit test. Dự trù
-   trước, đừng tưởng là lỗi.
-8. 🔴 **Tác dụng phụ phải `SaveChangesAsync` TRƯỚC khi ném ngoại lệ** (ADR-062). Cổng duyệt
-   tạo yêu cầu rồi mới ném 409; lưu sau khi ném thì hàng đó biến mất cùng ngoại lệ và người
-   dùng kéo mãi không ai nhận được thông báo nào.
-9. ⚠️ **`Restrict` bảo vệ dữ liệu nhưng chuyển gánh nặng sang MỌI đường xoá.** ADR-062 phải
-   dọn `ApprovalPolicy` ở **cả hai** `WorkItemTypeService.DeleteAsync` lẫn
-   `BoardColumnService.DeleteAsync`. Không đỏ lúc biên dịch, và nổ 500 ở một đường xoá bộ
-   test đã đi qua sẵn — trông y hệt một lỗi có sẵn chứ không phải lỗi vừa gây ra.
+   `.Designer.cs`.** Luật còn nguyên: **mọi migration sinh bằng `dotnet ef`**, không viết tay.
+7. ⚠️ **Thêm một khái niệm mới vào `TaskItem` là chạm vào ~6 test fixture.** Dự trù trước.
+8. 🔴 **Tác dụng phụ phải `SaveChangesAsync` TRƯỚC khi ném ngoại lệ** (ADR-062).
+9. ⚠️ **`Restrict` bảo vệ dữ liệu nhưng chuyển gánh nặng sang MỌI đường xoá.**
 
----
+### 🪤 Ba bẫy MỚI của phiên ADR-063 (công cụ, không phải code)
 
-### Nợ kiểm chứng
-
-- ✅ **Kéo–thả ĐÃ kiểm bằng tay và chạy đúng** — người dùng xác nhận 2026-08-12. Món nợ treo
-  qua 7 phiên nay đã trả.
-- ⬜ **Giao diện ADR-059/060 chưa bấm thử trên trình duyệt.** Backend có 35 integration test
-  đi qua HTTP thật; phần frontend mới chỉ typecheck + lint + `next build`. Chưa xác nhận
-  bằng mắt: chip Select đổi màu đúng, ô Date gửi đúng ngày, khối trường tự ẩn, chip loại
-  trên thẻ Kanban, ô chọn loại tự ẩn khi project chỉ có một loại.
-- ⬜ **Giao diện ADR-062 chưa bấm thử trên trình duyệt** (thêm 2026-08-23). Backend có 24
-  integration test đi qua HTTP thật **và** guard đã qua mutation test, nhưng phần frontend
-  mới chỉ typecheck + lint + test + `next build`. Bảy bước kiểm tay cần chạy:
-  1. `/projects/{id}/settings` → tạo luật: Change Request + cột "Đang xử lý" + 2 duyệt
-  2. Kéo một CR sang "Đang xử lý" → hiện **toast trung tính** *"đã gửi yêu cầu duyệt"* (KHÔNG
-     phải toast đỏ), task **không** di chuyển, khối duyệt xuất hiện ở chi tiết task
-  3. Đăng nhập approver 1 → duyệt → kéo lại → vẫn 409 "còn chờ 1/2"
-  4. Approver 2 duyệt → kéo → **đi qua**
-  5. Kéo ngược ra rồi kéo lại → **sinh yêu cầu duyệt MỚI**
-  6. Mở một task **không** thuộc loại có cổng → khối duyệt **ẩn hoàn toàn**, không hiện rỗng
-  7. Vào project chưa khai luật nào → không có gì đổi so với trước
-- ⬜ **`docker compose up` đầy đủ chưa chạy được trên máy dev** (SQL Server không có ảnh
-  arm64; cần bật Rosetta trong Docker Desktop). Ảnh API thì đã kiểm đầu-cuối, và CI có job
-  build + khởi động thật.
-
----
-
-### 🆕 Cập nhật 2026-08-17 — lộ trình đã đổi hình dạng sau khi phó phòng review
-
-> 🔴 **Đọc `ARCHITECTURE.md` §0 lại từ đầu** — nó đã đổi. Bảng lộ trình nay có **BỐN tầng**
-> chứ không phải ba, và có thêm mục **"Chẩn đoán: đủ danh từ, thiếu động từ"** cùng
-> **"Doctrine chống rối"** (5 luật). Bốn ADR mới (061 → 064) đã được **viết đầy đủ trước
-> khi gõ code**, nằm ở cuối §15.
-
-**Điều đã thay đổi:** hạng mục "Phê duyệt (CAB)" từng nằm ở đây như một mục của Giai đoạn 3
-(đặc thù hạ tầng). Nó đã được **tách lên thành một tầng riêng** — Giai đoạn 2.5, ADR-062 —
-vì nó không phải đặc thù hạ tầng mà là **bộ máy chung**: cùng một cơ chế phục vụ CAB của
-hạ tầng, luồng duyệt cấp quyền của mọi phòng ban, và bất kỳ quy trình nào sau này.
-
-> ✅ **Cập nhật 2026-08-23:** ADR-061 và ADR-062 đều đã xong. Bảng dưới giữ nguyên làm hồ sơ.
-
-| Giai đoạn | Hạng mục | ADR |
-|---|---|---|
-| **2 (đang làm)** | View lưu được + màn danh sách + **gom cấu hình về `/settings`** | **061** |
-| **2.5** | Phê duyệt · cổng yêu cầu · khuôn dự án + 3 quy trình mẫu | **062 · 063 · 064** |
-| 3 | SLA · việc lặp/bảo trì · view lịch · CMDB nhẹ · xuất kiểm toán | §14 |
-| 4 | Scheme dùng chung · danh bạ Đội · chuyển việc liên phòng · automation | §14 |
-
-**Ranh giới cắt nếu hết thời gian:** ADR-061 + ADR-062 là hai hạng mục có giá trị cao nhất
-trên mỗi đồng công sức. ADR-063/064 lùi về lộ trình mà không để lại gì dở dang.
-
-#### 🔴 Việc phải làm KÈM ADR-061, không để phiên sau
-
-Theo **luật 5 của Doctrine** (§0): `ManageColumnsDialog`, `ManageFieldsDialog`,
-`ManageWorkItemTypesDialog` **đều đang treo trên header trang Bảng**
-(`app/(app)/projects/[id]/board/page.tsx`), và **không có route settings nào tồn tại**.
-Giai đoạn 2.5 sẽ đổ thêm luật duyệt + khuôn lên đó → **sáu nút cấu hình trên một màn làm
-việc**.
-
-→ Gom về `app/(app)/projects/[id]/settings/`, gác bằng `canManage`. Rẻ khi làm bây giờ,
-đắt khi làm sau. Đây là thứ ngăn app rối **trước khi** app kịp rối.
-
-#### Ghi chú tái sử dụng cho màn danh sách (đã khảo sát 2026-08-17)
-
-- `listProjectTasks` (`lib/api/endpoints/tasks.ts`) **đã có**, đã phân trang, tới giờ chỉ
-  có một người dùng nhỏ là `useProjectTaskOptions`
-- `components/backlog/backlog-table.tsx` là **tiền lệ gần nhất** — đã có `TaskStatusChip`,
-  `PriorityLabel`, `AvatarStack`, `movingIds`, `renderMenu`
-- `components/projects/project-pagination.tsx` **đã generic** theo item type
-- `components/tasks/use-task-actions.tsx` là điểm cắm hành động, đã dùng chung board + backlog
-- Thêm một entry vào `PROJECT_SECTIONS` (`components/projects/project-tabs.tsx`) là nuôi
-  **cả tab bar lẫn sidebar** cùng lúc. ⚠️ Nhớ thêm `TAB_LABEL` ở `lib/hooks/use-breadcrumbs.ts`
-  — `velocity` và `timeline` hiện **đang thiếu**, sửa luôn thể
-
----
+1. ⚠️ **`npm run build` giẫm lên `.next` của dev server đang chạy** → dev trả **500** với
+   `ENOENT … _buildManifest.js.tmp`. Không phải lỗi code: dừng dev, `rm -rf .next`, chạy lại.
+2. ⚠️ **`dotnet run` mặc định chọn profile `http` (cổng 5046)**, còn frontend trỏ
+   `https://localhost:7264` → mọi request 404 im lặng. Phải `--launch-profile https`.
+3. ⚠️ **Toast (`position="top-right"`, không `offset`) chồng lên nút user menu + chuông** và
+   **chặn click** vào chúng khi đang hiện. Kiểm chứng bằng `document.elementFromPoint` tại
+   tâm nút — nó trả về chính toast. Lỗi nhỏ nhưng có thật với người dùng thật.
 
 ### Cố ý KHÔNG làm
 
-- **SignalR** — polling 60s đủ dùng (`lib/hooks/use-notifications.ts:26`), giữ ngoài phạm vi
-  đúng như §6 đã quyết
+- **SignalR** — polling 60s đủ dùng, giữ ngoài phạm vi đúng như §6 đã quyết
 - **Elasticsearch / search toàn cục** — giá trị thấp hơn hẳn Giai đoạn 3 với cùng công sức
-- **AD/LDAP SSO** — chỉ bắt buộc khi thật sự vào hạ tầng ngân hàng; hiện là Vercel + tunnel.
-  Ghi vào §14 kèm phân tích, đó đã là điểm cộng cho báo cáo
-- **Component/E2E test frontend** — ưu tiên kiểm tay có ghi chép, rẻ hơn dựng Playwright
+- **AD/LDAP SSO** — chỉ bắt buộc khi thật sự vào hạ tầng ngân hàng
+- **Component/E2E test frontend** — ưu tiên kiểm tay có ghi chép
+- **Bình luận trên yêu cầu của người gửi** (ADR-063) — `CommentService` đi qua
+  `ProjectAction.CreateComment` nên người ngoài nhận 404. Điểm cắm đúng là
+  `POST /request-portal/requests/{id}/comments` với cùng vị từ `ReporterId == me`; để lại vì
+  nó là một **quyết định sản phẩm riêng** (ai đọc được bình luận nội bộ của đội xử lý?),
+  không phải chi tiết cài đặt
 
+
+---
 
 ## 00. 🆕 Cập nhật 2026-08-06 — hồ sơ cá nhân · kỹ thuật DB · nhóm báo cáo
 

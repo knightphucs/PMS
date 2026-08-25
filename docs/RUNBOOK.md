@@ -141,17 +141,32 @@ kiểm chứng minh cả ba thứ ADR-058 sửa đều thật.
 ## 5. Test
 
 ```bash
-cd backend  && dotnet test                       # 638 test (249 unit + 389 integration)
+cd backend  && dotnet test                       # 673 test (261 unit + 412 integration)
 cd frontend && npm run typecheck && npm run lint && npm test    # 72 test
 ```
+
+⚠️ **`npm run build` giẫm lên `.next` của dev server đang chạy** — sau khi build, `npm run
+dev` trả **500** với `ENOENT … _buildManifest.js.tmp`. Không phải lỗi code: dừng dev server,
+`rm -rf .next`, chạy lại. Đã trả giá đúng một lần ở phiên ADR-063.
 
 ⚠️ Integration test cần **SQL Server thật**. Bộ test phụ thuộc `rowversion`, trigger, view,
 stored procedure (ADR-055) — provider khác sẽ xanh vì lý do sai.
 
-🔴 **Mặc định là `localhost,1433` + user `sa`, và máy dev hiện tại KHÔNG phải vậy** (nó chạy
-một named instance với user riêng). Triệu chứng nếu quên: **mọi test đỏ cùng lúc trong vài
-chục mili-giây** — trông hệt như lỗi cascade của ADR-059, nhưng thông điệp thật là
-`Login failed for user 'sa'`. *Đọc thông điệp, đừng đoán theo tiền lệ.*
+⚠️ **ĐÍNH CHÍNH 2026-08-25 — đoạn này từng nói sai về chính máy dev.**
+
+Nguyên văn cũ: *"Mặc định là `localhost,1433` + user `sa`, và máy dev hiện tại KHÔNG phải
+vậy (nó chạy một named instance với user riêng)."* Đã kiểm bằng lệnh: connection string
+trong `dotnet user-secrets` **đúng là** `Server=localhost,1433;User Id=sa`, và **412 test
+integration chạy xanh mà KHÔNG cần đặt `PMS_TEST_DB`**.
+
+> 📌 Đây là lần thứ hai một dòng "trạng thái theo máy" trong tài liệu sống lâu hơn sự thật
+> nó mô tả (lần đầu: cảnh báo nhánh ở `frontend-next-session.md` §0-cũ). **Kiểm bằng lệnh,
+> đừng tin câu chữ** — `nc -z localhost 1433` và `dotnet user-secrets list` mất hai giây.
+
+Phần dưới vẫn còn giá trị cho **máy khác**: nếu SQL Server của bạn không phải
+`localhost,1433` + `sa`, triệu chứng là **mọi test đỏ cùng lúc trong vài chục mili-giây** —
+trông hệt lỗi cascade của ADR-059, nhưng thông điệp thật là `Login failed for user 'sa'`.
+*Đọc thông điệp, đừng đoán theo tiền lệ.*
 
 Lối thoát là biến `PMS_TEST_DB`. Dựng nó từ chính connection string dev, chỉ đổi tên
 database để **không đụng DB `PMS` thật**:

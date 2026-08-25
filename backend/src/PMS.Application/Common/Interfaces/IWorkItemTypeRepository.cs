@@ -40,4 +40,29 @@ public interface IWorkItemTypeRepository : IRepository<WorkItemType>
     /// </summary>
     Task<IReadOnlyList<WorkItemTypeField>> ListFieldsOfTaskTypeAsync(
         Guid taskId, CancellationToken ct = default);
+
+    // ---------- Cổng yêu cầu (ADR-063) ----------
+
+    /// <summary>
+    /// Mọi project có ÍT NHẤT MỘT loại <c>IsRequestable</c>, kèm chính các loại đó.
+    ///
+    /// <para>
+    /// 🔴 <b>Không nhận <c>employeeId</c>, và đó là chủ đích.</b> Đây là truy vấn của cổng
+    /// yêu cầu: người gọi thường KHÔNG thuộc project nào trong kết quả (ADR-063 đường b′).
+    /// Lọc theo membership ở đây sẽ trả về đúng tập rỗng cho đúng những người mà cổng sinh
+    /// ra để phục vụ.
+    /// </para>
+    /// <para>
+    /// ⚠️ Vì vậy DTO dựng từ kết quả này phải HẸP — chỉ tên/key project và các loại
+    /// requestable. Xem <c>RequestPortalService</c> guard G4.
+    /// </para>
+    /// </summary>
+    Task<IReadOnlyList<WorkItemType>> ListRequestableAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Các loại <c>IsRequestable</c> của MỘT project, kèm <c>Fields</c> và
+    /// <c>FieldDefinition</c> (có cả <c>Options</c>) — đủ để dựng form tiếp nhận.
+    /// </summary>
+    Task<IReadOnlyList<WorkItemType>> ListRequestableByProjectAsync(
+        Guid projectId, CancellationToken ct = default);
 }

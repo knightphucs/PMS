@@ -35,15 +35,29 @@ public static class TaskFilterCatalog
         or TaskField.Reporter  => FilterValueKind.Reference,
 
         TaskField.Category
-        or TaskField.Priority  => FilterValueKind.Enum,
+        or TaskField.Priority
+        // ADR-063 — giá trị là TaskApprovalState. Đây là trường dựng sẵn đầu tiên KHÔNG
+        // phải một cột của bảng Tasks: nó là phép chiếu của bảng Approvals xuống task.
+        or TaskField.ApprovalState => FilterValueKind.Enum,
 
         TaskField.DueDate
         or TaskField.CreatedAt => FilterValueKind.Date,
 
         TaskField.StoryPoints  => FilterValueKind.Number,
 
-        // Không dùng `_ =>`: một thành viên enum mới thêm vào TaskField mà quên khai kiểu sẽ
-        // là lỗi BIÊN DỊCH ở đây thay vì một nhánh mặc định đoán sai lúc chạy.
+        // ⚠️ ĐÍNH CHÍNH 2026-08-25 (ADR-063). Hai dòng ở đây từng ghi: "Không dùng `_ =>`:
+        // một thành viên enum mới thêm vào TaskField mà quên khai kiểu sẽ là lỗi BIÊN DỊCH".
+        // Câu đó SAI, và chính file này bác bỏ nó — nhánh `_ =>` nằm ngay dưới, nên quên
+        // khai kiểu là một ArgumentOutOfRangeException lúc CHẠY (→ 500), không phải lúc
+        // biên dịch. Đã kiểm chứng: thêm TaskField.ApprovalState mà chưa khai kiểu vẫn
+        // `dotnet build` sạch.
+        //
+        // 📌 Giữ `_ =>` chứ không gỡ: bỏ nó đi thì C# cảnh báo CS8509 (không vét cạn) chứ
+        // vẫn KHÔNG phải lỗi, tức vẫn không mua được thứ câu comment cũ hứa — mà lại mất một
+        // thông điệp đọc được. Muốn có lỗi biên dịch thật thì phải là một test khoá danh mục
+        // như `SystemPermissionsCatalogTests` (ADR-045); `TaskFilterCatalogTests` nay có một
+        // phép kiểm chạy KindOf trên MỌI thành viên `Enum.GetValues<TaskField>()`, nên quên
+        // khai kiểu là một test ĐỎ — đó là chốt chặn thật, thay cho một lời hứa sai.
         _ => throw new ArgumentOutOfRangeException(nameof(field), field, "Trường chưa khai kiểu giá trị.")
     };
 
@@ -184,9 +198,34 @@ public static class TaskFilterCatalog
     /// việc coi số của một enum là ổn định: <c>Status</c> và <c>StatusCategory</c> lệch nhau
     /// khiến mọi task <c>Review</c> suýt bị đọc thành <c>Done</c>. Một bộ lọc đã lưu mang số
     /// sẽ âm thầm đổi nghĩa nếu enum thêm thành viên; mang tên thì hoặc đúng, hoặc báo lỗi.
+    ///
+    /// <para>
+    /// 🪤 <b>ĐÍNH CHÍNH 2026-08-25 (ADR-063) — đoạn trên đã ĐÚNG VỀ Ý ĐỊNH nhưng SAI VỀ CÀI
+    /// ĐẶT suốt từ ADR-061.</b> <c>Enum.TryParse</c> của .NET <b>cũng nhận chuỗi SỐ</b>:
+    /// <c>TryParse&lt;Priority&gt;("1")</c> trả về <c>High</c> với <c>IsDefined == true</c>
+    /// (đã kiểm chứng bằng chương trình dò, không phải suy đoán). Nghĩa là một bộ lọc lưu
+    /// <c>"1"</c> vẫn chạy, và nó chính là kịch bản "âm thầm đổi nghĩa" mà đoạn trên tuyên
+    /// bố đã chặn — hàm tên <c>ParseEnumByName</c> mà lại nhận cả số.
+    /// </para>
+    /// <para>
+    /// Đây là lần thứ chín dự án gặp hình dạng lỗi đã đặt tên ở §0 nguyên tắc 3: <i>build
+    /// sạch, test xanh, tài liệu ghi ✅ vẫn có thể là ba lời khai sai cùng lúc.</i> Thứ cần
+    /// kiểm chứng — "gõ số vào thì sao?" — chưa có test nào chạm tới. Nay chặn tường minh ở
+    /// dưới, và <c>TaskFilterCatalogTests</c> canh cho cả ba trường Enum.
+    /// </para>
     /// </summary>
     private static int ParseEnumByName(TaskField field, string value, string label)
     {
+        // 🔴 Chặn TRƯỚC khi TryParse chạm vào. Không có dòng này thì cả hàm nói dối về tên
+        // của chính nó — xem đính chính ở phần tóm tắt bên trên.
+        //
+        // Kiểm "toàn chữ số" chứ không TryParse ra int: dấu âm và khoảng trắng cũng phải rơi
+        // vào nhánh báo lỗi kèm danh sách giá trị hợp lệ, chứ không im lặng đi tiếp.
+        if (value.All(c => char.IsAsciiDigit(c) || c is '-' or '+'))
+            throw new BusinessRuleException(
+                $"Giá trị của trường '{label}' phải là TÊN của một giá trị hợp lệ, không phải số. " +
+                $"Nhận: {AllowedNamesOf(field)}.");
+
         switch (field)
         {
             case TaskField.Priority when Enum.TryParse<Priority>(value, ignoreCase: true, out var p)
@@ -197,13 +236,40 @@ public static class TaskFilterCatalog
                                          && Enum.IsDefined(c):
                 return (int)c;
 
-            default:
-                var allowed = field == TaskField.Priority
-                    ? string.Join(", ", Enum.GetNames<Priority>())
-                    : string.Join(", ", Enum.GetNames<StatusCategory>());
+            case TaskField.ApprovalState when Enum.TryParse<TaskApprovalState>(value, ignoreCase: true, out var a)
+                                              && Enum.IsDefined(a):
+                return (int)a;
 
+            default:
                 throw new BusinessRuleException(
-                    $"Giá trị '{value}' của trường '{label}' không hợp lệ. Nhận: {allowed}.");
+                    $"Giá trị '{value}' của trường '{label}' không hợp lệ. " +
+                    $"Nhận: {AllowedNamesOf(field)}.");
         }
     }
+
+    /// <summary>
+    /// Danh sách tên hợp lệ của một trường kiểu <see cref="FilterValueKind.Enum"/>.
+    ///
+    /// <para>
+    /// ⚠️ Đây từng là một ternary <b>HAI VẾ</b> nằm inline
+    /// (<c>field == Priority ? ... : StatusCategory</c>), tức mọi trường Enum không phải
+    /// <c>Priority</c> đều được báo là <i>"nhận: ToDo, InProgress, Done"</i>. Nó đúng khi
+    /// chỉ có hai trường Enum và bắt đầu nói dối ở trường thứ ba (ADR-063) — một lỗi không
+    /// làm hỏng chức năng nào, chỉ nói sai với người dùng về cách sửa lỗi của chính họ.
+    /// </para>
+    /// <para>
+    /// 🔴 Nhánh <c>_ =></c> ở đây ném <see cref="ArgumentOutOfRangeException"/> chứ không
+    /// trả một chuỗi mặc định: thêm một trường Enum mà quên khai danh sách phải là một lỗi
+    /// ồn ào, không phải một thông điệp sai lặng lẽ. <c>TaskFilterCatalogTests</c> vét cạn
+    /// mọi thành viên nên nó nổ ở tầng test, trước khi tới người dùng.
+    /// </para>
+    /// </summary>
+    private static string AllowedNamesOf(TaskField field) => field switch
+    {
+        TaskField.Priority      => string.Join(", ", Enum.GetNames<Priority>()),
+        TaskField.Category      => string.Join(", ", Enum.GetNames<StatusCategory>()),
+        TaskField.ApprovalState => string.Join(", ", Enum.GetNames<TaskApprovalState>()),
+        _ => throw new ArgumentOutOfRangeException(
+            nameof(field), field, "Trường Enum chưa khai danh sách giá trị hợp lệ.")
+    };
 }

@@ -179,7 +179,7 @@ công việc thật của người dùng**. Đó cũng là câu chuyện tốt h
 | Tầng | Là gì | Trạng thái |
 |---|---|---|
 | 1. **Nền tảng mở rộng** | Đội tự khai **trường** (ADR-059) và **loại công việc** (ADR-060) của họ; **view lưu được** (ADR-061) | 059 ✅ · 060 ✅ · **061 ✅** |
-| 2. **Bộ máy quy trình** 🆕 | **Phê duyệt** (ADR-062) · **cổng yêu cầu** (ADR-063) · **khuôn dự án** (ADR-064) | **062 ✅** · 063 ⬜ · 064 ⬜ |
+| 2. **Bộ máy quy trình** 🆕 | **Phê duyệt** (ADR-062) · **cổng yêu cầu** (ADR-063) · **khuôn dự án** (ADR-064) | **062 ✅** · **063 ✅** · 064 ⬜ |
 | 3. **Lớp đặc thù hạ tầng** | SLA · việc lặp/bảo trì · lịch · gắn tài sản · xuất kiểm toán | ⬜ Giai đoạn 3 |
 | 4. **Nền tảng đa phòng ban** 🆕 | Scheme dùng chung · danh bạ Đội/Phòng ban · chuyển việc liên phòng · automation | ⬜ Giai đoạn 4 |
 | — | **Sẵn sàng vận hành** — email thật · kiểm toán xác thực · Docker · CI (ADR-058) | ✅ (còn AD/SSO ở §14) |
@@ -349,6 +349,7 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | **View lưu được + màn danh sách (ADR-061)** | ✅ | Mới 2026-08-18. 3 bảng (`SavedViews`/`SavedViewFilters`/`SavedViewColumns`) + 6 endpoint + 27 test. Bộ lọc là **bảng quan hệ**, không phải JSON — xoá một trường tuỳ biến thì điều kiện trỏ vào nó biến mất bằng cascade của DB. Lọc theo trường tuỳ biến **so đúng kiểu** (nghiệm thu quyết định "cột có kiểu" của ADR-059). Kèm: gom ba dialog cấu hình về `/projects/{id}/settings` |
 | **Loại công việc theo project (ADR-060)** | ✅ | Mới 2026-08-12. `WorkItemType` + bảng nối `WorkItemTypeFields` (khoá ghép) + 5 endpoint + 17 test + frontend (chip trên thẻ/chi tiết, ô chọn ở form task, dialog quản lý). **`IsRequired` cuối cùng có điểm cưỡng chế thật** |
 | **Phê duyệt là dữ liệu (ADR-062)** | ✅ | Mới 2026-08-23. 4 bảng (`ApprovalPolicies`/`ApprovalPolicyApprovers`/`Approvals`/`ApprovalDecisions`) + 3 enum ĐÓNG + 7 endpoint + **24 integration test**. **ĐỘNG TỪ đầu tiên của hệ thống** — trước đó hệ thống có đủ danh từ mà không có cách nào diễn đạt "cái này phải có người ký duyệt". Yêu cầu duyệt **tự sinh** khi task chạm cổng (không có nút "Gửi duyệt"); `ConsumedAt` khiến task rời cột rồi quay lại phải duyệt LẠI; lời từ chối **vẫn chặn** tới khi có người huỷ tường minh. Guard đã qua **mutation test**: gỡ ra thì 13 test đỏ |
+| **Cổng yêu cầu (ADR-063)** | ✅ | Mới 2026-08-25. `WorkItemType.IsRequestable` + `RequestInstructions` · `TaskApprovalState` (enum ĐÓNG mới) · `TaskField.ApprovalState` · 5 endpoint `/request-portal/*` · **28 test mới** (23 integration + 5 unit khoá danh mục). **Quyết định chặn đảo có bằng chứng**: đường (b′) — authz LÀ vị từ truy vấn `ReporterId == me`, `RoleInProject` và `ProjectPermissions` **không đổi một dòng**. Năm guard đều qua **mutation test**. Trả nốt lời hứa ADR-061: hàng đợi duyệt nay là một `SavedView` lưu được |
 | Real-time (SignalR) | ⬜ | Có chủ đích — chỉ làm sau khi core CRUD ổn định (xem §6) |
 
 ### Lộ trình các phiên tiếp theo
@@ -386,7 +387,7 @@ các task và dự án. Tương tự phiên bản thu nhỏ của Jira/Trello.
 | ~~18~~ | ~~**Loại công việc theo project**~~ | ✅ 2026-08-12 | **ADR-060** — nền tảng mở rộng, phần 2. `IsRequired` có điểm cưỡng chế thật. 5 endpoint, 17 test, frontend đầy đủ |
 | ~~19~~ | ~~**View lưu được (`SavedView`)** + màn danh sách task~~ | ✅ 2026-08-18 | **ADR-061** — 3 bảng · 6 endpoint · **27 integration test** · frontend đầy đủ. Cả ba quyết định chốt trước khi gõ code. Làm kèm: **gom cấu hình về `/projects/{id}/settings/`** (luật 5 của Doctrine §0) |
 | ~~**20**~~ | ~~**Phê duyệt là dữ liệu**~~ | ✅ 2026-08-23 | **ADR-062** — 4 bảng · 3 enum ĐÓNG · 7 endpoint · **24 integration test**. Điểm cưỡng chế đúng MỘT chỗ trong `TaskStatusTransitionService`, mirror `EnsureNotBlockedAsync`, và **đã qua mutation test** (gỡ ra → 13 test đỏ). Ba quyết định bổ sung chốt trước khi gõ code: yêu cầu **tự sinh** khi bị chặn · `ConsumedAt` cho vòng đời duyệt-lại · từ chối **vẫn chặn** tới khi huỷ tường minh |
-| **21** | **Cổng yêu cầu (form tiếp nhận)** | ⬜ Giai đoạn 2.5 | **ADR-063** — `WorkItemType.IsRequestable`; form dựng thẳng từ `WorkItemTypeFields` + `IsRequired` (đã có từ ADR-060), hàng đợi dùng lại ADR-061. 🔴 Một quyết định chặn: người gửi yêu cầu **không phải thành viên project**, mà tầng 2 hiện trả 404 cho người ngoài |
+| ~~**21**~~ | ~~**Cổng yêu cầu (form tiếp nhận)**~~ | ✅ 2026-08-25 | **ADR-063** — `WorkItemType.IsRequestable`; form dựng thẳng từ `WorkItemTypeFields` + `IsRequired` (đã có từ ADR-060), hàng đợi dùng lại ADR-061. ✅ **Quyết định chặn đã chốt 2026-08-25: đường (b′)** — nhóm route `/request-portal/*`, authz là chính vị từ `ReporterId == me` (khuôn `GetMyWorkAsync`, ADR-053). `RoleInProject` và `ProjectPermissions` **không đổi một dòng** |
 | **22** | **Khuôn dự án + 3 quy trình mẫu** | ⬜ Giai đoạn 2.5 | **ADR-064** — tạo project chọn khuôn → sinh sẵn loại việc + trường + cột + luật duyệt. Ba khuôn (**Vận hành hạ tầng · Cấp quyền truy cập · Phát triển phần mềm**) khai **hoàn toàn bằng cấu hình, không một dòng code riêng** — đó là bằng chứng cho câu hỏi đa phòng ban |
 | **23** | **Lớp đặc thù hạ tầng** | ⬜ Giai đoạn 3 | SLA · việc lặp/bảo trì · view lịch · gắn tài sản · xuất kiểm toán. *(Phê duyệt CAB đã tách lên hạng mục 20 vì nó là bộ máy chung, không phải đặc thù hạ tầng.)* Chi tiết ở §14 |
 | **24** | **Nền tảng đa phòng ban** | ⬜ Giai đoạn 4 | Scheme dùng chung · danh bạ Đội/Phòng ban · chuyển việc liên phòng · automation. ⚠️ Bản 80% **rẻ hơn nhiều** là hạng mục 22 — chỉ làm scheme thật khi số project vượt ngưỡng. Chi tiết ở §14 |
@@ -1748,7 +1749,7 @@ CLI, xem `docs/uml/README.md`. Trước đây nguồn chỉ nằm trong thuộc 
 | **2026-08-05** | **(ADR-053)** `GET /tasks/my` — endpoint **xuyên dự án** đầu tiên, lọc "được gán cho tôi · chưa xong · hạn ≤ hôm nay" | Mọi endpoint task khác đều nằm dưới `/projects/{id}`, nên "sáng nay tôi cần làm gì" sẽ là N request rồi gộp ở client. Không nhận `employeeId` ở đâu cả — chi tiết bên dưới |
 | **2026-08-17** | **(ADR-061)** `SavedView` + `SavedViewFilter` là bảng **quan hệ**, không phải JSON blob; `FilterOperator` là danh mục ĐÓNG | Xoá một trường tuỳ biến thì cascade dọn được filter trỏ vào nó — JSON để lại filter trỏ vào hư không, đúng bài học `FieldOption` của ADR-059. Và đây là nơi khoản đầu tư "cột có kiểu" của ADR-059 được thu hồi — chi tiết bên dưới |
 | **2026-08-17** | **(ADR-062)** Phê duyệt là **DỮ LIỆU** (`ApprovalPolicy` do người dùng khai), cưỡng chế ở đúng MỘT chỗ trong `TaskStatusTransitionService` | Hệ thống **không có cách nào** diễn đạt "CR phải có người ký duyệt mới chuyển cột". KHÔNG phải khôi phục ma trận ADR-052 đã gỡ: ADR-052 gỡ vì hệ thống **đoán hộ**, ở đây người dùng **tự khai** — cùng cơ chế, ngược chiều quyền sở hữu — chi tiết bên dưới |
-| **2026-08-17** | **(ADR-063)** Cổng yêu cầu KHÔNG thêm khái niệm mới — `WorkItemType` + `IsRequired` (ADR-060) đã là một "request type"; chỉ thêm cờ `IsRequestable` | Thêm một khái niệm song song với "loại việc" là hai thứ cùng nghĩa phải giữ đồng bộ mãi mãi. 🔴 Còn MỘT quyết định chặn: người gửi yêu cầu không phải thành viên project, mà tầng 2 hiện trả 404 cho người ngoài — chi tiết bên dưới |
+| **2026-08-17**<br>**2026-08-25** | **(ADR-063)** Cổng yêu cầu KHÔNG thêm khái niệm mới — `WorkItemType` + `IsRequired` (ADR-060) đã là một "request type"; chỉ thêm cờ `IsRequestable`. 🆕 **2026-08-25 chốt quyết định chặn: đường (b′)** — nhóm route `/request-portal/*` riêng, authz **là chính vị từ truy vấn** `ReporterId == me` | Thêm một khái niệm song song với "loại việc" là hai thứ cùng nghĩa phải giữ đồng bộ mãi mãi. Về quyết định chặn: bản 08-17 khuyến nghị `RoleInProject.Requester`, và **khuyến nghị đó đã bị lật có bằng chứng** — `ProjectPermissions` trả `View => true` cho MỌI vai trò nên thêm vai trò mới là mở board cho người ngoài cho tới khi rà xong **70 lời gọi `AuthorizeAsync`**, trong khi khuôn "quyền nằm trong vị từ truy vấn" đã có tiền lệ chạy thật ở `GetMyWorkAsync` (ADR-053) — chi tiết bên dưới |
 | **2026-08-17** | **(ADR-064)** Khuôn dự án (bản sao lúc tạo) thay vì scheme dùng chung (trỏ tới); ba khuôn seed bằng `HasData` | Khuôn rẻ hơn hẳn và cho mỗi đội tự do đi lệch — thứ một phòng ban đa lĩnh vực cần hơn "sửa một chỗ đổi mọi nơi". `HasData` chứ không `DbSeeder` vì test factory không chạy seeder (tiền lệ ADR-045) — chi tiết bên dưới |
 
 > ⚠️ **Khoảng trống đã biết của bảng này:** ADR-054 → ADR-060 **chưa có dòng tóm tắt ở đây**
@@ -4551,7 +4552,7 @@ và **hàng thứ tư** ở `/projects/{id}/settings`.
 
 ---
 
-#### ADR-063 (2026-08-17) — Cổng yêu cầu: "loại việc" ĐÃ LÀ "request type"
+#### ADR-063 (2026-08-17, quyết định chặn chốt 2026-08-25) — Cổng yêu cầu: "loại việc" ĐÃ LÀ "request type"
 
 Không thêm khái niệm mới. `WorkItemType` + `WorkItemTypeFields` + `IsRequired` (ADR-060)
 đã là một request type đầy đủ; chỉ thiếu hai thứ:
@@ -4559,10 +4560,154 @@ Không thêm khái niệm mới. `WorkItemType` + `WorkItemTypeFields` + `IsRequ
 - `WorkItemType.IsRequestable` + `RequestInstructions`
 - Form tiếp nhận dựng thẳng từ lược đồ đã có · hàng đợi dùng lại `SavedView` (ADR-061)
 
-##### 🔴 Quyết định CHẶN — người gửi yêu cầu không phải thành viên project
+##### ✅ Quyết định CHẶN — ĐÃ CHỐT 2026-08-25: đường (b′), cổng yêu cầu HẸP
 
-`ProjectAuthorizationService` hiện trả **404 cho người ngoài project** (cố ý: 403 sẽ tiết
+`ProjectAuthorizationService.cs:34` trả **404 cho người ngoài project** (cố ý: 403 sẽ tiết
 lộ project đó tồn tại). Nhưng bản chất của một cổng yêu cầu là **người ngoài gửi vào**.
+
+> 🔴 **Mục này ĐẢO khuyến nghị của chính nó.** Bản soạn 2026-08-17 (giữ nguyên văn ở cuối
+> mục) khuyến nghị đường **(a)**. Khảo sát code ngày 2026-08-25 — *trước* khi gõ dòng đầu
+> tiên, đúng như ràng buộc của mục này — tìm ra hai dữ kiện mà bản 08-17 chưa có, và cả hai
+> đều đẩy cán cân về phía ngược lại. Ghi lại cả hai bản thay vì sửa đè: một khuyến nghị bị
+> lật **có bằng chứng** là hồ sơ đáng giữ, còn xoá nó đi thì phiên sau sẽ đề xuất lại (a).
+
+**Dữ kiện 1 — (a) đắt hơn con số bản 08-17 ước lượng.**
+`ProjectPermissions.IsAllowed` hiện trả `ProjectAction.View => true` **cho MỌI vai trò**.
+Thêm `RoleInProject.Requester` là **mở** board · backlog · comment · attachment · activity
+· saved view cho người ngoài, ngay tại lần build đầu tiên, và chỉ đóng lại khi rà hết
+**35 lời gọi `ProjectAction.View` trên 16 service** (tổng **70 lời gọi `AuthorizeAsync`**).
+Đây là hình dạng lỗi tệ nhất mà §0 nguyên tắc 3 mô tả: nó **build sạch và test xanh** —
+không test nào hiện có kiểm "Requester KHÔNG đọc được board", vì vai trò đó chưa từng tồn tại.
+
+**Dữ kiện 2 — (a) có một vòng luẩn quẩn mà bản 08-17 chưa nêu.**
+`Requester` là một hàng `ProjectMembers` thật (`AuthorizeAsync` đọc
+`GetRoleInProjectAsync`). Để **gửi** yêu cầu thì phải đã là thành viên; để là thành viên
+thì phải có người trong project thêm vào — **đúng cái rào mà "người ngoài gửi vào" sinh ra
+để phá**. Gỡ bằng cách tự tạo hàng membership lúc gửi thì endpoint gửi lại **không** được
+gác bởi chính cơ chế đang bàn, tức (a) rốt cuộc vẫn phải mở một đường authz thứ hai — chỉ
+là mở kèm theo cả một vai trò mới và 70 call site phải rà.
+
+**Dữ kiện 3 — cái giá của (b) thì dự án ĐÃ TRẢ RỒI, và đã ghi nhận là hợp lệ.**
+Bản 08-17 gán cho (b) cái giá *"một đường authz thứ hai chạy song song"*. Nhưng
+`TaskService.GetMyWorkAsync` (ADR-053) **không gọi `_authz` một lần nào**, và XML doc ở
+`PMS.Application/Features/Tasks/TaskService.cs:169` nói thẳng vì sao điều đó hợp lệ:
+
+> *"Không gọi `_authz`. Đây là endpoint duy nhất không có project trong URL, nên không có
+> gì để phân quyền theo project — và cũng không cần: bộ lọc đã là 'task được gán cho CHÍNH
+> người gọi'. **Quyền nằm trong chính điều kiện truy vấn, không phải trong một lượt kiểm
+> thêm.**"*
+
+Cổng yêu cầu đi **đúng khuôn đó**, chỉ đổi vị từ `AssigneeId == me` → `ReporterId == me`.
+Nó không phải một *ngoại lệ mới*; nó là **ca thứ hai của một khuôn đã có tiền lệ, có tài
+liệu, và đang chạy trong production**.
+
+##### Đường (b′) — hẹp hơn cả (b)
+
+| | Đường | Phán quyết |
+|---|---|---|
+| (a) | `RoleInProject.Requester` + lọc theo hàng | ❌ 70 call site phải rà · mở `View` cho người ngoài lúc build đầu · vòng luẩn quẩn membership |
+| (b) | Portal riêng, tầng authz thứ hai đầy đủ | ⚠️ đúng hướng nhưng rộng hơn mức cần |
+| **(b′)** | **Nhóm route `/request-portal/*`, authz LÀ vị từ truy vấn** | ✅ **CHỌN.** `RoleInProject` không đổi một dòng · `ProjectPermissions` không đổi một dòng · **0 call site phải rà** |
+
+Năm endpoint, không hơn:
+
+| # | Endpoint | Quyền |
+|---|---|---|
+| 1 | `GET /request-portal/projects` | Đã đăng nhập. Trả project có ≥1 loại `IsRequestable` |
+| 2 | `GET /request-portal/projects/{id}/form` | Đã đăng nhập. **404** nếu project không có loại requestable nào |
+| 3 | `POST /request-portal/projects/{id}/requests` | Đã đăng nhập. Loại phải `IsRequestable` |
+| 4 | `GET /request-portal/requests` | Vị từ `ReporterId == me`, xuyên dự án |
+| 5 | `GET /request-portal/requests/{id}` | `ReporterId == me`, ngược lại **404** |
+
+🔴 **`RequestPortalService` KHÔNG được gọi `IProjectAuthorizationService`** — và điều đó
+phải nằm trong XML doc của lớp, cùng giọng với `GetMyWorkAsync`. Dự án đã có **ba** ngoại
+lệ có chủ đích của mô hình hai tầng (`Notification` ADR-023 · `ApproverMode` ADR-062 ·
+`GetMyWorkAsync` ADR-053), và cả ba đều phải ghi rõ vì **phiên sau sẽ muốn "sửa nó về cho
+nhất quán"**. Đây là ngoại lệ thứ tư.
+
+##### Năm guard, mỗi cái phải qua MUTATION TEST
+
+| | Guard | Vì sao nó phải tồn tại |
+|---|---|---|
+| **G1** | Loại việc phải `IsRequestable` | Không có nó thì cờ `IsRequestable` **không chặn được gì** — luật 4 Doctrine §0, đúng bài học `Project.Status` (ADR-048) |
+| **G2** | `WorkItemTypeField.IsRequired` cưỡng chế **lúc gửi** | 🔴 Điểm cưỡng chế **MỚI**. `IsRequired` hiện chỉ chặn ở `CustomFieldService.cs:252`, tại khoảnh khắc *xoá* giá trị — **không** chặn lúc tạo task. ⚠️ **KHÔNG** đem phép kiểm này về `POST /tasks`: comment ở `CustomFieldService.cs:247-251` giải thích vì sao (biến cấu hình thành bức tường cho hàng trăm task cũ). Gửi yêu cầu là chỗ **duy nhất** mà "điền đủ" chính là điểm của thao tác |
+| **G3** | Yêu cầu của người khác → **404**, không 403 | Nhất quán với `ProjectAuthorizationService.cs:34` — 403 tiết lộ bản ghi tồn tại |
+| **G4** | DTO portal không rò rỉ nội bộ project | Chỉ tên/key project · loại requestable · trường của chúng · chỉ dẫn. **Không** thành viên, **không** cột, **không** task người khác. ⚠️ Test khẳng định trên **JSON thô** — deserialize vào record sẽ **âm thầm bỏ qua** trường thừa và test vẫn xanh (tiền lệ `GET /employees?search=`, ADR-048) |
+| **G5** | Task sinh ra: `ReporterId = me`, cột trái nhất, chưa gán ai | Dùng lại `BoardColumnId = null` của `CreateTaskRequest`. 🔴 Đặt **CẢ** `WorkItemTypeId` lẫn navigation `WorkItemType` — mapper đọc `task.X.Name` ngay sau khi tạo entity trong bộ nhớ (bẫy ADR-060) |
+
+Phép kiểm: gỡ từng guard → phải làm **≥1 test đỏ**. Tiền lệ bắt buộc: bộ lọc @mention
+(ADR-048), `IsRequired` (ADR-060), `EnsureApprovedAsync` (ADR-062 → 13 test đỏ).
+
+##### Trả nốt lời hứa còn treo của ADR-061 — `TaskField.ApprovalState`
+
+Ba chỗ sửa, không có thay đổi lược đồ (`SavedViewConfigurations.cs:87` khai
+`HasConversion<string>()` nên chèn thành viên enum ở đâu cũng an toàn):
+
+- `PMS.Domain/Enums/TaskField.cs` — thành viên mới + XML doc
+- `PMS.Application/Common/Filtering/TaskFilterCatalog.cs` — `KindOf` → `FilterValueKind.Enum`.
+  ⚠️ File này **cố ý không có nhánh `_ =>`**: quên khai kiểu là **lỗi biên dịch**, không
+  phải một nhánh mặc định đoán sai lúc chạy
+- `PMS.Infrastructure/.../TaskRepository.cs` — `t.Approvals.Any(a => a.ConsumedAt == null
+  && a.Status == X)`. `TaskItem.Approvals` đã có navigation (`TaskItem.cs:107`)
+
+📌 **Khoảng trống ghi thẳng, KHÔNG làm ở ADR-063:** *"CR chờ **TÔI** duyệt"* vẫn **chưa**
+phải một view lưu được. `SavedViewFilter` lưu **giá trị literal** — không có sentinel
+"người đang đăng nhập" (đã kiểm: `ICurrentUserService` trong `SavedViewService` chỉ phục vụ
+*quyền sở hữu view*, không đi vào bộ lọc). Một view **chia sẻ** lưu `Assignee = <guid của
+Phúc>` không phải "việc của tôi" — nó là "việc của Phúc", và người thứ hai mở nó sẽ không
+có cách nào biết. `ApprovalState` giải quyết **hàng đợi của đội** ("mọi CR đang chờ duyệt"),
+không giải quyết **hàng đợi cá nhân**. Hình dạng lời giải cho phiên sau: cờ
+`SavedViewFilter.UseCurrentUser` áp cho trường `Reference` trỏ tới `Employee`, phân giải
+lúc chạy truy vấn. Trong lúc chờ, approver vẫn nhận thông báo `ApprovalRequested`.
+
+##### ✅ Kết quả (2026-08-25)
+
+2 cột + 2 enum ĐÓNG mới + 5 endpoint + **28 test mới** (23 integration + 5 unit khoá danh
+mục). Tổng bộ test: **673** (261 unit + 412 integration) + 72 frontend, 0 đỏ. Drift check
+`Up()` rỗng. typecheck · lint · `next build` sạch.
+
+**Cả năm guard đã qua mutation test thật**, không phải được tin là đang chạy:
+
+| Gỡ ra | Test đỏ |
+|---|---|
+| G1 — kiểm `IsRequestable` lúc gửi | **2** |
+| G2 — cưỡng chế `IsRequired` lúc gửi | **1** |
+| G3 — vị từ `ReporterId == me` | **1** |
+| G4 — lọc `IsRequestable` ở danh mục cổng | **3** |
+| `ConsumedAt IS NULL` ở bộ lọc `ApprovalState` | **1** |
+
+**Nghiệm thu đường (b′) chạy qua HTTP thật:** một người đã gửi thành công một yêu cầu vào
+project — tức CÓ quan hệ thật với nó — mà **11/11 endpoint project-scoped vẫn trả 404**.
+Đó chính là điều đường (a) sẽ phá vỡ, và `RequestPortalTests.Cong_yeu_cau_KHONG_mo_them_cua_nao_khac`
+canh nó vĩnh viễn.
+
+Frontend: 3 route mới (`/requests`, `/requests/new`, `/requests/{id}`) + 4 file sửa
+(dialog loại việc có switch mở cổng · `filter-builder` có `ApprovalState` · sidebar tự ẩn ·
+breadcrumb). Mục sidebar **TỰ ẨN** khi chưa đội nào mở cổng (luật 3 Doctrine).
+
+🪤 **Bốn thứ phiên này gặp, ghi để khỏi mất thời gian lần sau:**
+
+1. 🔴 **`ParseEnumByName` nói dối về tên của chính nó — lỗi CÓ SẴN từ ADR-061.** XML doc ở
+   đó tuyên bố *"khớp theo TÊN, không theo số"*, nhưng `Enum.TryParse` của .NET **cũng nhận
+   chuỗi số**: `TryParse<Priority>("1")` trả `High` với `IsDefined == true` (đã kiểm bằng
+   chương trình dò, không suy đoán). Nghĩa là một `SavedView` lưu `Priority = "1"` vẫn chạy
+   hôm nay và sẽ **âm thầm đổi nghĩa** nếu ai chèn một thành viên vào giữa enum — đúng bẫy
+   remap ADR-052. Đã chặn tường minh + test vét cạn **mọi** trường Enum.
+2. ⚠️ **Cùng một lỗi ternary HAI VẾ ở CẢ hai đầu.** Danh sách giá trị hợp lệ trong thông
+   điệp 400 (`TaskFilterCatalog`) và danh sách lựa chọn ở ô lọc (`filter-builder.tsx`) đều
+   là `field === 'Priority' ? … : Category`. Đúng khi có hai trường Enum, bắt đầu nói dối ở
+   trường thứ ba. *Hai bản sao của một luật thì trôi khỏi nhau — hai bản sao của một **lỗi**
+   thì cũng vậy.* Cả hai đã chuyển sang `switch` có nhánh mặc định **ném**.
+3. 🔴 **Thiếu `.Include(t => t.Project)` ở đường ĐỌC = NRE 500 mà build vẫn sạch.**
+   `GetFormAsync` đọc `types[0].Project.Name`. Cùng lớp lỗi với bẫy "đặt khoá ngoại mà quên
+   navigation" (ADR-060), chỉ khác là ở chiều đọc. **Bắt được nhờ gọi HTTP thật, không phải
+   nhờ biên dịch** — đó là lý do smoke test bằng `curl` đáng giá trước khi viết test.
+4. ⚠️ **`<SelectValue placeholder=… />` trần của Base UI hiện GIÁ TRỊ THÔ** khi value là
+   một id — người dùng nhìn thấy một GUID thay vì tên dự án. Phải truyền hàm render
+   `{(current) => …}`. Bắt được bằng **mắt trên trình duyệt**, không bằng typecheck.
+
+<details>
+<summary>Bản soạn 2026-08-17 — khuyến nghị (a), đã bị lật (giữ làm hồ sơ)</summary>
 
 | | Đường | Giá |
 |---|---|---|
@@ -4571,9 +4716,15 @@ lộ project đó tồn tại). Nhưng bản chất của một cổng yêu cầ
 
 ⚠️ Kiểm `RoleInProject` đang lưu **int hay string** trước khi thêm giá trị enum — nếu int
 thì chỉ được **nối vào cuối**.
+*(Đã kiểm 2026-08-25: **int** — `ProjectMemberConfiguration.cs:14` không có
+`HasConversion<string>`. Với (b′) thì dữ kiện này thành vô hại vì enum không bị chạm tới.)*
 
 📌 Ghi nhận: nếu chọn (a) thì đây là lần đầu dự án có phân quyền theo hàng, và nó **mở
 đường sẵn** cho `Issue Security Level` vốn đã nằm ở §14 Nhóm B từ đầu.
+*(Với (b′), `ReporterId == me` vẫn là phân quyền theo hàng — chỉ khác là nó bị **nhốt trong
+một service** thay vì rải ra toàn bộ tầng 2. Cánh cửa tới `Issue Security Level` vẫn mở.)*
+
+</details>
 
 ---
 

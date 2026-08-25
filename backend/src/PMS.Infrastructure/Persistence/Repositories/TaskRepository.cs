@@ -222,6 +222,11 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
             TaskField.CreatedAt    => Order(query, t => t.CreatedAt, descending),
             // Assignee là quan hệ N–N: "sắp theo người đảm nhận" không có một khoá duy nhất
             // (một task có nhiều người), nên nó rơi về mặc định thay vì bịa ra một thứ tự.
+            //
+            // ApprovalState (ADR-063) rơi về đây vì cùng lý do ở dạng khác: nó là một
+            // `.Any()` trên bảng Approvals, không phải một cột — "sắp theo trạng thái duyệt"
+            // sẽ phải chọn hộ một thứ tự giữa Pending/Approved/Rejected mà không ai khai, và
+            // thứ tự đó sẽ đọc thành một mức độ ưu tiên hệ thống không hề có ý gán.
             _                      => Order(query, t => t.DueDate, descending)
         };
 
@@ -343,8 +348,64 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
                 _                                 => query.Where(t => t.CreatedAt <= f.Date)
             },
 
+            // ---------- Trạng thái duyệt (ADR-063) ----------
+            //
+            // 🔑 Trường dựng sẵn ĐẦU TIÊN không phải một cột của bảng Tasks — nó là phép
+            // chiếu của bảng Approvals xuống task, nên nhánh này là một `.Any()` lồng chứ
+            // không phải một phép so cột. EF dịch nó thành EXISTS; `TaskItem.Approvals` đã
+            // có navigation nên không cần Include gì thêm.
+            //
+            // 🔴 `ConsumedAt == null` là ĐIỀU KIỆN QUYẾT ĐỊNH, không phải chi tiết. Bảng
+            // Approvals là NHẬT KÝ: một task đi qua cùng một cổng nhiều lần trong đời, và
+            // mỗi lần để lại một hàng vĩnh viễn (ADR-062). Bỏ điều kiện này thì một task
+            // triển khai xong từ tháng trước vẫn hiện trong hàng đợi "chờ duyệt" mãi mãi —
+            // và đó là đúng cái vị từ mà guard `EnsureApprovedAsync` đang dùng, nên hai chỗ
+            // phải nhìn cùng một tập hàng, nếu không thì bộ lọc nói khác thứ cổng cưỡng chế.
+            TaskField.ApprovalState => ApplyApprovalState(
+                query, (TaskApprovalState)f.EnumValue!.Value, negate),
+
             _ => query
         };
+    }
+
+    /// <summary>
+    /// Dịch <see cref="TaskField.ApprovalState"/> — tách riêng vì <c>None</c> là một phủ
+    /// định (KHÔNG có hàng nào còn hiệu lực), còn ba giá trị kia là khẳng định.
+    ///
+    /// <para>
+    /// ⚠️ <c>NotEquals</c> ở đây <b>không</b> đọc thành "có một hàng còn hiệu lực mang trạng
+    /// thái khác". Nó đọc thành phủ định của cả mệnh đề — "trạng thái duyệt của thẻ này
+    /// khác X" — vì đó là thứ người dùng gõ vào ô lọc. Hai nghĩa lệch nhau đúng ở tập task
+    /// KHÔNG có hàng duyệt nào, tức phần lớn hệ thống; chọn nhầm là bộ lọc "khác Pending"
+    /// giấu mất mọi thẻ chưa từng chạm cổng.
+    /// </para>
+    /// </summary>
+    private static IQueryable<TaskItem> ApplyApprovalState(
+        IQueryable<TaskItem> query, TaskApprovalState state, bool negate)
+    {
+        // `Live` = hàng còn hiệu lực trên cổng, cùng vị từ với Approval.IsLive và với
+        // TaskStatusTransitionService.EnsureApprovedAsync. Viết inline chứ không gọi
+        // property đó: EF không dịch được một property tính toán trên entity.
+        if (state == TaskApprovalState.None)
+            return negate
+                ? query.Where(t => t.Approvals.Any(a => a.ConsumedAt == null))
+                : query.Where(t => !t.Approvals.Any(a => a.ConsumedAt == null));
+
+        var status = state switch
+        {
+            TaskApprovalState.Pending  => ApprovalStatus.Pending,
+            TaskApprovalState.Approved => ApprovalStatus.Approved,
+            TaskApprovalState.Rejected => ApprovalStatus.Rejected,
+            // ApprovalStatus.Cancelled cố ý KHÔNG có mặt đối ứng ở TaskApprovalState: một
+            // yêu cầu bị huỷ đã được tiêu thụ (ConsumedAt được đặt lúc huỷ), nên nó không
+            // còn là trạng thái duyệt "hiện thời" của task — task đó đọc thành None.
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(state), state, "Trạng thái duyệt chưa có nhánh dịch.")
+        };
+
+        return negate
+            ? query.Where(t => !t.Approvals.Any(a => a.ConsumedAt == null && a.Status == status))
+            : query.Where(t =>  t.Approvals.Any(a => a.ConsumedAt == null && a.Status == status));
     }
 
     /// <summary>
@@ -504,6 +565,62 @@ public class TaskRepository : Repository<TaskItem>, ITaskRepository
             // nhưng không giấu việc chỉ vì PM chưa đặt hạn.
             .OrderBy(t => t.DueDate == null).ThenBy(t => t.DueDate).ThenBy(t => t.Priority).ThenBy(t => t.Id)
             .ToListAsync(ct);
+
+    // ---------- Cổng yêu cầu (ADR-063) ----------
+
+    public async Task<PagedResult<TaskItem>> GetRequestsByReporterAsync(
+        Guid reporterId, int page, int pageSize, CancellationToken ct = default)
+    {
+        var query = DbSet
+            .AsNoTracking()
+            .Include(t => t.Project)
+            .Include(t => t.BoardColumn)
+            .Include(t => t.WorkItemType)
+            .Include(t => t.Approvals)
+            .AsSplitQuery()
+            // 🔑 Đây là toàn bộ phép phân quyền của endpoint này — xem XML doc ở interface.
+            .Where(t => t.ReporterId == reporterId && t.WorkItemType.IsRequestable);
+
+        var total = await query.CountAsync(ct);
+
+        // Mới nhất trước: người gửi mở màn này để xem yêu cầu VỪA gửi đã tới đâu, không
+        // phải để duyệt lại lịch sử. Tie-break bằng Id cho thứ tự ổn định giữa hai lần tải.
+        var items = await query
+            .OrderByDescending(t => t.CreatedAt).ThenBy(t => t.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return new PagedResult<TaskItem>
+        {
+            Items = items,
+            TotalCount = total,
+            Page = page,
+            PageSize = pageSize,
+        };
+    }
+
+    public async Task<TaskItem?> GetRequestForReporterAsync(
+        Guid taskId, Guid reporterId, CancellationToken ct = default)
+        => await DbSet
+            .AsNoTracking()
+            .Include(t => t.Project)
+            .Include(t => t.BoardColumn)
+            .Include(t => t.WorkItemType)
+                .ThenInclude(w => w.Fields.OrderBy(f => f.Order))
+                    .ThenInclude(f => f.FieldDefinition)
+                        .ThenInclude(d => d.Options.OrderBy(o => o.Order).ThenBy(o => o.Id))
+            .Include(t => t.FieldValues).ThenInclude(v => v.SelectedOptions)
+            .Include(t => t.Approvals)
+            .AsSplitQuery()
+            // 🔴 `ReporterId == reporterId` nằm TRONG cùng một vị từ với `Id == taskId`, chứ
+            // không phải một phép kiểm sau khi đã tải được hàng. Tách ra thành hai bước sẽ
+            // sinh cám dỗ ném ForbiddenException ở bước hai — và 403 tiết lộ rằng id đó có
+            // tồn tại, đúng thứ guard G3 sinh ra để chặn.
+            .FirstOrDefaultAsync(
+                t => t.Id == taskId
+                  && t.ReporterId == reporterId
+                  && t.WorkItemType.IsRequestable, ct);
 
     public async Task<IReadOnlyList<TaskItem>> GetUnfinishedBlockersAsync(
         Guid taskId, CancellationToken ct = default)
