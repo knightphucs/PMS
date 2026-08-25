@@ -13,7 +13,11 @@ public record WorkItemTypeResponse(
     int Order,
     IReadOnlyList<WorkItemTypeFieldResponse> Fields,
     // Số task đang mang loại này — UI dùng để bắt chọn loại đích trước khi xoá.
-    int TaskCount);
+    int TaskCount,
+    // Cổng yêu cầu (ADR-063). Đây là bề mặt CẤU HÌNH nên hai trường này ra vào tự do;
+    // bề mặt của người GỬI là DTO riêng ở Features/RequestPortal, hẹp hơn hẳn.
+    bool IsRequestable,
+    string? RequestInstructions);
 
 public record WorkItemTypeFieldRequest(Guid FieldDefinitionId, bool IsRequired);
 
@@ -22,10 +26,18 @@ public record WorkItemTypeFieldRequest(Guid FieldDefinitionId, bool IsRequired);
 /// muốn hiển thị. Bỏ trống = loại không có trường tuỳ biến nào.
 /// </summary>
 public record CreateWorkItemTypeRequest(
-    string Name, string Icon, string Color, IReadOnlyList<WorkItemTypeFieldRequest>? Fields = null);
+    string Name, string Icon, string Color, IReadOnlyList<WorkItemTypeFieldRequest>? Fields = null,
+    bool IsRequestable = false, string? RequestInstructions = null);
 
+/// <summary>
+/// ⚠️ <paramref name="IsRequestable"/> mặc định <c>false</c>, tức một client cũ không gửi
+/// trường này sẽ <b>TẮT</b> cổng của loại đang bật. Đúng ngữ nghĩa PUT (ghi đè toàn phần,
+/// cùng khuôn <c>PUT /tasks/{id}</c> ở ADR-044), và frontend luôn gửi trọn form — nhưng ghi
+/// ra đây vì nó là loại mặc định biến một request thiếu sót thành một thay đổi im lặng.
+/// </summary>
 public record UpdateWorkItemTypeRequest(
-    string Name, string Icon, string Color, IReadOnlyList<WorkItemTypeFieldRequest>? Fields = null);
+    string Name, string Icon, string Color, IReadOnlyList<WorkItemTypeFieldRequest>? Fields = null,
+    bool IsRequestable = false, string? RequestInstructions = null);
 
 public record ReorderWorkItemTypesRequest(IReadOnlyList<Guid> TypeIds);
 

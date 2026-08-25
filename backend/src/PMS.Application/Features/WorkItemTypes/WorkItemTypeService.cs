@@ -77,6 +77,8 @@ public class WorkItemTypeService : IWorkItemTypeService
             Icon = request.Icon.Trim(),
             Color = request.Color.Trim(),
             Order = existing.Count == 0 ? 0 : existing.Max(t => t.Order) + 1,
+            IsRequestable = request.IsRequestable,
+            RequestInstructions = NormalizeInstructions(request.RequestInstructions),
         };
 
         await ApplyFieldsAsync(type, projectId, request.Fields, ct);
@@ -108,6 +110,8 @@ public class WorkItemTypeService : IWorkItemTypeService
         type.Name = name;
         type.Icon = request.Icon.Trim();
         type.Color = request.Color.Trim();
+        type.IsRequestable = request.IsRequestable;
+        type.RequestInstructions = NormalizeInstructions(request.RequestInstructions);
 
         await ApplyFieldsAsync(type, type.ProjectId, request.Fields, ct);
 
@@ -256,6 +260,15 @@ public class WorkItemTypeService : IWorkItemTypeService
         return type;
     }
 
+    /// <summary>
+    /// Chỉ dẫn rỗng/toàn khoảng trắng lưu thành <c>null</c> — cùng khuôn
+    /// <c>TaskService.Normalize</c>. Cần thiết ở đây vì frontend gửi <c>""</c> khi người
+    /// dùng xoá trắng ô, mà <c>""</c> và <c>null</c> cùng nghĩa "không có chỉ dẫn" sẽ bắt
+    /// màn form phải kiểm cả hai (luật 3 Doctrine: khối chỉ dẫn phải TỰ ẨN).
+    /// </summary>
+    private static string? NormalizeInstructions(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
     private static WorkItemTypeResponse ToResponse(WorkItemType type, int taskCount)
         => new(type.Id, type.ProjectId, type.Name, type.Icon, type.Color, type.Order,
                type.Fields
@@ -266,5 +279,7 @@ public class WorkItemTypeService : IWorkItemTypeService
                        f.IsRequired,
                        f.Order))
                    .ToList(),
-               taskCount);
+               taskCount,
+               type.IsRequestable,
+               type.RequestInstructions);
 }

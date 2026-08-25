@@ -61,4 +61,34 @@ public class WorkItemTypeRepository : Repository<WorkItemType>, IWorkItemTypeRep
                 .Contains(f.WorkItemTypeId))
             .OrderBy(f => f.Order)
             .ToListAsync(ct);
+
+    // ---------- Cổng yêu cầu (ADR-063) ----------
+
+    public async Task<IReadOnlyList<WorkItemType>> ListRequestableAsync(CancellationToken ct = default)
+        => await DbSet
+            .AsNoTracking()
+            // HasQueryFilter trên WorkItemType đã loại project xoá mềm — không lặp lại ở đây,
+            // và cũng không được bỏ nó đi: cổng yêu cầu mà chào mời một project đã xoá thì
+            // người gửi điền xong cả form mới nhận 404.
+            .Include(t => t.Project)
+            .Where(t => t.IsRequestable)
+            .OrderBy(t => t.Project.Name).ThenBy(t => t.Order).ThenBy(t => t.Id)
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<WorkItemType>> ListRequestableByProjectAsync(
+        Guid projectId, CancellationToken ct = default)
+        => await DbSet
+            .AsNoTracking()
+            // 🔴 Project BẮT BUỘC: GetFormAsync đọc `types[0].Project.Name` để dựng tiêu đề
+            // form. Thiếu Include ở đây là NRE → 500 ở MỌI lần mở form, và build vẫn sạch.
+            // Đã trả giá đúng một lần trong phiên ADR-063 — cùng lớp lỗi với bẫy "đặt khoá
+            // ngoại mà quên navigation" (ADR-060), chỉ khác là ở đường ĐỌC thay vì đường GHI.
+            .Include(t => t.Project)
+            .Include(t => t.Fields.OrderBy(f => f.Order))
+                .ThenInclude(f => f.FieldDefinition)
+                    .ThenInclude(d => d.Options.OrderBy(o => o.Order).ThenBy(o => o.Id))
+            .AsSplitQuery()
+            .Where(t => t.ProjectId == projectId && t.IsRequestable)
+            .OrderBy(t => t.Order).ThenBy(t => t.Id)
+            .ToListAsync(ct);
 }

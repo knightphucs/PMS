@@ -69,5 +69,18 @@ public enum ActivityAction
     ApprovalApproved,
 
     /// <summary>Một lá phiếu chống — kèm lý do trong phần mô tả.</summary>
-    ApprovalRejected
+    ApprovalRejected,
+
+    // ---------- Cổng yêu cầu (ADR-063, 2026-08-25) ----------
+
+    /// <summary>
+    /// Một yêu cầu được gửi vào project qua cổng tiếp nhận.
+    ///
+    /// <para>
+    /// 📌 Ghi ở EntityType = "TaskItem" như nhóm trên, nhưng nó là dòng ĐẦU TIÊN trong lịch
+    /// sử của task đó — và là dòng duy nhất trong hệ thống có tác giả nằm NGOÀI project.
+    /// Đó chính là thứ một lần xuất kiểm toán cần đọc được (§14, Giai đoạn 3).
+    /// </para>
+    /// </summary>
+    RequestSubmitted
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { PlusIcon, XIcon } from 'lucide-react';
+import { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +22,7 @@ import {
   CATEGORY_VALUES,
   FILTER_OPERATOR_LABEL,
   PRIORITY_VALUES,
+  TASK_APPROVAL_STATE_LABEL,
   TASK_FIELD_LABEL,
   isUnaryOperator,
   kindOfFieldType,
@@ -29,6 +31,7 @@ import {
   type FilterOperator,
   type FilterValueKind,
   type SavedViewFilterDto,
+  type TaskApprovalState,
   type TaskField,
 } from '@/types/saved-view';
 
@@ -61,6 +64,9 @@ const BUILT_IN_FIELDS: TaskField[] = [
   'DueDate',
   'StoryPoints',
   'CreatedAt',
+  // Trạng thái duyệt (ADR-063) — thứ biến "hàng đợi chờ ký" thành một view LƯU ĐƯỢC, tức
+  // trả nốt lời hứa của ADR-061. Đặt cuối vì nó chỉ có nghĩa với project đã khai luật duyệt.
+  'ApprovalState',
 ];
 
 function encodeField(filter: SavedViewFilterDto): string {
@@ -303,8 +309,8 @@ function FilterValueInput({
 
   if (kind === 'Boolean')
     return (
-      <SimpleSelect
-        value={value || 'true'}
+      <DefaultedSelect
+        value={value}
         onChange={onChange}
         label="Giá trị so sánh"
         options={[
@@ -316,15 +322,29 @@ function FilterValueInput({
 
   if (kind === 'Enum') {
     // Gửi TÊN chứ không phải số — backend khớp theo tên vì số của một enum không ổn định
-    // qua các phiên bản (bài học ADR-052).
+    // qua các phiên bản (bài học ADR-052), và nay còn từ chối thẳng chuỗi toàn chữ số.
+    //
+    // ⚠️ Đây từng là một ternary HAI VẾ (`field === 'Priority' ? ... : CATEGORY`), tức mọi
+    // trường Enum không phải Priority đều rơi về danh sách của Category. Nó đúng khi chỉ có
+    // hai trường Enum và bắt đầu nói dối ở trường thứ ba (ADR-063) — chuyển sang switch để
+    // trường Enum thứ tư không lặng lẽ thừa hưởng lựa chọn của trường khác.
+    //
+    // 📌 Backend có đúng một lỗi cùng hình dạng ở `TaskFilterCatalog.ParseEnumByName`, và
+    // cả hai được vá cùng phiên. Hai bản sao của một luật thì trôi khỏi nhau — nhưng hai
+    // bản sao của một *lỗi* thì cũng vậy.
     const values =
       filter.field === 'Priority'
         ? PRIORITY_VALUES.map((v) => ({ value: v, label: PRIORITY_LABEL[v] }))
-        : CATEGORY_VALUES.map((v) => ({ value: v, label: CATEGORY_LABEL[v] }));
+        : filter.field === 'ApprovalState'
+          ? APPROVAL_STATE_VALUES.map((v) => ({
+              value: v,
+              label: TASK_APPROVAL_STATE_LABEL[v],
+            }))
+          : CATEGORY_VALUES.map((v) => ({ value: v, label: CATEGORY_LABEL[v] }));
 
     return (
-      <SimpleSelect
-        value={value || values[0].value}
+      <DefaultedSelect
+        value={value}
         onChange={onChange}
         label="Giá trị so sánh"
         options={values}
@@ -356,6 +376,19 @@ const CATEGORY_LABEL: Record<string, string> = {
   InProgress: 'Đang làm',
   Done: 'Hoàn thành',
 };
+
+/**
+ * Bốn giá trị của `TaskApprovalState` (ADR-063), theo thứ tự người dùng cần nhất.
+ *
+ * `Pending` đứng đầu vì đó là câu hỏi thật của một hội đồng duyệt — *"còn gì chờ ký"*.
+ * `None` xuống cuối: nó đúng với đại đa số task, nên hiếm khi ai lọc theo nó.
+ */
+const APPROVAL_STATE_VALUES: readonly TaskApprovalState[] = [
+  'Pending',
+  'Approved',
+  'Rejected',
+  'None',
+];
 
 /**
  * Giá trị là một THAM CHIẾU — id của cột / loại việc / sprint / người / lựa chọn.
@@ -412,6 +445,53 @@ function ReferenceValueInput({
       onChange={onChange}
       label="Giá trị so sánh"
       options={options}
+    />
+  );
+}
+
+/**
+ * Ô chọn có giá trị mặc định **THẬT**, không phải một mặc định chỉ để nhìn.
+ *
+ * 🪤 **Lỗi CÓ SẴN từ ADR-061 mà file này từng mắc, ghi lại vì hình dạng của nó rất dễ lặp:**
+ * hai nhánh Enum và Boolean trước đây vẽ `value={value || options[0].value}` — tức **hiện**
+ * lựa chọn đầu tiên nhưng **không bao giờ ghi** nó vào state của bộ lọc. Kết quả: người dùng
+ * thêm một điều kiện "Độ ưu tiên bằng Cao nhất", nhìn thấy đúng chữ "Cao nhất", bấm chạy và
+ * nhận **400 — *"Điều kiện trên trường 'Priority' thiếu giá trị so sánh"***. Muốn thoát ra
+ * phải mở ô chọn rồi chọn lại đúng cái đang hiện sẵn, một thao tác không ai đoán ra.
+ *
+ * Nó sống sót qua ADR-061 vì **chưa ai bấm thử** — đúng lớp lỗi §0 nguyên tắc 3 đã đặt tên
+ * (*"build sạch, test xanh, tài liệu ghi ✅ có thể là ba lời khai sai cùng lúc"*), và lộ ra
+ * ở phiên ADR-063 chỉ vì cổng yêu cầu thêm một trường Enum thứ ba nên có người ngồi bấm.
+ *
+ * 🔴 **Luật rút ra:** một `value` hiển thị mà state không có là một lời nói dối với người
+ * dùng. Nếu UI cần một mặc định thì mặc định đó phải được **ghi**, không phải được **vẽ**.
+ */
+function DefaultedSelect({
+  value,
+  onChange,
+  options,
+  label,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  label: string;
+}) {
+  const fallback = options[0]?.value ?? '';
+
+  // Ghi mặc định vào state ngay khi ô xuất hiện với giá trị rỗng. Chạy lại khi `fallback`
+  // đổi (người dùng đổi trường → danh sách lựa chọn khác) — nếu không thì đổi từ "Độ ưu
+  // tiên" sang "Trạng thái duyệt" sẽ để lại giá trị `Highest` cho một trường không có nó.
+  useEffect(() => {
+    if (value === '' && fallback !== '') onChange(fallback);
+  }, [value, fallback, onChange]);
+
+  return (
+    <SimpleSelect
+      value={value || fallback}
+      onChange={onChange}
+      options={options}
+      label={label}
     />
   );
 }

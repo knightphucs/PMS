@@ -5,6 +5,7 @@ import {
   BellIcon,
   CheckSquareIcon,
   FolderKanbanIcon,
+  SendIcon,
   ShieldCheckIcon,
   type LucideIcon,
 } from 'lucide-react';
@@ -18,6 +19,7 @@ import {
   type SystemPermission,
 } from '@/lib/auth/system-permissions';
 import { useMyProjectRole } from '@/lib/hooks/use-my-project-role';
+import { useRequestPortals } from '@/lib/hooks/use-request-portal';
 import { useProjectOverview } from '@/lib/hooks/use-projects';
 import { canManageTasks } from '@/lib/tasks/permissions';
 import { cn } from '@/lib/utils';
@@ -30,6 +32,15 @@ interface NavItem {
   href: string;
   /** Chỉ hiện khi người dùng có quyền tầng 1 này (ADR-045). */
   permission?: SystemPermission;
+  /**
+   * Chỉ hiện khi tính năng đã thật sự được dùng ở đâu đó (luật 3 Doctrine, §0).
+   *
+   * 🔴 Khác `permission` ở CÂU HỎI nó trả lời: `permission` hỏi *"bạn được phép không"*,
+   * cờ này hỏi *"thứ này có tồn tại để mà bấm không"*. Gộp hai thứ sẽ khiến một người có
+   * đủ quyền vẫn bị ẩn mục vì chưa ai bật tính năng — hai lý do khác nhau cho cùng một
+   * kết quả là thứ không debug được từ giao diện.
+   */
+  featureKey?: 'request-portal';
 }
 
 /** Khu vực xếp vào nhóm "Quản lý" thay vì "Lập kế hoạch". */
@@ -56,6 +67,14 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       // mà không bắt chọn dự án trước (ADR-053).
       { label: 'Việc của tôi', icon: CheckSquareIcon, href: '/my-work' },
       { label: 'Dự án', icon: FolderKanbanIcon, href: '/projects' },
+      // Cổng yêu cầu (ADR-063). TỰ ẨN khi chưa đội nào mở cổng — luật 3 Doctrine: một mục
+      // dẫn tới màn hình rỗng trên mọi hệ thống chưa dùng tính năng là nhiễu thuần tuý.
+      {
+        label: 'Yêu cầu của tôi',
+        icon: SendIcon,
+        href: '/requests',
+        featureKey: 'request-portal',
+      },
     ],
   },
   {
@@ -108,16 +127,23 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 function GlobalNav({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
   const user = useAuthStore((s) => s.user);
 
+  // `staleTime` 5 phút ở hook này, nên sidebar không bắn request mỗi lần điều hướng.
+  // ⚠️ Trong lúc CHƯA tải xong, `data` là `undefined` → mục bị ẩn. Đó là lựa chọn đúng
+  // chiều: hiện rồi biến mất tệ hơn hẳn hiện muộn nửa giây.
+  const portals = useRequestPortals();
+  const hasRequestPortal = (portals.data?.length ?? 0) > 0;
+
   return (
     <nav aria-label="Điều hướng chính" className="flex flex-col gap-6 p-3">
       {NAV_GROUPS.map((group) => (
         <div key={group.title} className="grid gap-1">
           <p className={GROUP_TITLE}>{group.title}</p>
 
-          {group.items.map(({ label, icon: Icon, href, permission }) => {
+          {group.items.map(({ label, icon: Icon, href, permission, featureKey }) => {
             // Ẩn hẳn thay vì vô hiệu hóa: một mục xám không bấm được chỉ khiến người dùng
             // tự hỏi mình đang thiếu gì, mà câu trả lời thì họ không tự tra được.
             if (permission && !hasPermission(user, permission)) return null;
+            if (featureKey === 'request-portal' && !hasRequestPortal) return null;
 
             const active = pathname === href || pathname.startsWith(`${href}/`);
 
