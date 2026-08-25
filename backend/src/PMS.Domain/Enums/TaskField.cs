@@ -53,5 +53,24 @@ public enum TaskField
     StoryPoints,
 
     /// <summary>Ngày tạo — <see cref="FilterValueKind.Date"/>.</summary>
-    CreatedAt
+    CreatedAt,
+
+    /// <summary>
+    /// Trạng thái duyệt hiện thời của task (ADR-063) — <see cref="FilterValueKind.Enum"/>,
+    /// giá trị là một <see cref="TaskApprovalState"/>.
+    ///
+    /// <para>
+    /// 🔑 Đây là thứ trả nốt lời hứa của ADR-061 (<i>"hàng đợi của một quy trình chính là
+    /// một view lưu được"</i>). Trước nó, phê duyệt là cơ chế duy nhất trong hệ thống mà
+    /// người dùng <b>không lọc theo được</b> — approver chỉ tới được task qua chuông.
+    /// </para>
+    /// <para>
+    /// ⚠️ Đây là trường dựng sẵn ĐẦU TIÊN <b>không phải một cột của bảng Tasks</b>: nó là
+    /// phép chiếu của bảng <c>Approvals</c> (hàng có <c>ConsumedAt IS NULL</c>) xuống task.
+    /// Hệ quả bắt buộc nhớ: nhánh dịch của nó ở <c>TaskRepository</c> là một
+    /// <c>.Any(...)</c> lồng, và vì vậy <b>sắp xếp theo nó không có nghĩa</b> — nó rơi về
+    /// nhánh mặc định của <c>ApplyOrder</c>, đúng như <c>Assignee</c> đã làm.
+    /// </para>
+    /// </summary>
+    ApprovalState
 }

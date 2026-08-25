@@ -59,5 +59,22 @@ public enum NotificationType
     ApprovalApproved,
 
     /// <summary>Yêu cầu duyệt bị từ chối. Gửi cho người đã gửi yêu cầu.</summary>
-    ApprovalRejected
+    ApprovalRejected,
+
+    // ---------- Cổng yêu cầu (ADR-063, 2026-08-25) ----------
+    //
+    // 🔴 Đã thêm vào nhánh `Task` của Notification.RelatedEntityKind — cùng lý do và cùng
+    // cái bẫy như nhóm phê duyệt ngay bên trên. Trỏ tới TASK vì yêu cầu vừa gửi CHÍNH LÀ
+    // một task; PM mở nó ra là thấy đầy đủ trường người gửi đã điền.
+
+    /// <summary>
+    /// Có yêu cầu mới gửi vào project qua cổng tiếp nhận. Gửi cho PM của project.
+    ///
+    /// <para>
+    /// ⚠️ Người gửi KHÔNG phải thành viên project (ADR-063 đường b′), nên đây là thông báo
+    /// đầu tiên trong hệ thống mà <b>người gây ra</b> nó nằm ngoài project. Bộ lọc người
+    /// nhận vì vậy phải đọc từ `ProjectMembers` chứ không suy từ ngữ cảnh người gọi.
+    /// </para>
+    /// </summary>
+    RequestSubmitted
 }

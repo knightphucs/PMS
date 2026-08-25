@@ -60,7 +60,10 @@ public class Notification : BaseEntity
         // đó cũng là nơi người nhận cần tới để hành động (bấm Duyệt / xem lý do từ chối).
         or NotificationType.ApprovalRequested
         or NotificationType.ApprovalApproved
-        or NotificationType.ApprovalRejected   => RelatedEntityKind.Task,
+        or NotificationType.ApprovalRejected
+        // Cổng yêu cầu (ADR-063): yêu cầu vừa gửi CHÍNH LÀ một task, nên PM bấm chuông là
+        // tới thẳng nó — không cần một trang "chi tiết yêu cầu" thứ hai ở phía nội bộ.
+        or NotificationType.RequestSubmitted   => RelatedEntityKind.Task,
 
         _ => RelatedEntityKind.None
     };

@@ -301,7 +301,15 @@ public class CustomFieldService : ICustomFieldService
     /// không có trong danh sách của chính trường đang xem.
     /// </para>
     /// </summary>
-    private static List<Guid> ResolveOptionIds(
+    /// <summary>
+    /// ⚠️ <c>internal</c> chứ không <c>private</c> từ ADR-063: <c>RequestPortalService</c>
+    /// ghi giá trị trường trên đường tạo yêu cầu, và nó KHÔNG đi qua
+    /// <see cref="SetValuesAsync"/> được (hàm đó đòi <c>ProjectAction.UpdateTask</c>, còn
+    /// người gửi yêu cầu không phải thành viên project). Chép lại phép kiểm này sang đó sẽ
+    /// là hai nơi cùng dựng một luật — đúng lớp lỗi ADR-034 đã đặt tên, và nó hỏng im lặng
+    /// ở lần đầu ai sửa một trong hai.
+    /// </summary>
+    internal static List<Guid> ResolveOptionIds(
         FieldDefinition definition, IReadOnlyList<Guid>? requested)
     {
         if (requested is null || requested.Count == 0) return [];

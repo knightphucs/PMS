@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -263,6 +264,8 @@ function TypeFormDialog({
       isRequired: f.isRequired,
     })) ?? [],
   );
+  const [isRequestable, setIsRequestable] = useState(type?.isRequestable ?? false);
+  const [instructions, setInstructions] = useState(type?.requestInstructions ?? '');
   const [error, setError] = useState<string | null>(null);
 
   const isPending = create.isPending || update.isPending;
@@ -281,7 +284,16 @@ function TypeFormDialog({
 
   const submit = async () => {
     setError(null);
-    const body = { name: name.trim(), icon, color, fields: selected };
+    const body = {
+      name: name.trim(),
+      icon,
+      color,
+      fields: selected,
+      isRequestable,
+      // Chuỗi rỗng → null: hai giá trị cùng nghĩa "không có chỉ dẫn" mà khác biểu diễn thì
+      // form tiếp nhận phải kiểm cả hai để biết có hiện khối chỉ dẫn hay không.
+      requestInstructions: instructions.trim() === '' ? null : instructions.trim(),
+    };
 
     try {
       if (isEdit) await update.mutateAsync({ typeId: type.id, body });
@@ -399,6 +411,54 @@ function TypeFormDialog({
                 ⚠️ “Bắt buộc” chặn việc <strong>xoá trắng</strong> giá trị trên task thuộc
                 loại này. Task đã tạo từ trước mà đang để trống vẫn dùng bình thường — bật cờ
                 này không làm hỏng dữ liệu cũ.
+              </p>
+            ) : null}
+          </div>
+
+          {/* ---------- Cổng yêu cầu (ADR-063) ---------- */}
+          <div className="grid gap-2 rounded-md border p-3">
+            <label className="flex min-w-0 items-start gap-2">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4 shrink-0"
+                checked={isRequestable}
+                onChange={(e) => setIsRequestable(e.target.checked)}
+              />
+              <span className="grid min-w-0 gap-0.5">
+                <span className="text-sm font-medium">Nhận yêu cầu từ bên ngoài</span>
+                <span className="text-muted-foreground text-xs">
+                  Người <strong>không phải thành viên</strong> dự án gửi được loại việc này
+                  qua trang “Gửi yêu cầu”. Họ chỉ thấy form và yêu cầu của chính họ — không
+                  thấy bảng, backlog hay thành viên.
+                </span>
+              </span>
+            </label>
+
+            {/* Ô chỉ dẫn TỰ ẨN khi chưa bật cổng — luật 3 Doctrine (§0): không hiện một ô
+                mà giá trị của nó chưa có chỗ nào dùng tới. */}
+            {isRequestable ? (
+              <div className="grid gap-1.5 pl-6">
+                <Label htmlFor="type-instructions" className="text-xs">
+                  Chỉ dẫn hiện trên đầu form
+                </Label>
+                <Textarea
+                  id="type-instructions"
+                  rows={3}
+                  maxLength={2000}
+                  value={instructions}
+                  onChange={(e) => setInstructions(e.target.value)}
+                  placeholder="Ví dụ: Nêu rõ hệ thống ảnh hưởng. Yêu cầu khẩn xin gọi trực ban trước khi gửi."
+                />
+              </div>
+            ) : null}
+
+            {isRequestable && selected.some((f) => f.isRequired) ? (
+              // 🔴 Nói rõ vì sao "bắt buộc" ở đây MẠNH HƠN so với task nội bộ. Hai điểm
+              // cưỡng chế khác nhau trên cùng một cờ là thứ người dùng không thể tự suy ra.
+              <p className="text-muted-foreground pl-6 text-xs">
+                📌 Với yêu cầu gửi từ ngoài, trường bắt buộc <strong>chặn ngay lúc gửi</strong>
+                — người gửi không hoàn tất được nếu bỏ trống. Khác với task nội bộ, nơi cờ
+                này chỉ chặn việc xoá trắng giá trị đã có.
               </p>
             ) : null}
           </div>

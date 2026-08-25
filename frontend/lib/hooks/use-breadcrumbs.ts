@@ -21,6 +21,11 @@ const TAB_LABEL: Record<string, string> = {
   board: 'Bảng',
   list: 'Danh sách',
   backlog: 'Backlog',
+  // ⚠️ Thiếu từ ADR-056 tới 2026-08-25: route `backlog-insight` có thật nhưng không có
+  // nhãn, nên breadcrumb của nó dừng ở tên dự án — hỏng im lặng, và chỉ lộ ra khi ai đó
+  // đứng ở tab đó và nhìn lên. (Ghi chú cũ ở frontend-next-session.md đổ cho `velocity`
+  // và `timeline`; đã kiểm: cả hai vốn có sẵn, thủ phạm là mục này.)
+  'backlog-insight': 'Phân tích backlog',
   sprints: 'Sprint',
   members: 'Thành viên',
   statistics: 'Thống kê',
@@ -67,6 +72,16 @@ export function useBreadcrumbs(): Crumb[] {
   // Quan sát ghé cache của `TaskDetailContent` — `enabled: false` nên không phát request
   // nào. Khi dialog mở đè lên board, URL đã là `/tasks/{id}` nên breadcrumb đổi theo.
   const task = useTaskCached(projectId ?? '', taskId);
+
+  // Cổng yêu cầu (ADR-063) — route toàn cục, KHÔNG nằm dưới `/projects/{id}`.
+  // 🔴 Không có crumb dự án nào ở đây, và đó là chủ đích: người dùng màn này thường không
+  // thuộc project nào, nên một breadcrumb trỏ vào dự án sẽ là một liên kết dẫn tới 404.
+  if (segments[0] === 'requests') {
+    const crumbs: Crumb[] = [{ label: 'Yêu cầu của tôi', href: '/requests' }];
+    if (segments[1] === 'new') crumbs.push({ label: 'Gửi yêu cầu' });
+    else if (segments[1]) crumbs.push({ label: 'Chi tiết' });
+    return crumbs;
+  }
 
   if (segments[0] === 'admin') {
     const crumbs: Crumb[] = [{ label: 'Quản trị' }];

@@ -17,7 +17,19 @@ public class WorkItemTypeConfiguration : IEntityTypeConfiguration<WorkItemType>
         builder.Property(t => t.Color).IsRequired().HasMaxLength(7);
         builder.Property(t => t.Order).IsRequired();
 
+        // Cổng yêu cầu (ADR-063). Không cần backfill: `false` đúng cho mọi hàng có sẵn —
+        // trước ADR-063 không loại nào nhận yêu cầu từ ngoài, nên default chính là sự thật
+        // lịch sử chứ không phải một phỏng đoán.
+        builder.Property(t => t.IsRequestable).IsRequired().HasDefaultValue(false);
+        builder.Property(t => t.RequestInstructions).HasMaxLength(2000);
+
         builder.HasIndex(t => new { t.ProjectId, t.Order });
+
+        // Cổng yêu cầu hỏi đúng một câu ở tầng dữ liệu — "project nào có loại nhận yêu cầu"
+        // — và nó chạy trên MỌI lần mở /requests/new của MỌI người trong công ty, kể cả
+        // người không thuộc project nào. Lọc trước theo cờ rồi mới gom project.
+        builder.HasIndex(t => t.IsRequestable)
+               .HasFilter("[IsRequestable] = 1");
 
         // Hai loại trùng tên trong một project làm ô chọn "chuyển task sang loại nào" thành
         // một câu hỏi không trả lời được — y hệt lý do cột board có ràng buộc này.
