@@ -73,11 +73,13 @@ public static class DbSeeder
 
         var t5 = NewTask(project1, sprint2, binh, "Xây dựng ProjectController",
             Priority.High, dueOffset: 10);
+        Advance(t5, project1, Status.ToDo);
         t5.Labels.Add(lblFeature);
 
         // Task có Subtask — demo progress bar
         var t6 = NewTask(project1, sprint2, an, "Xây dựng TaskController",
             Priority.Highest, dueOffset: 12);
+        Advance(t6, project1, Status.ToDo);
         var sub1 = NewTask(project1, null, an, "Endpoint tạo Task", Priority.High, dueOffset: 8);
         var sub2 = NewTask(project1, null, an, "Endpoint gán nhân sự", Priority.High, dueOffset: 9);
         var sub3 = NewTask(project1, null, an, "Endpoint đổi trạng thái", Priority.Medium, dueOffset: 11);
@@ -85,12 +87,16 @@ public static class DbSeeder
         t6.AddSubtask(sub2);
         t6.AddSubtask(sub3);
         Advance(sub1, project1, Status.Done);      // 1/3 = 33.33%
+        Advance(sub2, project1, Status.ToDo);
+        Advance(sub3, project1, Status.ToDo);
 
         // Task ở Backlog (SprintId = null)
         var t7 = NewTask(project1, null, an, "Tích hợp SignalR real-time",
             Priority.Low, dueOffset: 45);
+        Advance(t7, project1, Status.ToDo);
         var t8 = NewTask(project1, null, an, "Sửa lỗi hiển thị ngày tháng",
             Priority.Medium, dueOffset: 30);
+        Advance(t8, project1, Status.ToDo);
         t8.Labels.Add(lblBug);
 
         // TaskLink: t5 bị chặn bởi t3 (t3 --Blocks--> t5)
@@ -130,6 +136,7 @@ public static class DbSeeder
         t9.Labels.Add(lblFrontend);
 
         var t10 = NewTask(project2, sprint3, binh, "Tối ưu SEO", Priority.Low, dueOffset: 6);
+        Advance(t10, project2, Status.ToDo);
         t9.AddAssignee(an, RoleInTask.Owner);
 
         // ---------- Project 3: đã hoàn thành ----------
